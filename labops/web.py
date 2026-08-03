@@ -29,7 +29,62 @@ def _counts(records: list[dict], key: str) -> dict[str, int]:
     return result
 
 
-def build_dashboard_state(workspace: str | Path) -> dict:
+def build_checkpoint_demo_state(artifacts_root: str | Path | None) -> dict:
+    """Return an allowlisted summary of the two checkpoint demo incidents."""
+    if artifacts_root is None:
+        return {"ready": False}
+    artifacts_root = Path(artifacts_root)
+    valid_root = artifacts_root / "DEMO-RCA-001"
+    unsafe_root = artifacts_root / "DEMO-RCA-002"
+    stability = _read_json(valid_root / "baseline" / "stability_report.json", {})
+    valid_state = _read_json(valid_root / "state.json", {})
+    valid_verification = _read_json(valid_root / "verification.json", {})
+    unsafe_state = _read_json(unsafe_root / "state.json", {})
+    unsafe_verification = _read_json(unsafe_root / "verification.json", {})
+    rollback = _read_json(unsafe_root / "runs" / "RUN-DEMO-UNSAFE-001" / "rollback.json", {})
+    ready = bool(stability and valid_state and valid_verification and unsafe_state and unsafe_verification)
+
+    def trace_status(path: Path) -> dict:
+        trace = TraceLog(path)
+        try:
+            records = trace.read()
+            ok, message = trace.verify_chain()
+        except (json.JSONDecodeError, OSError, ValueError) as exc:
+            return {"ok": False, "entries": 0, "message": str(exc)}
+        return {"ok": ok, "entries": len(records), "message": message}
+
+    return {
+        "ready": ready,
+        "baseline": {
+            "best_accuracy": stability.get("best_accuracy"),
+            "current_accuracy": stability.get("current_accuracy"),
+            "target_accuracy": stability.get("target_accuracy"),
+            "repeats": stability.get("repeats"),
+            "stable": bool(stability.get("stable", False)),
+            "passed": bool(stability.get("passed", False)),
+            "configured_checkpoint": stability.get("configured_checkpoint"),
+        },
+        "valid_case": {
+            "incident_id": "DEMO-RCA-001",
+            "state": valid_state.get("state"),
+            "decision": valid_verification.get("decision"),
+            "baseline_accuracy": valid_verification.get("baseline_accuracy"),
+            "candidate_accuracy": valid_verification.get("candidate_accuracy"),
+            "improvement": valid_verification.get("improvement"),
+            "trace": trace_status(valid_root / "trace.jsonl"),
+        },
+        "unsafe_case": {
+            "incident_id": "DEMO-RCA-002",
+            "state": unsafe_state.get("state"),
+            "decision": unsafe_verification.get("decision"),
+            "claimed_accuracy": unsafe_verification.get("claimed_accuracy"),
+            "rollback_ok": bool(rollback.get("metric_hash_restored", False)),
+            "trace": trace_status(unsafe_root / "trace.jsonl"),
+        },
+    }
+
+
+def build_dashboard_state(workspace: str | Path, checkpoint_workspace: str | Path | None = None) -> dict:
     """Build the allowlisted dashboard payload from generated demo artifacts."""
     workspace = Path(workspace)
     summary = _read_json(workspace / "demo" / "demo_summary.json", {})
@@ -142,6 +197,7 @@ def build_dashboard_state(workspace: str | Path) -> dict:
             },
             "unresolved_limitations": manifest.get("unresolved_limitations", []) if is_agentteams else [],
         },
+        "checkpoint_demo": build_checkpoint_demo_state(checkpoint_workspace),
         "trace": {
             "ok": trace_ok,
             "message": trace_message,
@@ -182,8 +238,9 @@ def run_bundled_demo(workspace: str | Path, project_root: str | Path) -> int:
     )
 
 
-def make_handler(workspace: str | Path):
+def make_handler(workspace: str | Path, checkpoint_workspace: str | Path | None = None):
     workspace = Path(workspace).resolve()
+    checkpoint_workspace = Path(checkpoint_workspace).resolve() if checkpoint_workspace else None
     dashboard_html = Path(__file__).with_name("dashboard.html")
 
     class DashboardHandler(BaseHTTPRequestHandler):
@@ -217,9 +274,9 @@ def make_handler(workspace: str | Path):
                     return
                 self._send(200, "text/html; charset=utf-8", body)
             elif path == "/api/status":
-                self._json(200, build_dashboard_state(workspace))
+                self._json(200, build_dashboard_state(workspace, checkpoint_workspace))
             elif path == "/healthz":
-                state = build_dashboard_state(workspace)
+                state = build_dashboard_state(workspace, checkpoint_workspace)
                 self._json(200 if state["ready"] else 503, {"ok": state["ready"], "service": "labops-guard"})
             else:
                 self._json(404, {"ok": False, "error": "not found"})
@@ -239,9 +296,9 @@ def make_handler(workspace: str | Path):
     return DashboardHandler
 
 
-def serve(workspace: str | Path, host: str = "127.0.0.1", port: int = 8787) -> None:
+def serve(workspace: str | Path, host: str = "127.0.0.1", port: int = 8787, checkpoint_workspace: str | Path | None = None) -> None:
     """Serve the dashboard until interrupted."""
-    server = ThreadingHTTPServer((host, port), make_handler(workspace))
+    server = ThreadingHTTPServer((host, port), make_handler(workspace, checkpoint_workspace))
     print(f"LabOps Guard dashboard: http://{host}:{port}")
     print(f"Workspace: {Path(workspace).resolve()}")
     try:

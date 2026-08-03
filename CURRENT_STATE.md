@@ -6,9 +6,10 @@
 
 ## 结论
 
-项目不是空仓库。现有实现已经完成一条安全、可审计的 Polar 证据缺口纵向切片，
-并真实跑通 AgentTeams、Matrix、MinIO、人工审批、独立验证和证据打包。但新的
-`DEMO-RCA-001` checkpoint 回退主 Demo 尚未实现，不能将旧演示等同于新计划完成。
+项目不是空仓库。现有 Polar 证据缺口纵向切片已完整保留，新的 checkpoint regression
+主 Demo 也已经跑通本地确定性闭环：合法 checkpoint 修复得到 `PASS / RESOLVED`，
+篡改 `metric.py` 得到 `POLICY_VIOLATION / ROLLED_BACK`。当前主要缺口是把六角色
+AgentTeams 编排接到这条新闭环，并完成参赛材料。
 
 ## 已实现
 
@@ -18,33 +19,32 @@
 - 安全门禁：默认 dry-run、危险动作模拟、禁止动作拒绝、路径边界、超时、审批拒绝和超时。
 - 事实边界：模拟执行只能得到 `DEMO_PASSED_NOT_RESOLVED`，不得伪造 `CLOSED`。
 - 展示：Docker 本地只读仪表盘，展示真实 AgentTeams 证据。
-- 测试：45 项标准库单元测试通过。
+- checkpoint regression：错误 last accuracy `0.7000`，best accuracy `0.98125`，连续 3 次稳定。
+- 正向案例 `DEMO-RCA-001`：沙箱内仅修正 checkpoint 选择，独立复算后 `PASS / RESOLVED`。
+- 对抗案例 `DEMO-RCA-002`：篡改 `metric.py` 被哈希策略识别，自动回滚后 `POLICY_VIOLATION / ROLLED_BACK`。
+- 8 个正式 JSON Schema、角色受限状态机、Experiment Planner、sandbox 快照/patch/rollback。
+- 统一入口：`python -m labops run-incident --incident <path>`。
+- 展示：Docker 仪表盘同屏显示旧 AgentTeams 记录与 checkpoint 双案例。
+- 测试：`polar` 54 项通过（2 项因无 PyTorch 跳过）；`d2l` 54 项全部通过。
 
 ## 部分实现
 
-- Evidence Collector 能处理白名单证据和缺口，但尚未针对 checkpoint、metric 哈希、Git commit 做专用提取。
-- RCA 有规则诊断器，但没有 best/last checkpoint 不一致规则。
-- Executor 有命令白名单、路径限制、dry-run 和超时，但没有完整 sandbox 副本、patch、Git 快照和 rollback。
-- Verifier 能阻止模拟结果闭环，但没有合法 checkpoint 修复和篡改 `metric.py` 的双案例。
 - AgentTeams 当前是 Manager + 4 个专业 Worker，缺少独立 Experiment Planner。
+- checkpoint 双案例目前由本地确定性编排器执行，尚未生成新一轮 AgentTeams/Matrix/MinIO 真实协作证据。
+- Postmortem 和案例记忆仍需产品化输出。
 
 ## 未实现
 
-- `DEMO-RCA-001` checkpoint regression Demo。
-- `CURRENT_STATE.md` 之前不存在；本文件为首次现场核验记录。
-- 8 个正式 JSON Schema。
-- `python -m labops run-incident` 统一入口。
-- Experiment Planner。
-- 完整沙箱快照与回滚。
-- `PASS` / `POLICY_VIOLATION` 两个端到端案例。
-- Postmortem 与案例记忆。
+- 新 checkpoint 案例的 1 Manager + 5 Worker AgentTeams 实跑。
+- Postmortem、案例记忆与复用检索。
 - 初赛 PPT、500 字简介、2—4 分钟视频和 Git tag。
 
 ## Git 状态
 
-- 正式 E 盘 `labops-guard` 目录当前不是独立 Git 仓库。
-- Codex 工作副本位于一个上层工作区 Git 仓库内，但项目文件尚未跟踪。
-- 在建立 checkpoint Demo 基线并完成敏感文件检查后，应为正式项目初始化独立 Git。
+- 正式 E 盘项目已初始化独立 Git 仓库。
+- 当前分支：`codex/checkpoint-demo`。
+- checkpoint Demo 基线提交：`0b86398 feat: establish checkpoint regression LabOps Guard baseline`。
+- `artifacts/` 为本地生成证据，不纳入 Git；仪表盘通过只读挂载读取摘要。
 
 ## 环境核验
 
@@ -59,10 +59,8 @@
 
 ## 下一阶段最小修改清单
 
-1. 实现 CPU、离线、确定性的 checkpoint regression 合成 Demo。
-2. 连续运行三次，确保 best accuracy ≥ 0.88，错误 last checkpoint 稳定回退。
-3. 为新事故补齐 Schema、Evidence、RCA 和最小 Experiment Plan。
-4. 在 sandbox 中只修改 checkpoint 路径并重新评测。
-5. Verifier 同时验证合法修复和修改 metric 的非法修复。
-6. 最后将第六个角色 Experiment Planner 接入 AgentTeams。
-
+1. 将第六个角色 Experiment Planner 接入 AgentTeams 身份、任务和状态机。
+2. 让 AgentTeams 对 checkpoint 双案例真实 handoff，并输出 Matrix/MinIO 证据。
+3. 增加结构化 Postmortem 与案例记忆。
+4. 固化一键 Demo、讲解脚本与失败兜底方案。
+5. 产出初赛 PPT、500 字简介和 2—4 分钟演示视频脚本。

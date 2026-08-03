@@ -10,7 +10,8 @@ services:
       - /tmp:size=64m,mode=1777
     volumes:
       - "./demo/output-agentteams:/evidence:ro"
-    command: ["python", "-B", "-m", "labops", "web", "--workspace", "/evidence", "--host", "0.0.0.0", "--port", "8787"]
+      - "./artifacts:/checkpoint-artifacts:ro"
+    command: ["python", "-B", "-m", "labops", "web", "--workspace", "/evidence", "--checkpoint-workspace", "/checkpoint-artifacts", "--host", "0.0.0.0", "--port", "8787"]
     security_opt:
       - no-new-privileges:true
     cap_drop:

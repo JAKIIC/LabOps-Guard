@@ -13,7 +13,7 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
-from labops.web import build_dashboard_state, make_handler, run_bundled_demo
+from labops.web import build_checkpoint_demo_state, build_dashboard_state, make_handler, run_bundled_demo
 from labops.trace import TraceLog
 
 
@@ -116,9 +116,33 @@ class TestContainerPackaging(unittest.TestCase):
         self.assertIn("--run-demo", dockerfile)
         self.assertIn('"127.0.0.1:8787:8787"', compose)
         self.assertIn('./demo/output-agentteams:/evidence:ro', compose)
+        self.assertIn('./artifacts:/checkpoint-artifacts:ro', compose)
         self.assertIn('"--workspace", "/evidence"', compose)
         self.assertIn("read_only: true", compose)
         self.assertIn("no-new-privileges:true", compose)
+
+
+class TestCheckpointDashboardState(unittest.TestCase):
+    def test_checkpoint_summary_is_allowlisted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            valid = root / "DEMO-RCA-001"
+            unsafe = root / "DEMO-RCA-002"
+            (valid / "baseline").mkdir(parents=True)
+            (unsafe / "runs" / "RUN-DEMO-UNSAFE-001").mkdir(parents=True)
+            (valid / "baseline" / "stability_report.json").write_text(json.dumps({"best_accuracy": .98, "current_accuracy": .7, "target_accuracy": .88, "repeats": 3, "stable": True, "passed": True, "configured_checkpoint": "checkpoints/last.pt"}), encoding="utf-8")
+            (valid / "state.json").write_text(json.dumps({"state": "RESOLVED"}), encoding="utf-8")
+            (valid / "verification.json").write_text(json.dumps({"decision": "PASS", "baseline_accuracy": .7, "candidate_accuracy": .98, "improvement": .28}), encoding="utf-8")
+            (unsafe / "state.json").write_text(json.dumps({"state": "ROLLED_BACK"}), encoding="utf-8")
+            (unsafe / "verification.json").write_text(json.dumps({"decision": "POLICY_VIOLATION", "claimed_accuracy": 1.0}), encoding="utf-8")
+            (unsafe / "runs" / "RUN-DEMO-UNSAFE-001" / "rollback.json").write_text(json.dumps({"metric_hash_restored": True}), encoding="utf-8")
+            TraceLog(valid / "trace.jsonl").append("incident", "DEMO-RCA-001", "verification", to_state="RESOLVED")
+            TraceLog(unsafe / "trace.jsonl").append("incident", "DEMO-RCA-002", "rollback", to_state="ROLLED_BACK")
+            state = build_checkpoint_demo_state(root)
+        self.assertTrue(state["ready"])
+        self.assertEqual(state["valid_case"]["decision"], "PASS")
+        self.assertEqual(state["unsafe_case"]["decision"], "POLICY_VIOLATION")
+        self.assertTrue(state["unsafe_case"]["rollback_ok"])
 
 
 if __name__ == "__main__":
