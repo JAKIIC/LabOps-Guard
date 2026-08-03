@@ -1,0 +1,38 @@
+---
+name: control-lab-action
+description: Classify, dry-run, request approval for, and safely execute LabOps Guard experiment actions under workspace and command policies. Use for AgentTeams controlled-executor assignments; mandatory when an action may write files, install, download, train, access protected data, or otherwise requires human approval or refusal.
+---
+
+# Control Lab Action
+
+Treat approval as a gate, never as a descriptive field. Read `references/io-schema.json`.
+
+## Workflow
+
+1. Require a diagnosis artifact, action ID, command intent, workspace, expected policy class,
+   timeout, and explicit postcondition.
+2. Classify the action using the LabOps policy. Refuse any attempted policy downgrade.
+3. For `forbidden`, record refusal and stop even if a human asks to approve it.
+4. For `manual_approval`, create an approval request and return `AWAITING_APPROVAL`. Do not
+   decide on behalf of the human. Rejection and timeout are terminal for that action.
+5. For an approved or read-only action, run the CLI with dry-run enabled first:
+
+   ```text
+   python -B -m labops run --workspace <output> --action-id <id> --command <intent>
+   ```
+
+6. Execute only when policy permits. In the competition demo, install, download, network, and
+   training intents remain simulated even after approval.
+7. Hand the complete action result to the Verification Auditor; never claim closure.
+
+## Safety gates
+
+- Restrict working directories and writes to the designated workspace.
+- Refuse private labels, competition data, secrets, destructive commands, path escape, and
+  policy downgrades.
+- Preserve stdout/stderr truncation, redaction, timeout, dry-run, and simulation markers.
+
+## Output requirement
+
+Return the policy class, approval ID/status, dry-run result, execution result, simulation flag,
+postcondition, artifact paths, and next state.

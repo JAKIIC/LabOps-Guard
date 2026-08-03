@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "task_id": "LABOPS-AT-001",
+  "incident_id": "POLAR-RCA-DEMO-001",
+  "final_state": "DEMO_PASSED_NOT_RESOLVED",
+  "package_time": "2026-08-02T14:35:57Z",
+  "produced_by": "labops-manager (pack-lab-evidence)",
+  "participating_agents": [
+    "labops-manager",
+    "evidence-collector",
+    "rca-analyst",
+    "controlled-executor",
+    "verification-auditor"
+  ],
+  "handoff_count": 5,
+  "counts": {
+    "allowed_files": 13,
+    "evidence": 22,
+    "gaps": 10,
+    "hypotheses": 10,
+    "approvals": 3,
+    "trace_entries": 15
+  },
+  "verification": {
+    "demo_verification": "PASSED",
+    "incident_state": "DEMO_PASSED_NOT_RESOLVED",
+    "underlying_issue_resolved": false,
+    "closed": false
+  },
+  "artifacts": {
+    "approval_requests.json": {
+      "sha256": "3fc3b244ef80e4aafd21caaa052b08e78f9825d2a62670e61257c912eba60f39",
+      "bytes": 1219
+    },
+    "collected_evidence.json": {
+      "sha256": "2ff8a7625ffc6da493c80bbfcede0bcec2c07276b56b324497a8aebf3d77c818",
+      "bytes": 9380
+    },
+    "diagnosis_candidates.json": {
+      "sha256": "6fa1291cf0d8770ea91b8e06062a930e259febc481487b5e7f718acb27911e7c",
+      "bytes": 3180
+    },
+    "execution_result.json": {
+      "sha256": "7f2e64841e816473be3e0564a7afbaba4b8dd90350268e916db3756eeb335346",
+      "bytes": 2836
+    },
+    "registry_record.json": {
+      "sha256": "9a7b08ef393c100335a8e40dbdd4ace5b3f8c022acd3e18cc11e139d4576337d",
+      "bytes": 2829
+    },
+    "trace.jsonl": {
+      "sha256": "5b95f786e5f5e07611903bd87a6f9075f7c79a8bf6ee4f66b8782e8cdfa982e5",
+      "bytes": 6110
+    },
+    "verification_result.json": {
+      "sha256": "4c3ee9d4023c9f78f67e00d5187bdd754d953bd8de65a197cfe3c73276f8a4f5",
+      "bytes": 1883
+    }
+  },
+  "unresolved_limitations": [
+    "execution_result.json nests status/simulated/dry_run under 'result'; labops verify_action() reads top-level -> raw `labops verify --action-result-json` returns BLOCKED (schema-mapping artifact). Truthful state recorded independently by verification-auditor as DEMO_PASSED_NOT_RESOLVED.",
+    "A-GAP-001 action was SIMULATED only (pip install numpy pandas intent); root cause GAP-001 (no pinned dependency versions/requirements.txt) NOT resolved.",
+    "Demo output-agentteams uses SIMULATED/DRY_RUN actions only; no real install/network/download/training performed."
+  ],
+  "prohibited_operations_zero": {
+    "excluded_data_read": 0,
+    "network": 0,
+    "install": 0,
+    "download": 0,
+    "training": 0
+  },
+  "included_files": [
+    "approval_requests.json",
+    "collected_evidence.json",
+    "diagnosis_candidates.json",
+    "execution_result.json",
+    "registry_record.json",
+    "trace.jsonl",
+    "verification_result.json"
+  ]
+}

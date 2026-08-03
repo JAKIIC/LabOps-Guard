@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/run.schema.json",
+  "title": "RunManifest",
+  "type": "object",
+  "required": ["run_id", "incident_id", "plan_id", "command", "status", "start_time", "end_time", "duration_seconds", "metrics", "output_artifacts"],
+  "properties": {
+    "run_id": {"type": "string"},
+    "incident_id": {"type": "string"},
+    "plan_id": {"type": "string"},
+    "command": {"type": "string"},
+    "status": {"type": "string", "enum": ["completed", "failed", "timeout", "rejected", "rolled_back"]},
+    "start_time": {"type": "string"},
+    "end_time": {"type": "string"},
+    "duration_seconds": {"type": "number"},
+    "metrics": {"type": "object"},
+    "output_artifacts": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

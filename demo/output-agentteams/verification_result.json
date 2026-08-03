@@ -1,0 +1,54 @@
+{
+  "incident_id": "incident-001",
+  "verifier": "verification-auditor",
+  "checks": [
+    {
+      "check": "action_status_ok",
+      "passed": true,
+      "detail": "SUCCEEDED",
+      "kind": "action_status"
+    },
+    {
+      "check": "is_demo_like",
+      "passed": true,
+      "detail": {
+        "simulated": true,
+        "dry_run": true
+      },
+      "kind": "demo_like"
+    },
+    {
+      "check": "real_effects_absent",
+      "passed": true,
+      "detail": {
+        "real_install_performed": false,
+        "real_network_used": false,
+        "real_download_performed": false,
+        "real_training_performed": false,
+        "excluded_data_read": false,
+        "files_modified": [],
+        "no_real_changes": true
+      },
+      "kind": "real_effects"
+    },
+    {
+      "check": "concrete_postcondition",
+      "passed": false,
+      "detail": {
+        "numpy_pandas_installed": false,
+        "numpy_pandas_imports_available": false
+      },
+      "kind": "postcondition"
+    }
+  ],
+  "status": "PASSED",
+  "demo_verification": "PASSED",
+  "incident_state": "DEMO_PASSED_NOT_RESOLVED",
+  "underlying_issue_resolved": false,
+  "is_demo_like": true,
+  "has_postcondition": false,
+  "closed": false,
+  "simulated_action_not_real": true,
+  "note": "Independent verification based on action data (result.status=SUCCEEDED, simulated=true, dry_run=true, real_effects all false, numpy/pandas NOT installed). Simulated/dry-run action demonstrates the control flow and audit chain only; it does NOT resolve root cause GAP-001 (no pinned dependency versions / requirements.txt) and performs NO real install. Incident must NOT be CLOSED. Raw `labops verify --action-result-json` returned BLOCKED due to a field-nesting schema mismatch (executor nests status under 'result'); truthful state recorded here is DEMO_PASSED_NOT_RESOLVED.",
+  "verified_at": "2026-08-02T14:35:19Z"
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "initial_state": "RECEIVED",
+  "terminal_states": ["CLOSED", "BLOCKED", "REJECTED", "DEMO_PASSED_NOT_RESOLVED"],
+  "transitions": [
+    {"from": "RECEIVED", "to": "EVIDENCE_COLLECTING", "actor": "labops-manager", "requires": ["incident_contract"]},
+    {"from": "EVIDENCE_COLLECTING", "to": "EVIDENCE_READY", "actor": "evidence-collector", "requires": ["registry_record", "collected_evidence"]},
+    {"from": "EVIDENCE_READY", "to": "DIAGNOSING", "actor": "labops-manager", "requires": ["excluded_data_not_read=true"]},
+    {"from": "DIAGNOSING", "to": "DIAGNOSIS_READY", "actor": "rca-analyst", "requires": ["diagnosis_candidates", "all_assertions_have_evidence_id"]},
+    {"from": "DIAGNOSIS_READY", "to": "AWAITING_APPROVAL", "actor": "controlled-executor", "requires": ["manual_approval_action"]},
+    {"from": "AWAITING_APPROVAL", "to": "EXECUTING", "actor": "labops-manager", "requires": ["human_decision=APPROVED"]},
+    {"from": "AWAITING_APPROVAL", "to": "REJECTED", "actor": "labops-manager", "requires": ["human_decision=REJECTED_OR_TIMEOUT"]},
+    {"from": "EXECUTING", "to": "VERIFYING", "actor": "controlled-executor", "requires": ["execution_result"]},
+    {"from": "VERIFYING", "to": "CLOSED", "actor": "verification-auditor", "requires": ["real_action=true", "postcondition=true", "verification=PASSED"]},
+    {"from": "VERIFYING", "to": "DEMO_PASSED_NOT_RESOLVED", "actor": "verification-auditor", "requires": ["demo_verification=PASSED", "underlying_issue_resolved=false"]},
+    {"from": "VERIFYING", "to": "BLOCKED", "actor": "verification-auditor", "requires": ["verification!=PASSED"]}
+  ]
+}

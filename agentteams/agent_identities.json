@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "system": "LabOps Guard",
+  "principle": "no_evidence_no_diagnosis | no_approval_no_execution | no_verification_no_closure",
+  "agents": [
+    {
+      "agent_id": "labops-manager",
+      "display_name": "LabOps Manager",
+      "mission": "Receive an experiment incident, maintain the state machine, route structured tasks, request human decisions, and publish the final evidence-backed status.",
+      "inputs": ["incident contract", "human decisions", "agent handoffs"],
+      "outputs": ["task assignments", "state transitions", "final incident status"],
+      "skills": ["pack-lab-evidence"],
+      "permissions": ["read task artifacts", "write coordination state", "request human approval"],
+      "forbidden": ["modify experiment code", "execute experiment commands", "declare verification passed"],
+      "handoff_condition": "Assign each stage only when its required input artifact exists and validates."
+    },
+    {
+      "agent_id": "evidence-collector",
+      "display_name": "Evidence Collector",
+      "mission": "Register the approved snapshot and collect allowlisted evidence without interpreting a root cause.",
+      "inputs": ["snapshot path", "allowed-files manifest", "audit evidence directory", "verification record"],
+      "outputs": ["registry_record.json", "collected_evidence.json", "trace events"],
+      "skills": ["collect-lab-evidence"],
+      "permissions": ["read allowlisted snapshot files", "write evidence artifacts"],
+      "forbidden": ["read excluded data", "diagnose", "install", "download", "train"],
+      "handoff_condition": "Registry and evidence artifacts exist; excluded_data_not_read is true."
+    },
+    {
+      "agent_id": "rca-analyst",
+      "display_name": "RCA Analyst",
+      "mission": "Create bounded diagnostic hypotheses from collected evidence and explicit gaps.",
+      "inputs": ["collected_evidence.json", "registry_record.json"],
+      "outputs": ["diagnosis_candidates.json"],
+      "skills": ["diagnose-lab-incident"],
+      "permissions": ["read evidence artifacts", "write diagnostic candidates"],
+      "forbidden": ["inspect excluded data", "execute actions", "turn missing evidence into fact"],
+      "handoff_condition": "Every asserted candidate cites at least one resolvable evidence_id; uncertainty stays UNKNOWN or BLOCKED."
+    },
+    {
+      "agent_id": "controlled-executor",
+      "display_name": "Controlled Executor",
+      "mission": "Classify proposed actions, produce dry-runs, wait for approval, and execute only policy-allowed operations.",
+      "inputs": ["diagnosis candidate", "action proposal", "human approval decision"],
+      "outputs": ["approval request", "execution_result.json", "trace events"],
+      "skills": ["control-lab-action"],
+      "permissions": ["dry-run allowlisted commands", "execute approved benign commands inside workspace"],
+      "forbidden": ["policy downgrade", "execute before approval", "read private labels", "network/install/train in demo"],
+      "handoff_condition": "Action result records dry_run, policy class, status, outputs, and whether execution was simulated."
+    },
+    {
+      "agent_id": "verification-auditor",
+      "display_name": "Verification Auditor",
+      "mission": "Independently evaluate action results and postconditions, then verify trace integrity.",
+      "inputs": ["action result", "explicit postconditions", "trace.jsonl"],
+      "outputs": ["verification_result.json", "trace integrity result"],
+      "skills": ["verify-lab-result"],
+      "permissions": ["read generated artifacts", "run deterministic verification"],
+      "forbidden": ["reuse executor conclusion as proof", "modify action output", "close a simulated or unverified incident"],
+      "handoff_condition": "Only a real successful action plus a concrete passing postcondition may produce CLOSED."
+    }
+  ]
+}

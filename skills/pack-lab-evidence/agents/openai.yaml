@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pack Lab Evidence"
+  short_description: "Package auditable experiment evidence"
+  default_prompt: "Use $pack-lab-evidence to assemble a reviewable evidence bundle from LabOps Guard outputs."

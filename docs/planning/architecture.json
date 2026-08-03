@@ -1,0 +1,115 @@
+{
+  "task_id": "LABOPS-MVP-PLAN-001",
+  "spec_type": "architecture_spec",
+  "principle": "no_evidence_no_diagnosis | no_approval_no_execution | no_verification_no_closure",
+  "default_safety": {
+    "dry_run_first": true,
+    "command_allowlist": true,
+    "workdir_boundary": true,
+    "timeout": true,
+    "output_truncation": true,
+    "redaction": true
+  },
+  "runtime_preference": "local_python_cli + file_storage; no unnecessary cloud deps",
+  "components": [
+    {
+      "id": "snapshot_registry",
+      "name": "Snapshot & Contract Registry",
+      "responsibility": "Register project snapshot: allowed-file list, SHA-256 hashes, run contract, config. Produces immutable baseline record.",
+      "inputs": ["project_snapshot_lite/ (13 allowed files)", "snapshot_verification.json (VERIFIED)"],
+      "outputs": ["registry_record.json", "contract_record.json"],
+      "trust_boundary": "Read-only over snapshot; writes only to LabOps workspace (never to project snapshot)",
+      "failure_states": ["hash_mismatch", "file_missing", "manifest_inconsistent"],
+      "mvp_nature": "REAL (pure read + hash computation)"
+    },
+    {
+      "id": "evidence_collector",
+      "name": "Evidence Collector",
+      "responsibility": "Scan allowed files, extract strong/weak/missing evidence, reference evidence_id + file/line/cell.",
+      "inputs": ["repository_map.json", "execution_contract.json", "evidence_index.json", "evidence_gaps.json", "allowed snapshot files"],
+      "outputs": ["collected_evidence.json"],
+      "trust_boundary": "Read-only over allowed files; NEVER reads excluded data (CSV/labels/keys)",
+      "failure_states": ["evidence_parse_error", "evidence_reference_dangling", "excluded_data_encountered"],
+      "mvp_nature": "REAL (rule-based extraction driven by audit JSON inputs)"
+    },
+    {
+      "id": "diagnosis_engine",
+      "name": "Diagnosis Candidate Engine",
+      "responsibility": "Produce diagnostic candidates from evidence. Every candidate MUST cite evidence_id; no evidence -> UNKNOWN/BLOCKED.",
+      "inputs": ["collected_evidence.json"],
+      "outputs": ["diagnosis_candidates.json"],
+      "trust_boundary": "Deterministic rules only; cannot fabricate facts",
+      "failure_states": ["candidate_without_evidence (forbidden)", "blocked_no_evidence", "unknown_state"],
+      "mvp_nature": "REAL (rule-based; no ML, no optimization suggestions)"
+    },
+    {
+      "id": "approval_gate",
+      "name": "Approval Gate",
+      "responsibility": "Classify each action (read-only auto / high-risk manual / forbidden). Emit approval requests; track approve/reject/timeout.",
+      "inputs": ["diagnosis_candidates.json", "approval_policy.json"],
+      "outputs": ["approval_requests.json", "approval_decisions.json"],
+      "trust_boundary": "No action executes without approved decision; rejection is first-class",
+      "failure_states": ["approval_rejected", "approval_timeout", "approval_pending"],
+      "mvp_nature": "REAL for policy enforcement; APPROVAL_TRIGGER uses SIMULATED adapter in demo (no real network/install)"
+    },
+    {
+      "id": "action_executor",
+      "name": "Controlled Action Executor",
+      "responsibility": "Execute approved actions under dry-run-first, command allowlist, workdir boundary, timeout, output truncation/redaction.",
+      "inputs": ["approved action + policy"],
+      "outputs": ["execution_result.json"],
+      "trust_boundary": "Executes ONLY approved actions; forbidden actions refused even if approved",
+      "failure_states": ["action_failed", "action_timeout", "action_forbidden", "dry_run_only"],
+      "mvp_nature": "MIXED: REAL for benign file/hash ops; SIMULATED adapter for install/download/train (demo only, no real execution)"
+    },
+    {
+      "id": "verification_closer",
+      "name": "Verification Closer",
+      "responsibility": "Verify post-action state (exit code, artifact existence, hash) before closing loop. Verification failure is first-class.",
+      "inputs": ["execution_result.json", "expected_contract"],
+      "outputs": ["verification_result.json"],
+      "trust_boundary": "No closure without verification",
+      "failure_states": ["verification_failed", "artifact_missing", "hash_mismatch_after_action"],
+      "mvp_nature": "REAL (hash/existence checks)"
+    },
+    {
+      "id": "trace_log",
+      "name": "Append-only Trace Log",
+      "responsibility": "Record every step (registry, evidence, diagnosis, approval, action, verification) in append-only log with timestamps + hashes.",
+      "inputs": ["all component outputs"],
+      "outputs": ["trace.log (append-only)"],
+      "trust_boundary": "Write-only append; no modification/deletion of prior entries",
+      "failure_states": ["trace_write_error", "trace_integrity_check_failed"],
+      "mvp_nature": "REAL (append-only file with hash chaining)"
+    },
+    {
+      "id": "demo_harness",
+      "name": "Demo Harness (polar-baseline scenario)",
+      "responsibility": "Drive a guided demo using real polar-baseline evidence gaps: identify missing evidence + approval loop. No fabricated faults, no test-label reads.",
+      "inputs": ["evidence_gaps.json (10 gaps)", "approval_policy.json", "incident_contract.json"],
+      "outputs": ["demo_trace.md", "demo_artifacts/"],
+      "trust_boundary": "Demo shows missing-evidence identification + approval closure only",
+      "failure_states": ["demo_misrepresents_gap_as_fact (forbidden)", "demo_reads_excluded_data (forbidden)"],
+      "mvp_nature": "MIXED: SIMULATED adapters for install/download; REAL for evidence-gap detection"
+    }
+  ],
+  "data_flow": [
+    "snapshot_registry -> evidence_collector -> diagnosis_engine -> approval_gate -> action_executor -> verification_closer",
+    "trace_log receives events from every component (fan-in, append-only)"
+  ],
+  "trust_boundaries_summary": [
+    "LabOps workspace writable; project snapshot + excluded data read-only / not read",
+    "Action executor never bypasses approval_gate; forbidden actions always refused",
+    "Diagnosis engine never fabricates; no evidence -> UNKNOWN/BLOCKED"
+  ],
+  "mvp_adapter_notation": {
+    "REAL": "implemented with actual local logic (hash, read, rule-based classification)",
+    "SIMULATED": "demo-only adapter that records the intended effect without performing the real external/risky action (e.g., pretend-install, pretend-download)",
+    "MIXED": "combination; real for benign ops, simulated for risky ops"
+  },
+  "reproducibility": {
+    "input_snapshot_hashes": "recorded at registry step",
+    "config_and_contract": "recorded at registry step",
+    "trace": "append-only with hash chaining"
+  }
+}

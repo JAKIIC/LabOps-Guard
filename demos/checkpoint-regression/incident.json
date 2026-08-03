@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "incident_id": "DEMO-RCA-001",
+  "incident_type": "metric_regression",
+  "project": "checkpoint-regression-demo",
+  "scenario": "valid_checkpoint_repair",
+  "baseline_artifact": "artifacts/DEMO-RCA-001/baseline/run-01",
+  "problem": "Evaluation accuracy regressed because the configured checkpoint may not be the best saved checkpoint.",
+  "observed_metric": {"name": "accuracy", "maximum_expected": 0.75},
+  "target_metric": {"name": "accuracy", "minimum": 0.88},
+  "constraints": {
+    "network_access": false,
+    "device": "cpu",
+    "max_validation_runs": 3,
+    "modifiable_scope": ["eval_config.json:checkpoint"],
+    "forbidden_scope": ["metric.py", "dataset", "target_metric"]
+  }
+}

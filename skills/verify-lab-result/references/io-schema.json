@@ -1,0 +1,12 @@
+{
+  "input": {
+    "required": ["task_id", "incident_id", "workspace", "action_result", "expected_postcondition", "trace"],
+    "independence": "derive from raw artifacts, not executor prose"
+  },
+  "output": {
+    "required": ["verification_result", "trace_chain_ok", "incident_state", "underlying_issue_resolved", "handoff_state"],
+    "allowed_incident_states": ["CLOSED", "BLOCKED", "DEMO_PASSED_NOT_RESOLVED"],
+    "allowed_handoff_states": ["CLOSED", "BLOCKED", "DEMO_PASSED_NOT_RESOLVED"]
+  },
+  "errors": ["ACTION_RESULT_MISSING", "POSTCONDITION_MISSING", "ARTIFACT_OUTSIDE_WORKSPACE", "HASH_MISMATCH", "TRACE_INVALID"]
+}

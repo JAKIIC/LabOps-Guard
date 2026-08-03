@@ -1,0 +1,15 @@
+[
+  "README.md",
+  "baseline.py",
+  "baseline/baseline/README.md",
+  "baseline/baseline/participant_pipeline_cnn_mlp.ipynb",
+  "baseline/baseline/Codes_DB/BCH_N31_K11.txt",
+  "baseline/baseline/Codes_DB/BCH_N31_K16.txt",
+  "baseline/baseline/Codes_DB/BCH_N63_K30.txt",
+  "baseline/baseline/Codes_DB/BCH_N63_K45.txt",
+  "baseline/baseline/Codes_DB/POLAR_N64_K22.txt",
+  "baseline/baseline/Codes_DB/POLAR_N64_K32.txt",
+  "baseline/baseline/Codes_DB/POLAR_N64_K48.txt",
+  "public_test/README_数据说明.md",
+  "submit_sample/README_提交说明.md"
+]

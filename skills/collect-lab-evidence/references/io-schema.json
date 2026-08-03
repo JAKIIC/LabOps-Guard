@@ -1,0 +1,11 @@
+{
+  "input": {
+    "required": ["task_id", "incident_id", "snapshot", "allowed_list", "audit_dir", "verification", "workspace"],
+    "path_policy": "all inputs explicitly supplied; workspace is the only writable root"
+  },
+  "output": {
+    "required": ["registry_record", "collected_evidence", "verification_status", "evidence_count", "gaps_count", "excluded_data_not_read", "handoff_state"],
+    "allowed_handoff_states": ["EVIDENCE_READY", "BLOCKED"]
+  },
+  "errors": ["INPUT_MISSING", "PATH_REFUSED", "HASH_MISMATCH", "INVALID_EVIDENCE", "EXCLUDED_DATA_REFUSED"]
+}

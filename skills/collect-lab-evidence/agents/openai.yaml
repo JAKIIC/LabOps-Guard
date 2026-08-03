@@ -1,0 +1,4 @@
+interface:
+  display_name: "Collect Lab Evidence"
+  short_description: "Register snapshots and collect allowlisted evidence"
+  default_prompt: "Use $collect-lab-evidence to register a safe experiment snapshot and collect evidence."

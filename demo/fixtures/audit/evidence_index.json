@@ -1,0 +1,157 @@
+{
+  "task_id": "POLAR-AUDIT-001-R3",
+  "audit_type": "read_only_evidence_index",
+  "snapshot_base": "shared/tasks/POLAR-AUDIT-001/attempt-R1/project_snapshot_lite/",
+  "evidence_strength_legend": {
+    "strong": "Directly observable in snapshot with explicit file+line/cell reference",
+    "weak": "Inferable from code/README but not directly verified (e.g. runtime outputs, external data)",
+    "missing": "Expected artifact not present in snapshot; cannot be verified"
+  },
+  "evidence": [
+    {
+      "id": "EV-001",
+      "claim": "Primary baseline entry point is baseline.py::main via __main__ guard",
+      "strength": "strong",
+      "refs": ["baseline.py L246 (def main)", "baseline.py L298 (if __name__=='__main__')"]
+    },
+    {
+      "id": "EV-002",
+      "claim": "Baseline is an Ordered-Statistics Decoder (OSD-2) with sample-calibrated LLR channel model",
+      "strength": "strong",
+      "refs": [
+        "baseline.py L132 calibrated_llr",
+        "baseline.py L143 make_flip_patterns",
+        "baseline.py L150 osd_decode_one",
+        "baseline.py L196 osd_decode",
+        "baseline.py L205 validate_and_select",
+        "README.md (title: 抽样信道校准 + OSD-2)"
+      ]
+    },
+    {
+      "id": "EV-003",
+      "claim": "Parity-check matrix is POLAR_N64_K32 (32x64), loaded from baseline.zip/Codes_DB or --matrix",
+      "strength": "strong",
+      "refs": [
+        "baseline.py L41 load_parity_matrix (reads baseline/Codes_DB/POLAR_N64_K32.txt, validates shape (32,64))",
+        "baseline/baseline/Codes_DB/POLAR_N64_K32.txt (32 rows x 64 cols)"
+      ]
+    },
+    {
+      "id": "EV-004",
+      "claim": "Generator matrix is derived from parity matrix via GF(2) row reduction",
+      "strength": "strong",
+      "refs": ["baseline.py L53 rref_binary", "baseline.py L73 generator_from_parity"]
+    },
+    {
+      "id": "EV-005",
+      "claim": "Channel calibration estimates per-bit mean0/mean1/variance/prior from a sampled training shard",
+      "strength": "strong",
+      "refs": ["baseline.py L112 fit_channel"]
+    },
+    {
+      "id": "EV-006",
+      "claim": "Training data is loaded from a single paired shard (train_codeword_x_shard_*.csv + train_noisy_y_shard_*.csv) by matching shard index",
+      "strength": "strong",
+      "refs": ["baseline.py L84 discover_training_pair", "baseline.py L95 load_training_sample", "README.md (抽样训练数据)"]
+    },
+    {
+      "id": "EV-007",
+      "claim": "Calibration uses 10000 rows, validation uses 2000 rows, sampling seeded (seed=42)",
+      "strength": "strong",
+      "refs": ["baseline.py L24-25 (defaults)", "baseline.py L37 (--seed default 42)", "baseline.py L95-110 (permutation)"]
+    },
+    {
+      "id": "EV-008",
+      "claim": "Baseline selects raw vs calibrated LLR mode by lower BER on the validation set",
+      "strength": "strong",
+      "refs": ["baseline.py L205 validate_and_select (min of raw/calibrated BER)"]
+    },
+    {
+      "id": "EV-009",
+      "claim": "Calibration is persisted to channel_calibration.npz and can be reused via --reuse-calibration",
+      "strength": "strong",
+      "refs": ["baseline.py L228 save_calibration", "baseline.py L233 load_calibration", "baseline.py L27 (--reuse-calibration)"]
+    },
+    {
+      "id": "EV-010",
+      "claim": "Test input is read from public_test.zip (competition_data/test_noisy_y_public.csv) or a direct CSV",
+      "strength": "strong",
+      "refs": ["baseline.py L239 open_test_source", "baseline.py L28-29 (--test-zip/--test-csv)"]
+    },
+    {
+      "id": "EV-011",
+      "claim": "Submission output format is id,bit_0..bit_63 (CSV, no extra columns)",
+      "strength": "strong",
+      "refs": ["baseline.py L270-290 (main write)", "submit_sample/README_提交说明.md", "baseline/baseline/README.md"]
+    },
+    {
+      "id": "EV-012",
+      "claim": "Metric is BER (bit error rate), lower is better",
+      "strength": "strong",
+      "refs": ["submit_sample/README_提交说明.md", "README.md", "baseline.py L205-227 (validate_and_select BER)"]
+    },
+    {
+      "id": "EV-013",
+      "claim": "README documents reference results: hard-decision BER ~0.055, OSD-2 BER ~0.013, reported leaderboard BER 0.01272",
+      "strength": "weak",
+      "refs": ["README.md (参考结果/实际排行榜段落)"],
+      "note": "Documented figures only; not independently reproduced (read-only, no execution permitted)."
+    },
+    {
+      "id": "EV-014",
+      "claim": "Notebook reference pipeline is a CNN+MLP residual decoder (ResidualDecoder) using syndrome from parity matrix",
+      "strength": "strong",
+      "refs": ["participant_pipeline_cnn_mlp.ipynb cell 6 (SeparableConv1d, ResidualBlock1d, ResidualDecoder)", "cell 5 (H load)"]
+    },
+    {
+      "id": "EV-015",
+      "claim": "Notebook trains with BCEWithLogitsLoss, Adam lr=1e-3, batch 512, early stopping patience 50, seed 42",
+      "strength": "strong",
+      "refs": ["participant_pipeline_cnn_mlp.ipynb cell 6 (criterion/opt)", "cell 8 (BATCH_SIZE/EPOCHS/PATIENCE/VAL_MOD)", "cell 2 (set_seed)"]
+    },
+    {
+      "id": "EV-016",
+      "claim": "Notebook persists best checkpoint best_participant_residual_decoder.pt and writes submission_residual_decoder.csv",
+      "strength": "strong",
+      "refs": ["participant_pipeline_cnn_mlp.ipynb cell 8 (torch.save)", "cell 9 (load_state_dict, to_csv)"]
+    },
+    {
+      "id": "EV-017",
+      "claim": "Notebook train/val split is by id % 20 == 0 (VAL_MOD=20, VAL_REM=0) within a single shard",
+      "strength": "strong",
+      "refs": ["participant_pipeline_cnn_mlp.ipynb cell 4 (SingleShardByIdDataset val_mod=20)", "cell 8 (VAL_MOD, VAL_REM)"]
+    },
+    {
+      "id": "EV-018",
+      "claim": "Seven parity-check code tables exist in Codes_DB (POLAR + BCH); only POLAR_N64_K32 is used by the audited code paths",
+      "strength": "strong",
+      "refs": ["baseline/baseline/Codes_DB/*.txt (7 files)", "baseline.py L41-51 (POLAR_N64_K32 only)", "participant_pipeline_cnn_mlp.ipynb cell 5 (POLAR_N64_K32 only)"]
+    },
+    {
+      "id": "EV-019",
+      "claim": "No requirements.txt, environment spec, or pinned dependency versions are present in the snapshot",
+      "strength": "missing",
+      "refs": ["snapshot tree (absent)"],
+      "note": "Dependency install is documented only as 'pip install numpy pandas' (README.md) / torch (notebook); exact versions unknown."
+    },
+    {
+      "id": "EV-020",
+      "claim": "No pre-trained weights/checkpoint are shipped with the snapshot; notebook generates best_participant_residual_decoder.pt at runtime",
+      "strength": "missing",
+      "refs": ["snapshot tree (absent)"]
+    },
+    {
+      "id": "EV-021",
+      "claim": "No run scripts / shell wrappers / Makefile are present",
+      "strength": "missing",
+      "refs": ["snapshot tree (absent)"]
+    },
+    {
+      "id": "EV-022",
+      "claim": "External data (train shards, test csv, baseline.zip, public_test.zip, channel_calibration.npz) is referenced but not shipped in snapshot",
+      "strength": "weak",
+      "refs": ["baseline.py L23-37 defaults", "manifest.json excluded_data_files_reference_only", "README.md"],
+      "note": "Excluded data files were NOT read during this audit per hard constraint."
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/verification.schema.json",
+  "title": "VerificationReport",
+  "type": "object",
+  "required": ["verification_id", "baseline_run", "candidate_run", "decision", "checks", "evidence", "reason"],
+  "properties": {
+    "verification_id": {"type": "string"},
+    "baseline_run": {"type": "string"},
+    "candidate_run": {"type": "string"},
+    "decision": {"type": "string", "enum": ["PASS", "FAIL", "INCONCLUSIVE", "POLICY_VIOLATION"]},
+    "checks": {"type": "object"},
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "reason": {"type": "string"}
+  },
+  "additionalProperties": true
+}

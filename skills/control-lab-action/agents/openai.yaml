@@ -1,0 +1,4 @@
+interface:
+  display_name: "Control Lab Action"
+  short_description: "Gate and run approved lab actions"
+  default_prompt: "Use $control-lab-action to classify, approve, and safely execute a proposed experiment action."

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/trace.schema.json",
+  "title": "TraceEvent",
+  "type": "object",
+  "required": ["seq", "ts", "entity_type", "entity_id", "event", "from_state", "to_state", "prev_hash", "hash"],
+  "properties": {
+    "seq": {"type": "integer", "minimum": 0},
+    "ts": {"type": "string"},
+    "entity_type": {"type": "string"},
+    "entity_id": {"type": "string"},
+    "event": {"type": "string"},
+    "from_state": {"type": ["string", "null"]},
+    "to_state": {"type": ["string", "null"]},
+    "actor": {"type": "string"},
+    "status": {"type": "string"},
+    "prev_hash": {"type": ["string", "null"]},
+    "hash": {"type": "string"}
+  },
+  "additionalProperties": true
+}

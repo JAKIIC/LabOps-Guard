@@ -1,0 +1,44 @@
+{
+  "verification": "VERIFIED",
+  "minio_snapshot_dir": "shared/tasks/POLAR-AUDIT-001/attempt-R1/project_snapshot_lite/",
+  "total_objects_in_dir": 14,
+  "snapshot_files_excluding_manifest": 13,
+  "manifest_snapshot_files_entries": 13,
+  "codes_db_count": 7,
+  "codes_db_filenames": [
+    "BCH_N31_K11.txt",
+    "BCH_N31_K16.txt",
+    "BCH_N63_K30.txt",
+    "BCH_N63_K45.txt",
+    "POLAR_N64_K22.txt",
+    "POLAR_N64_K32.txt",
+    "POLAR_N64_K48.txt"
+  ],
+  "missing_in_actual": [],
+  "extra_vs_manifest": [],
+  "duplicate_manifest_entries": [],
+  "hash_mismatches": [],
+  "size_mismatches": [],
+  "all_allowed_file_sha256": {
+    "README.md": "42738007558ca9ec8b3429768eb75cd7b3ecf640c712297c4c7b6f96917f8a95",
+    "baseline.py": "2c8b181b398609e3058471bddaecb00ef3c46fdace415b2a2c6a279a7f1b2bf8",
+    "baseline/baseline/Codes_DB/BCH_N31_K11.txt": "4b2694831f524ca7893726aadd434817fc26a51bdff4ef977d20b516b63712d5",
+    "baseline/baseline/Codes_DB/BCH_N31_K16.txt": "49dfbeb37480e39c69349c36806faa62a8b8d58c8c9d3280f441e4877cc71c43",
+    "baseline/baseline/Codes_DB/BCH_N63_K30.txt": "6ceb7a8bddfd072a4c05196e1664fed52ceaa02f3d9f368b66f9a3e7cc699334",
+    "baseline/baseline/Codes_DB/BCH_N63_K45.txt": "fab81ef305a1076c020d95ffac7e2c8a1dc214d55cc530566df4652ee6c7da6e",
+    "baseline/baseline/Codes_DB/POLAR_N64_K22.txt": "9e5ee13e9793f4e497f05b0091b1376efa9506407eb34334c7d592e4edf62249",
+    "baseline/baseline/Codes_DB/POLAR_N64_K32.txt": "a9100dcef8f0f13e993e0995c6a4bfb6bf7aaaa8e42a4c0a224f65bef6220c8d",
+    "baseline/baseline/Codes_DB/POLAR_N64_K48.txt": "4de186a9d492c24af5f8f25e88aa3e9815d8b9973b74d4662a0f1e8f1fedcd4f",
+    "baseline/baseline/README.md": "d94461962edf6ad5726e488dd33707817f665986853e4253d76db786b506da4b",
+    "baseline/baseline/participant_pipeline_cnn_mlp.ipynb": "dbfa6d27a3c5c6680727bed477957f4810e55153ab52bc051019387b69de85b6",
+    "public_test/README_数据说明.md": "3604f6b05d140d969959f1cb2655f4fb3aef36cf3bb18867e4c80ce796a644fc",
+    "submit_sample/README_提交说明.md": "49a17773f77517406d83ab4c86092cd9ad4590c5f8275c0a49202b778be5a6e5"
+  },
+  "reported_discrepancies_resolved": {
+    "manager_earlier_reported_codes_db_8": "ERROR -> actual=7 (corrected)",
+    "worker_reported_codes_db_7": "CORRECT",
+    "worker_reported_manifest_12": "ERROR -> manifest snapshot_files=13; +manifest.json = 14 total (corrected)",
+    "total_in_dir_14": "CONFIRMED: 13 snapshot files + 1 manifest.json = 14"
+  },
+  "excluded_data_not_read": true
+}

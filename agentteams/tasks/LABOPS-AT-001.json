@@ -1,0 +1,35 @@
+{
+  "task_id": "LABOPS-AT-001",
+  "incident_id": "POLAR-RCA-DEMO-001",
+  "title": "AgentTeams evidence-to-verification vertical slice",
+  "goal": "Use distinct AgentTeams roles to reproduce the existing safe Polar evidence workflow and return a verifiable evidence bundle.",
+  "project": "labops-guard",
+  "workspace": "demo/output-agentteams",
+  "inputs": {
+    "snapshot": "demo/fixtures/project_snapshot_lite",
+    "allowed_list": "demo/allowed_files.json",
+    "audit_dir": "demo/fixtures/audit",
+    "verification": "demo/fixtures/snapshot_verification.json"
+  },
+  "assigned_agents": ["labops-manager", "evidence-collector", "rca-analyst", "controlled-executor", "verification-auditor"],
+  "required_skills": ["collect-lab-evidence", "diagnose-lab-incident", "control-lab-action", "verify-lab-result", "pack-lab-evidence"],
+  "acceptance": [
+    "AgentTeams messages show at least four cross-role handoffs coordinated by labops-manager.",
+    "Snapshot status is VERIFIED with 13 allowlisted files and zero mismatches.",
+    "Evidence contains 22 items and 10 gaps; excluded data reads remain zero.",
+    "All diagnostic assertions reference evidence_id; uncertainty stays BLOCKED, UNKNOWN, or FORBIDDEN.",
+    "At least one APPROVED, one REJECTED, one TIMEOUT, and one FORBIDDEN path are visible.",
+    "The verifier independently returns DEMO_PASSED_NOT_RESOLVED, never CLOSED.",
+    "Trace hash chain verifies and the Manager publishes artifact paths plus unresolved limitations."
+  ],
+  "risk_policy": {
+    "network": "forbidden",
+    "install": "simulated_only",
+    "download": "simulated_only",
+    "training": "simulated_only",
+    "excluded_data": "never_read",
+    "writes": "workspace_only"
+  },
+  "close_rule": "Only real non-simulated execution with a concrete passing postcondition may set CLOSED.",
+  "initial_state": "RECEIVED"
+}

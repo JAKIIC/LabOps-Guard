@@ -1,0 +1,72 @@
+{
+  "owner": "controlled-executor",
+  "schema_version": "1.0",
+  "task_id": "LABOPS-AT-001",
+  "incident_id": "incident-001",
+  "workspace": "demo/output-agentteams",
+  "action": {
+    "action_id": "act-gap-001",
+    "hypothesis_id": "H-GAP-001",
+    "gap_id": "GAP-001",
+    "action_class": "manual_approval",
+    "intent": "pip install numpy pandas",
+    "command": "pip install numpy pandas",
+    "policy_class": "simulated_only",
+    "risk_policy_applied": {
+      "network": "forbidden",
+      "install": "simulated_only",
+      "download": "simulated_only",
+      "training": "simulated_only",
+      "excluded_data": "never_read",
+      "writes": "workspace_only"
+    }
+  },
+  "approval": {
+    "approval_id": "A-GAP-001",
+    "status": "APPROVED",
+    "decided_by": "human-user",
+    "decided_at": "2026-08-02T14:28:50Z",
+    "reason": "human-approved: demo dry-run + SIMULATED execution of pip install numpy pandas only; no real network/install/download/train/excluded-data"
+  },
+  "mode": "DRY_RUN/SIMULATED",
+  "result": {
+    "status": "SUCCEEDED",
+    "dry_run": true,
+    "simulated": true,
+    "output": "[dry-run] would run: pip install numpy pandas\n[SIMULATED] intent recorded, NOT executed: pip install numpy pandas\nSimulated actions do NOT modify real system or claim to fix anything.",
+    "error": null,
+    "executed_at": "2026-08-02T14:28:53Z"
+  },
+  "real_effects": {
+    "real_install_performed": false,
+    "real_network_used": false,
+    "real_download_performed": false,
+    "real_training_performed": false,
+    "excluded_data_read": false,
+    "files_modified": [],
+    "no_real_changes": true
+  },
+  "postconditions": {
+    "numpy_pandas_installed": false,
+    "numpy_pandas_imports_available": false,
+    "observed_numpy_pandas_imports_still_fail": true,
+    "note": "Action was simulated only; no packages were installed, so numpy/pandas imports remain unavailable. Gap GAP-001 (no pinned dependency versions / requirements.txt) is NOT resolved by a simulated action."
+  },
+  "prohibited_operations": {
+    "count": 0,
+    "network": 0,
+    "install": 0,
+    "download": 0,
+    "training": 0,
+    "excluded_data_reads": 0
+  },
+  "contract_notes": "DRY_RUN/SIMULATED actions only demonstrate the control flow and audit chain; they never indicate root-cause resolution. Incident must NOT be CLOSED on the basis of this simulated action.",
+  "trace_reference": {
+    "trace_file": "demo/output-agentteams/trace.jsonl",
+    "events": [
+      {"seq": 10, "event": "dry_run", "to_state": "DRY_RUN", "simulated": true, "command": "pip install numpy pandas"},
+      {"seq": 11, "event": "executing", "to_state": "EXECUTING", "simulated": true, "command": "pip install numpy pandas"},
+      {"seq": 12, "event": "simulated_succeeded", "to_state": "SUCCEEDED", "command": "pip install numpy pandas"}
+    ]
+  }
+}

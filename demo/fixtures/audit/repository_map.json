@@ -1,0 +1,119 @@
+{
+  "task_id": "POLAR-AUDIT-001-R3",
+  "audit_type": "read_only_code_structure_and_reproducibility_evidence",
+  "snapshot_base": "shared/tasks/POLAR-AUDIT-001/attempt-R1/project_snapshot_lite/",
+  "verification_ref": "shared/tasks/POLAR-AUDIT-001/attempt-R2/snapshot_verification.json",
+  "verification_status": "VERIFIED",
+  "allowed_file_count": 13,
+  "allowed_files_excluding_manifest": [
+    "README.md",
+    "baseline.py",
+    "baseline/baseline/README.md",
+    "baseline/baseline/participant_pipeline_cnn_mlp.ipynb",
+    "baseline/baseline/Codes_DB/BCH_N31_K11.txt",
+    "baseline/baseline/Codes_DB/BCH_N31_K16.txt",
+    "baseline/baseline/Codes_DB/BCH_N63_K30.txt",
+    "baseline/baseline/Codes_DB/BCH_N63_K45.txt",
+    "baseline/baseline/Codes_DB/POLAR_N64_K22.txt",
+    "baseline/baseline/Codes_DB/POLAR_N64_K32.txt",
+    "baseline/baseline/Codes_DB/POLAR_N64_K48.txt",
+    "public_test/README_数据说明.md",
+    "submit_sample/README_提交说明.md"
+  ],
+  "entry_points": {
+    "cli_script": {
+      "path": "baseline.py",
+      "function": "main",
+      "line": 246,
+      "guard": "if __name__ == '__main__': main()",
+      "guard_line": 298,
+      "role": "Primary executable baseline (OSD-2 decoder + channel calibration)"
+    },
+    "notebook": {
+      "path": "baseline/baseline/participant_pipeline_cnn_mlp.ipynb",
+      "entry_cell": 1,
+      "role": "Reference participant pipeline (CNN+MLP residual decoder), training + inference"
+    }
+  },
+  "modules": {
+    "baseline.py": {
+      "path": "baseline.py",
+      "purpose": "Sample-calibrated ordered-statistics decoder for POLAR(64,32)",
+      "functions": [
+        {"name": "parse_args", "line": 21, "role": "CLI argument definition"},
+        {"name": "load_parity_matrix", "line": 41, "role": "Load 32x64 parity-check matrix from zip or file"},
+        {"name": "rref_binary", "line": 53, "role": "Binary row-reduced echelon form (GF2)"},
+        {"name": "generator_from_parity", "line": 73, "role": "Derive generator matrix from parity matrix"},
+        {"name": "discover_training_pair", "line": 84, "role": "Locate paired train x/y shard"},
+        {"name": "load_training_sample", "line": 95, "role": "Load + shuffle sampled training rows"},
+        {"name": "fit_channel", "line": 112, "role": "Estimate per-bit channel means/var/prior"},
+        {"name": "calibrated_llr", "line": 132, "role": "Compute calibrated LLR from channel model"},
+        {"name": "make_flip_patterns", "line": 143, "role": "Enumerate OSD flip patterns"},
+        {"name": "osd_decode_one", "line": 150, "role": "Single-sample OSD decoding (MRB)"},
+        {"name": "osd_decode", "line": 196, "role": "Batch OSD decode"},
+        {"name": "validate_and_select", "line": 205, "role": "Choose raw vs calibrated LLR mode on validation"},
+        {"name": "save_calibration", "line": 228, "role": "Persist calibration npz"},
+        {"name": "load_calibration", "line": 233, "role": "Load calibration npz"},
+        {"name": "open_test_source", "line": 239, "role": "Open test CSV directly or from zip"},
+        {"name": "main", "line": 246, "role": "Orchestration: load matrix, calibrate, decode, write submission"}
+      ],
+      "module_constants": [
+        {"name": "ROOT", "line": 16, "value": "Path(__file__).resolve().parent"},
+        {"name": "BIT_COLUMNS", "line": 17, "value": "bit_0..bit_63"},
+        {"name": "Y_COLUMNS", "line": 18, "value": "y_0..y_63"}
+      ]
+    },
+    "participant_pipeline_cnn_mlp.ipynb": {
+      "path": "baseline/baseline/participant_pipeline_cnn_mlp.ipynb",
+      "purpose": "Reference CNN+MLP residual decoder pipeline (training + inference + submission)",
+      "cells": [
+        {"index": 0, "type": "markdown", "role": "Title"},
+        {"index": 1, "type": "code", "role": "Imports (random, pathlib, numpy, pandas, torch, nn, datasets)"},
+        {"index": 2, "type": "code", "role": "set_seed(42) + device selection (CUDA/cpu)"},
+        {"index": 3, "type": "code", "role": "Data discovery: enumerate train shards + load test csv"},
+        {"index": 4, "type": "code", "role": "Datasets: SingleShardByIdDataset (train/val split by id mod 20), PublicTestDataset"},
+        {"index": 5, "type": "code", "role": "Code config (manifest.json) + parity matrix H load + generator construction"},
+        {"index": 6, "type": "code", "role": "Model definition: SeparableConv1d, ResidualBlock1d, ResidualDecoder + optimizer"},
+        {"index": 7, "type": "code", "role": "process_batch, ber_from_logits, train_one_epoch, eval_one_epoch"},
+        {"index": 8, "type": "code", "role": "Training loop with early stopping + best checkpoint save"},
+        {"index": 9, "type": "code", "role": "Inference on public test + write submission_residual_decoder.csv"}
+      ]
+    }
+  },
+  "data_assets": {
+    "code_tables": {
+      "path_prefix": "baseline/baseline/Codes_DB/",
+      "note": "7 parity-check matrix text files (allowed). Referenced by baseline.py (POLAR_N64_K32) and notebook (POLAR_N64_K32). Other tables (BCH, other POLAR) are present but unused by the audited code paths.",
+      "files": [
+        "BCH_N31_K11.txt",
+        "BCH_N31_K16.txt",
+        "BCH_N63_K30.txt",
+        "BCH_N63_K45.txt",
+        "POLAR_N64_K22.txt",
+        "POLAR_N64_K32.txt",
+        "POLAR_N64_K48.txt"
+      ]
+    }
+  },
+  "external_data_referenced_not_in_snapshot": {
+    "note": "Referenced by code/README but excluded from snapshot (excluded_data_files_reference_only in manifest). Not read during this audit.",
+    "items": [
+      {"path": "train/train_codeword_x_shard_000.csv", "referenced_in": "baseline.py::discover_training_pair L84; README.md"},
+      {"path": "train/train_noisy_y_shard_000.csv", "referenced_in": "baseline.py::discover_training_pair L84; README.md"},
+      {"path": "competition_data/test_noisy_y_public.csv", "referenced_in": "baseline.py::open_test_source L239; public_test/README_数据说明.md"},
+      {"path": "competition_data/manifest.json", "referenced_in": "participant_pipeline_cnn_mlp.ipynb cell 5"},
+      {"path": "Codes_DB/POLAR_N64_K32.txt (inside baseline.zip)", "referenced_in": "baseline.py::load_parity_matrix L41"},
+      {"path": "competition_data/test_codeword_x_private.csv", "referenced_in": "baseline/baseline/README.md (private labels, eval only)"}
+    ]
+  },
+  "missing_artifacts_identified": {
+    "note": "Artifacts expected for full reproducibility that are absent from the snapshot; recorded as gaps, not guesses.",
+    "items": [
+      "requirements.txt / environment specification (absent)",
+      "run scripts / shell wrappers (absent)",
+      "trained model weights / checkpoint file (absent)",
+      "channel_calibration.npz pre-computed artifact (absent; generated at runtime)",
+      "public_test.zip / baseline.zip archives (absent; referenced as defaults)"
+    ]
+  }
+}

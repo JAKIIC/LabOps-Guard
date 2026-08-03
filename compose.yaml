@@ -1,0 +1,20 @@
+services:
+  labops-guard:
+    build:
+      context: .
+    image: labops-guard:local
+    container_name: labops-guard-demo
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    volumes:
+      - "./demo/output-agentteams:/evidence:ro"
+    command: ["python", "-B", "-m", "labops", "web", "--workspace", "/evidence", "--host", "0.0.0.0", "--port", "8787"]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ports:
+      - "127.0.0.1:8787:8787"
+    restart: unless-stopped

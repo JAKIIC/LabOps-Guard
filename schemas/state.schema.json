@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/state.schema.json",
+  "title": "IncidentState",
+  "type": "object",
+  "required": ["schema_version", "incident_id", "state", "updated_at", "updated_by"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "incident_id": {"type": "string"},
+    "state": {"type": "string", "enum": ["RECEIVED", "TRIAGED", "EVIDENCE_COLLECTING", "EVIDENCE_READY", "DIAGNOSING", "HYPOTHESES_READY", "PLAN_READY", "POLICY_CHECKING", "APPROVAL_PENDING", "EXECUTING", "VERIFYING", "RESOLVED", "FAILED", "ROLLED_BACK", "ARCHIVED"]},
+    "updated_at": {"type": "string"},
+    "updated_by": {"type": "string"}
+  },
+  "additionalProperties": false
+}

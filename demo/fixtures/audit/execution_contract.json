@@ -1,0 +1,112 @@
+{
+  "task_id": "POLAR-AUDIT-001-R3",
+  "audit_type": "read_only_execution_contract_extraction",
+  "snapshot_base": "shared/tasks/POLAR-AUDIT-001/attempt-R1/project_snapshot_lite/",
+  "contracts": [
+    {
+      "name": "baseline_cli_execution_contract",
+      "entry": {"path": "baseline.py", "function": "main", "line": 246},
+      "invocation_examples": [
+        {"cmd": "python baseline.py --max-rows 100 --output submission_debug.csv", "source": "README.md", "note": "calibrate + validate + decode first 100 test rows"},
+        {"cmd": "python baseline.py --reuse-calibration --output submission.csv", "source": "README.md", "note": "reuse saved calibration and produce full submission"}
+      ],
+      "cli_arguments": {
+        "definition": {"function": "parse_args", "line": 21},
+        "args": [
+          {"name": "--train-dir", "default": "ROOT/train", "line": 23, "role": "training shard directory"},
+          {"name": "--calibration-rows", "default": 10000, "line": 24, "role": "rows for channel calibration"},
+          {"name": "--validation-rows", "default": 2000, "line": 25, "role": "rows for validation / mode selection"},
+          {"name": "--calibration", "default": "ROOT/channel_calibration.npz", "line": 26, "role": "calibration output/input path"},
+          {"name": "--reuse-calibration", "action": "store_true", "line": 27, "role": "skip calibration, load existing npz"},
+          {"name": "--test-zip", "default": "ROOT/public_test.zip", "line": 28, "role": "zip containing test csv"},
+          {"name": "--test-csv", "default": null, "line": 29, "role": "direct test csv (overrides zip)"},
+          {"name": "--matrix", "default": null, "line": 30, "role": "direct parity matrix file (overrides zip)"},
+          {"name": "--baseline-zip", "default": "ROOT/baseline.zip", "line": 31, "role": "zip containing Codes_DB matrix"},
+          {"name": "--output", "default": "ROOT/submission.csv", "line": 32, "role": "submission output path"},
+          {"name": "--list-size", "default": 10, "line": 33, "role": "OSD list size"},
+          {"name": "--order", "default": 2, "choices": [0,1,2,3], "line": 34, "role": "OSD order"},
+          {"name": "--chunk-size", "default": 1000, "line": 35, "role": "read chunksize for test csv"},
+          {"name": "--max-rows", "default": null, "line": 36, "role": "debug: limit decoded rows"},
+          {"name": "--seed", "default": 42, "line": 37, "role": "RNG seed for sampling"}
+        ]
+      },
+      "runtime_dependencies": {
+        "python_packages": ["numpy", "pandas"],
+        "install_doc": "README.md -> 'pip install numpy pandas'",
+        "hardcoded_versions": "absent (no pinned versions in snapshot)"
+      },
+      "data_flow": [
+        {"step": "load parity matrix (zip or file) -> 32x64", "func": "load_parity_matrix", "line": 41},
+        {"step": "derive generator from parity (GF2)", "func": "generator_from_parity", "line": 73},
+        {"step": "(if not reuse) discover paired train shard", "func": "discover_training_pair", "line": 84},
+        {"step": "(if not reuse) load+shuffle calibration+validation rows", "func": "load_training_sample", "line": 95},
+        {"step": "(if not reuse) fit per-bit channel model", "func": "fit_channel", "line": 112},
+        {"step": "(if not reuse) select raw vs calibrated mode on validation", "func": "validate_and_select", "line": 205},
+        {"step": "(if not reuse) save calibration npz", "func": "save_calibration", "line": 228},
+        {"step": "open test source (csv or zip)", "func": "open_test_source", "line": 239},
+        {"step": "for each chunk: compute LLR (calibrated or raw)", "func": "calibrated_llr", "line": 132},
+        {"step": "OSD decode", "func": "osd_decode", "line": 196},
+        {"step": "assemble submission csv", "part": "main loop", "line": 270}
+      ],
+      "output_contract": {
+        "submission_format": "id,bit_0..bit_63",
+        "metric": "BER (bit error rate, lower is better)",
+        "doc_sources": ["submit_sample/README_提交说明.md", "README.md"]
+      },
+      "known_documented_behavior": {
+        "source": "README.md",
+        "reference_ber": {"hard_decision": 0.055, "osd2": 0.013, "reported_leaderboard": 0.01272},
+        "note": "Documented reference values from README; not independently reproduced in this read-only audit (no execution permitted)."
+      }
+    },
+    {
+      "name": "notebook_pipeline_execution_contract",
+      "entry": {"path": "baseline/baseline/participant_pipeline_cnn_mlp.ipynb", "entry_cell": 1},
+      "flow": [
+        {"cell": 1, "step": "imports"},
+        {"cell": 2, "step": "set_seed(42) + device"},
+        {"cell": 3, "step": "data discovery + load test csv"},
+        {"cell": 4, "step": "datasets (train/val by id%20; test)"},
+        {"cell": 5, "step": "code config + H load + generator"},
+        {"cell": 6, "step": "model build + optimizer (Adam lr=1e-3)"},
+        {"cell": 7, "step": "train/eval helpers"},
+        {"cell": 8, "step": "training loop, early stopping patience=50, save best_participant_residual_decoder.pt"},
+        {"cell": 9, "step": "load best checkpoint, infer, write submission_residual_decoder.csv"}
+      ],
+      "hyperparameters": {
+        "BATCH_SIZE": 512,
+        "EPOCHS": "min(200, len(train_x_files))",
+        "VAL_MOD": 20,
+        "VAL_REM": 0,
+        "PATIENCE": 50,
+        "lr": 1e-3,
+        "seed": 42,
+        "loss": "BCEWithLogitsLoss",
+        "source": "notebook cells 2,6,8"
+      },
+      "model_architecture": {
+        "name": "ResidualDecoder",
+        "layers": "conv_feat Conv1d(2,64,1); syn_dense Linear(32,64); conv_combined Conv1d(65,64,1); ResidualBlock1d(64); fc Linear(64*64->1024->1024->64)",
+        "syndrome_input": "H_tensor from POLAR_N64_K32 parity matrix",
+        "source": "notebook cell 6"
+      },
+      "output_contract": {
+        "submission_file": "submission_residual_decoder.csv",
+        "format": "id,bit_0..bit_63",
+        "source": "notebook cell 9"
+      },
+      "runtime_dependencies": {
+        "python_packages": ["numpy", "pandas", "torch"],
+        "kernelspec": {"display_name": "mypytorch", "name": "python3"},
+        "language_info_version": "3.12.9",
+        "hardcoded_versions": "absent"
+      }
+    }
+  ],
+  "reproducibility_contract_notes": {
+    "seeded_sampling": "baseline.py uses --seed 42 for training-sample permutation (load_training_sample L95); notebook uses set_seed(42) (cell 2).",
+    "calibration_persistence": "baseline.py persists channel_calibration.npz (save_calibration L228) enabling --reuse-calibration.",
+    "checkpoint_persistence": "notebook saves best_participant_residual_decoder.pt (cell 8) and reloads it (cell 9).",
+    "no_pinned_deps": "Neither requirements.txt nor pinned package versions exist in the snapshot (gap)."
+  }
+}

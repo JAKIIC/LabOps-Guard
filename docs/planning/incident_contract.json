@@ -1,0 +1,122 @@
+{
+  "task_id": "LABOPS-MVP-PLAN-001",
+  "spec_type": "incident_contract",
+  "principle": "no_evidence_no_diagnosis | no_approval_no_execution | no_verification_no_closure",
+  "entities": {
+    "incident": {
+      "description": "A unit of guarded work on a project (e.g., 'reproduce polar-baseline').",
+      "fields": [
+        {"name": "incident_id", "type": "string", "required": true},
+        {"name": "project_ref", "type": "string", "required": true, "note": "snapshot path + manifest hash"},
+        {"name": "status", "type": "enum", "values": ["OPEN", "IN_PROGRESS", "BLOCKED", "CLOSED"], "required": true},
+        {"name": "created_at", "type": "iso8601", "required": true},
+        {"name": "snapshot_hashes", "type": "map", "required": true, "note": "allowed-file SHA-256 from verification"},
+        {"name": "contract_ref", "type": "string", "required": true, "note": "link to execution_contract.json"},
+        {"name": "closure_state", "type": "enum", "values": ["VERIFIED", "PARTIAL", "UNVERIFIED", "REJECTED"], "required": false}
+      ]
+    },
+    "evidence": {
+      "description": "A verifiable observation. Strong/weak/missing. MUST carry evidence_id and source ref.",
+      "fields": [
+        {"name": "evidence_id", "type": "string", "required": true, "note": "e.g. EV-001, GAP-001"},
+        {"name": "strength", "type": "enum", "values": ["strong", "weak", "missing"], "required": true},
+        {"name": "claim", "type": "string", "required": true},
+        {"name": "refs", "type": "array<string>", "required": true, "note": "relative path + line/cell"},
+        {"name": "source_file", "type": "string", "required": true},
+        {"name": "status", "type": "enum", "values": ["CONFIRMED", "PARTIAL", "MISSING", "UNKNOWN", "EXCLUDED_NOT_READ"], "required": true}
+      ]
+    },
+    "hypothesis": {
+      "description": "A diagnostic candidate. MUST reference >=1 evidence_id. No evidence -> not a valid hypothesis.",
+      "fields": [
+        {"name": "hypothesis_id", "type": "string", "required": true},
+        {"name": "evidence_ids", "type": "array<string>", "required": true, "min": 1, "note": "forbidden to be empty"},
+        {"name": "state", "type": "enum", "values": ["CANDIDATE", "BLOCKED", "UNKNOWN", "APPROVED", "REJECTED"], "required": true},
+        {"name": "block_reason", "type": "string", "required": false, "note": "present when state=BLOCKED/UNKNOWN"},
+        {"name": "suggested_action_id", "type": "string", "required": false}
+      ]
+    },
+    "approval": {
+      "description": "Gate between hypothesis and action. Rejection/timeout are first-class.",
+      "fields": [
+        {"name": "approval_id", "type": "string", "required": true},
+        {"name": "hypothesis_id", "type": "string", "required": true},
+        {"name": "action_id", "type": "string", "required": true},
+        {"name": "action_class", "type": "enum", "values": ["read_only_auto", "manual_approval", "forbidden"], "required": true},
+        {"name": "status", "type": "enum", "values": ["PENDING", "APPROVED", "REJECTED", "TIMEOUT"], "required": true},
+        {"name": "requested_by", "type": "string", "required": true},
+        {"name": "decided_by", "type": "string", "required": false},
+        {"name": "decided_at", "type": "iso8601", "required": false},
+        {"name": "reason", "type": "string", "required": false}
+      ]
+    },
+    "action": {
+      "description": "A controlled action. Executes only after approval (unless read_only_auto).",
+      "fields": [
+        {"name": "action_id", "type": "string", "required": true},
+        {"name": "command", "type": "string", "required": true, "note": "must match command allowlist"},
+        {"name": "workdir", "type": "string", "required": true, "note": "must stay within boundary"},
+        {"name": "dry_run", "type": "boolean", "required": true, "default": true},
+        {"name": "timeout_seconds", "type": "integer", "required": true},
+        {"name": "status", "type": "enum", "values": ["PENDING", "DRY_RUN", "EXECUTING", "SUCCEEDED", "FAILED", "TIMEOUT", "FORBIDDEN", "SKIPPED"], "required": true},
+        {"name": "output_truncated", "type": "boolean", "required": true},
+        {"name": "redacted", "type": "boolean", "required": true}
+      ]
+    },
+    "verification": {
+      "description": "Post-action check that must pass before closure.",
+      "fields": [
+        {"name": "verification_id", "type": "string", "required": true},
+        {"name": "action_id", "type": "string", "required": true},
+        {"name": "checks", "type": "array<object>", "required": true, "note": "e.g. exit_code, artifact_exists, hash_matches"},
+        {"name": "status", "type": "enum", "values": ["PASSED", "FAILED", "PARTIAL", "NOT_VERIFIED"], "required": true},
+        {"name": "verified_at", "type": "iso8601", "required": true}
+      ]
+    }
+  },
+  "state_machines": {
+    "incident": {
+      "states": ["OPEN", "IN_PROGRESS", "BLOCKED", "CLOSED"],
+      "transitions": [
+        "OPEN -> IN_PROGRESS (on registry+evidence collected)",
+        "IN_PROGRESS -> BLOCKED (missing evidence / approval rejected / action failed / verification failed)",
+        "BLOCKED -> IN_PROGRESS (new evidence or approval obtained)",
+        "IN_PROGRESS -> CLOSED (verification PASSED)",
+        "any -> CLOSED (REJECTED/UNVERIFIED closure recorded explicitly)"
+      ]
+    },
+    "hypothesis": {
+      "states": ["CANDIDATE", "BLOCKED", "UNKNOWN", "APPROVED", "REJECTED"],
+      "transitions": [
+        "CANDIDATE -> BLOCKED (missing required evidence)",
+        "CANDIDATE -> UNKNOWN (no evidence available; not guessed)",
+        "CANDIDATE -> APPROVED (approval granted)",
+        "CANDIDATE -> REJECTED (approval denied)",
+        "BLOCKED/UNKNOWN -> CANDIDATE (new evidence obtained)"
+      ]
+    },
+    "action": {
+      "states": ["PENDING", "DRY_RUN", "EXECUTING", "SUCCEEDED", "FAILED", "TIMEOUT", "FORBIDDEN", "SKIPPED"],
+      "transitions": [
+        "PENDING -> DRY_RUN (always first)",
+        "DRY_RUN -> EXECUTING (approved + not forbidden)",
+        "EXECUTING -> SUCCEEDED / FAILED / TIMEOUT",
+        "any -> FORBIDDEN (if not in allowlist, even if approved)",
+        "any -> SKIPPED (approval rejected / no evidence)"
+      ]
+    },
+    "verification": {
+      "states": ["PASSED", "FAILED", "PARTIAL", "NOT_VERIFIED"],
+      "note": "Only PASSED closes the incident; FAILED/PARTIAL/NOT_VERIFIED keep incident BLOCKED/IN_PROGRESS"
+    }
+  },
+  "mandatory_evidence_reference_rule": {
+    "rule": "Every hypothesis MUST include >=1 evidence_id. A hypothesis with empty evidence_ids is invalid and rejected at creation.",
+    "no_evidence_output": "UNKNOWN or BLOCKED (never a fabricated fact)"
+  },
+  "first_class_failure_states": ["approval_rejected", "approval_timeout", "action_failed", "action_timeout", "action_forbidden", "verification_failed", "verification_not_verified"],
+  "append_only_trace": {
+    "description": "Every entity transition appends an immutable trace line with timestamp + hash chain.",
+    "fields": ["trace_seq", "entity_type", "entity_id", "event", "from_state", "to_state", "ts", "prev_hash", "hash"]
+  }
+}

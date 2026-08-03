@@ -1,0 +1,95 @@
+{
+  "task_id": "LABOPS-MVP-PLAN-001",
+  "spec_type": "approval_policy",
+  "principle": "no_evidence_no_diagnosis | no_approval_no_execution | no_verification_no_closure",
+  "default_posture": "default_safe",
+  "action_classes": {
+    "read_only_auto": {
+      "description": "Read-only, non-mutating, low-risk. Executes automatically without human approval (still logged + trace).",
+      "examples": [
+        "hash snapshot files",
+        "read allowed files",
+        "parse audit JSON",
+        "list workspace contents",
+        "generate registry/evidence/diagnosis records"
+      ]
+    },
+    "manual_approval": {
+      "description": "Mutating or risky. Requires explicit human approval before any execution. Dry-run is mandatory first.",
+      "examples": [
+        "write to LabOps workspace output files",
+        "install dependencies (e.g., pip install)",
+        "download data archives (e.g., public_test.zip, baseline.zip)",
+        "run training/inference (e.g., baseline.py)",
+        "create/modify config files",
+        "generate channel_calibration.npz",
+        "generate model checkpoint"
+      ]
+    },
+    "forbidden": {
+      "description": "Never permitted, regardless of approval.",
+      "examples": [
+        "read excluded data (train/test CSV, private labels, keys, secrets)",
+        "modify/delete project snapshot or any allowed file",
+        "network access outside allowlist",
+        "exec arbitrary non-allowlisted commands",
+        "write outside LabOps workspace boundary",
+        "escalate privileges / disable safeguards"
+      ]
+    }
+  },
+  "auto_approval_conditions": {
+    "note": "An action may auto-run only if ALL hold",
+    "conditions": [
+      "action_class == read_only_auto",
+      "command in allowlist",
+      "workdir within boundary",
+      "no excluded-data access",
+      "evidence (if required) present"
+    ]
+  },
+  "manual_approval_requirements": {
+    "note": "An action may proceed only if ALL hold",
+    "requirements": [
+      "approval status == APPROVED (explicit human decision)",
+      "dry_run already performed and reviewed",
+      "command in allowlist",
+      "workdir within boundary",
+      "hypothesis cites >=1 evidence_id (unless BLOCKED/UNKNOWN closure)",
+      "action not in forbidden class"
+    ]
+  },
+  "timeout_rules": {
+    "approval_timeout_seconds": 3600,
+    "approval_timeout_action": "MARK TIMEOUT (first-class state); incident stays BLOCKED; action NOT executed",
+    "action_timeout_seconds": 300,
+    "action_timeout_action": "KILL action; mark action TIMEOUT; verification NOT_VERIFIED; incident BLOCKED"
+  },
+  "blocked_rules": {
+    "missing_evidence": "hypothesis -> BLOCKED/UNKNOWN; no action; request evidence; incident stays BLOCKED",
+    "approval_rejected": "hypothesis -> REJECTED; action SKIPPED; incident BLOCKED (recorded closure REJECTED)",
+    "action_failed_or_timeout": "verification NOT_VERIFIED; incident BLOCKED",
+    "verification_failed": "incident BLOCKED; require remediation before retry"
+  },
+  "closure_rule": {
+    "rule": "An incident CLOSES only when verification status == PASSED for its required actions, OR when explicitly closed as REJECTED/UNVERIFIED with reason recorded.",
+    "no_closure_without_verification": true
+  },
+  "polar_baseline_mapping_examples": {
+    "note": "Illustrative mapping of real evidence gaps to approval classes (grounded in evidence_gaps.json)",
+    "examples": [
+      {"gap": "GAP-001 no requirements.txt", "class": "manual_approval", "action": "create requirements.txt / pip install (dry-run first)", "state_if_unauthorized": "BLOCKED"},
+      {"gap": "GAP-002/003 train/test data absent", "class": "manual_approval", "action": "download data (SIMULATED in demo; no real download)", "state_if_unauthorized": "BLOCKED"},
+      {"gap": "GAP-004 baseline.zip/public_test.zip absent", "class": "manual_approval", "action": "download archive (SIMULATED in demo)", "state_if_unauthorized": "BLOCKED"},
+      {"gap": "GAP-005 channel_calibration.npz absent", "class": "manual_approval", "action": "generate calibration (would require training data)", "state_if_unauthorized": "BLOCKED"},
+      {"gap": "GAP-006 model checkpoint absent", "class": "manual_approval", "action": "train to produce checkpoint (SIMULATED)", "state_if_unauthorized": "BLOCKED"},
+      {"gap": "GAP-007 BER not verifiable", "class": "read_only_auto", "action": "record as UNKNOWN; do NOT assert documented BER as fact", "state_if_unauthorized": "UNKNOWN"},
+      {"gap": "GAP-009 private test labels absent", "class": "forbidden", "action": "never read/never request private test labels", "state_if_unauthorized": "FORBIDDEN"}
+    ]
+  },
+  "demo_principle_guard": {
+    "no_fabricated_faults": true,
+    "no_excluded_data_reads": true,
+    "missing_evidence_recorded_as": "UNKNOWN or BLOCKED (never asserted as fact)"
+  }
+}

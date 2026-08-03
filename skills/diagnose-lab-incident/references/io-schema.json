@@ -1,0 +1,12 @@
+{
+  "input": {
+    "required": ["task_id", "incident_id", "registry_record", "collected_evidence"],
+    "preconditions": ["snapshot_verified", "excluded_data_not_read"]
+  },
+  "output": {
+    "required": ["diagnosis_candidates", "hypothesis_counts", "evidence_links_valid", "unresolved_gaps", "handoff_state"],
+    "allowed_hypothesis_states": ["BLOCKED", "UNKNOWN", "FORBIDDEN"],
+    "allowed_handoff_states": ["DIAGNOSIS_READY", "BLOCKED"]
+  },
+  "errors": ["EVIDENCE_NOT_READY", "DANGLING_EVIDENCE_ID", "UNSUPPORTED_ASSERTION"]
+}

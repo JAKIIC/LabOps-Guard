@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/evidence.schema.json",
+  "title": "EvidenceItem",
+  "type": "object",
+  "required": ["evidence_id", "source_type", "source_path", "observation", "evidence_level", "content_hash"],
+  "properties": {
+    "evidence_id": {"type": "string"},
+    "source_type": {"type": "string"},
+    "source_path": {"type": "string"},
+    "locator": {"type": "object"},
+    "observation": {"type": "string"},
+    "evidence_level": {"type": "string", "enum": ["strong", "weak", "missing"]},
+    "content_hash": {"type": "string"}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,78 @@
+{
+  "task_id": "POLAR-AUDIT-001-R3",
+  "audit_type": "read_only_evidence_gaps",
+  "snapshot_base": "shared/tasks/POLAR-AUDIT-001/attempt-R1/project_snapshot_lite/",
+  "note": "Items recorded here could NOT be verified from the snapshot. No guessing; listed as gaps only. Excluded data files were not read.",
+  "gaps": [
+    {
+      "id": "GAP-001",
+      "category": "environment",
+      "title": "No pinned dependency versions / requirements.txt",
+      "detail": "No requirements.txt, environment.yml, or lock file in snapshot. baseline.py needs numpy+pandas; notebook needs numpy+pandas+torch (kernelspec 'mypytorch', python 3.12.9). Exact versions unknown -> full reproducibility of numerical results cannot be guaranteed from snapshot alone.",
+      "evidence_refs": ["README.md (pip install numpy pandas)", "participant_pipeline_cnn_mlp.ipynb metadata kernelspec/language_info"]
+    },
+    {
+      "id": "GAP-002",
+      "category": "data",
+      "title": "Training shards absent",
+      "detail": "baseline.py (discover_training_pair L84) requires train/train_codeword_x_shard_*.csv + train_noisy_y_shard_*.csv. These are excluded data files, not shipped in snapshot, and were not read. Sampling-dependent BER figures cannot be reproduced.",
+      "evidence_refs": ["baseline.py L84, L95", "manifest.json excluded_data_files_reference_only", "README.md"]
+    },
+    {
+      "id": "GAP-003",
+      "category": "data",
+      "title": "Test input absent",
+      "detail": "baseline.py (open_test_source L239) needs public_test.zip (competition_data/test_noisy_y_public.csv) or --test-csv. Not shipped. Submission reproduction requires the test set.",
+      "evidence_refs": ["baseline.py L239, L28-29", "public_test/README_数据说明.md"]
+    },
+    {
+      "id": "GAP-004",
+      "category": "data",
+      "title": "baseline.zip / public_test.zip archives absent",
+      "detail": "CLI defaults reference ROOT/baseline.zip (L31) and ROOT/public_test.zip (L28); neither archive is in the snapshot. Parity matrix is only available unpacked at baseline/baseline/Codes_DB/POLAR_N64_K32.txt.",
+      "evidence_refs": ["baseline.py L28, L31", "snapshot tree"]
+    },
+    {
+      "id": "GAP-005",
+      "category": "artifact",
+      "title": "Pre-computed channel_calibration.npz absent",
+      "detail": "Produced at runtime by save_calibration (L228); not shipped. --reuse-calibration requires it to exist first.",
+      "evidence_refs": ["baseline.py L26-27, L228, L233"]
+    },
+    {
+      "id": "GAP-006",
+      "category": "artifact",
+      "title": "Trained model checkpoint absent",
+      "detail": "Notebook produces best_participant_residual_decoder.pt at runtime (cell 8) and reloads it (cell 9). No pretrained weights shipped -> notebook inference path requires full training first.",
+      "evidence_refs": ["participant_pipeline_cnn_mlp.ipynb cells 8,9"]
+    },
+    {
+      "id": "GAP-007",
+      "category": "runtime",
+      "title": "Documented BER figures not independently verifiable",
+      "detail": "README reports hard=0.055, OSD-2=0.013, leaderboard=0.01272. These are documented values only; read-only audit forbids execution, so no independent reproduction. Also sampling is stochastic (seed 42 mitigates but channel fit depends on data).",
+      "evidence_refs": ["README.md", "baseline.py L95-110 (sampling)"]
+    },
+    {
+      "id": "GAP-008",
+      "category": "config",
+      "title": "No explicit run scripts / orchestration",
+      "detail": "No shell scripts, Makefile, or config files describing the exact run sequence beyond README commands. Exact command history for the reported leaderboard BER (0.01272) is not recorded in snapshot.",
+      "evidence_refs": ["README.md (运行 section)", "snapshot tree"]
+    },
+    {
+      "id": "GAP-009",
+      "category": "data",
+      "title": "Private test labels absent (by design)",
+      "detail": "competition_data/test_codeword_x_private.csv is referenced in baseline/baseline/README.md as eval-only private labels; not shipped and not intended for participants.",
+      "evidence_refs": ["baseline/baseline/README.md (私有测试标签)"]
+    },
+    {
+      "id": "GAP-010",
+      "category": "environment",
+      "title": "CUDA availability / device reproducibility",
+      "detail": "Notebook selects device = cuda if available else cpu (cell 2). Exact hardware/GPU not specified -> training/inference numerics may vary by device.",
+      "evidence_refs": ["participant_pipeline_cnn_mlp.ipynb cell 2"]
+    }
+  ]
+}

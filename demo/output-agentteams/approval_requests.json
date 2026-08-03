@@ -1,0 +1,38 @@
+[
+  {
+    "approval_id": "A-GAP-004",
+    "hypothesis_id": "H-GAP-004",
+    "action_id": "act-gap-004",
+    "command": "python3 -B baseline.py --mode infer",
+    "action_class": "manual_approval",
+    "status": "REJECTED",
+    "requested_by": "labops",
+    "decided_by": "admin",
+    "decided_at": "2026-08-02T06:40:03Z",
+    "reason": "policy: insufficient evidence / not authorized"
+  },
+  {
+    "approval_id": "A-GAP-005",
+    "hypothesis_id": "H-GAP-005",
+    "action_id": "act-gap-005",
+    "command": "python3 -B baseline.py --mode infer",
+    "action_class": "manual_approval",
+    "status": "TIMEOUT",
+    "requested_by": "labops",
+    "decided_by": null,
+    "decided_at": null,
+    "reason": "approval timeout exceeded"
+  },
+  {
+    "approval_id": "A-GAP-001",
+    "hypothesis_id": "H-GAP-001",
+    "action_id": "act-gap-001",
+    "command": "python3 -B baseline.py --mode infer",
+    "action_class": "manual_approval",
+    "status": "APPROVED",
+    "requested_by": "labops",
+    "decided_by": "human-user",
+    "decided_at": "2026-08-02T14:28:50Z",
+    "reason": "human-approved: demo dry-run + SIMULATED execution of pip install numpy pandas only; no real network/install/download/train/excluded-data"
+  }
+]

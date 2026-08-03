@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/incident.schema.json",
+  "title": "IncidentTicket",
+  "type": "object",
+  "required": ["schema_version", "incident_id", "incident_type", "project", "problem", "observed_metric", "target_metric", "constraints"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "incident_id": {"type": "string", "pattern": "^[A-Z0-9-]+$"},
+    "incident_type": {"type": "string"},
+    "project": {"type": "string"},
+    "problem": {"type": "string"},
+    "observed_metric": {"type": "object"},
+    "target_metric": {"type": "object"},
+    "constraints": {"type": "object"}
+  },
+  "additionalProperties": true
+}

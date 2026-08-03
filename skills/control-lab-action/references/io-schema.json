@@ -1,0 +1,12 @@
+{
+  "input": {
+    "required": ["task_id", "incident_id", "hypothesis_id", "action_id", "command_intent", "workspace", "expected_postcondition"],
+    "optional": ["requested_policy_class", "approval_id", "human_decision", "timeout_seconds"]
+  },
+  "output": {
+    "required": ["effective_policy_class", "approval_status", "dry_run", "execution_status", "simulated", "handoff_state"],
+    "policy_classes": ["read_only_auto", "manual_approval", "forbidden"],
+    "allowed_handoff_states": ["AWAITING_APPROVAL", "VERIFYING", "REJECTED", "BLOCKED"]
+  },
+  "errors": ["POLICY_DOWNGRADE_REFUSED", "APPROVAL_REQUIRED", "APPROVAL_REJECTED", "FORBIDDEN", "PATH_REFUSED", "TIMEOUT"]
+}

@@ -1,0 +1,106 @@
+{
+  "incident_id": "incident-001",
+  "hypothesis_count": 10,
+  "hypotheses": [
+    {
+      "hypothesis_id": "H-GAP-001",
+      "claim": "No pinned dependency versions / requirements.txt",
+      "evidence_ids": [
+        "GAP-001"
+      ],
+      "state": "BLOCKED",
+      "block_reason": "missing evidence (GAP-001); action requires approval",
+      "suggested_action_id": "A-GAP-001"
+    },
+    {
+      "hypothesis_id": "H-GAP-002",
+      "claim": "Training shards absent",
+      "evidence_ids": [
+        "GAP-002"
+      ],
+      "state": "BLOCKED",
+      "block_reason": "missing evidence (GAP-002); action requires approval",
+      "suggested_action_id": "A-GAP-002"
+    },
+    {
+      "hypothesis_id": "H-GAP-003",
+      "claim": "Test input absent",
+      "evidence_ids": [
+        "GAP-003"
+      ],
+      "state": "BLOCKED",
+      "block_reason": "missing evidence (GAP-003); action requires approval",
+      "suggested_action_id": "A-GAP-003"
+    },
+    {
+      "hypothesis_id": "H-GAP-004",
+      "claim": "baseline.zip / public_test.zip archives absent",
+      "evidence_ids": [
+        "GAP-004"
+      ],
+      "state": "BLOCKED",
+      "block_reason": "missing evidence (GAP-004); action requires approval",
+      "suggested_action_id": "A-GAP-004"
+    },
+    {
+      "hypothesis_id": "H-GAP-005",
+      "claim": "Pre-computed channel_calibration.npz absent",
+      "evidence_ids": [
+        "GAP-005"
+      ],
+      "state": "BLOCKED",
+      "block_reason": "missing evidence (GAP-005); action requires approval",
+      "suggested_action_id": "A-GAP-005"
+    },
+    {
+      "hypothesis_id": "H-GAP-006",
+      "claim": "Trained model checkpoint absent",
+      "evidence_ids": [
+        "GAP-006"
+      ],
+      "state": "BLOCKED",
+      "block_reason": "missing evidence (GAP-006); action requires approval",
+      "suggested_action_id": "A-GAP-006"
+    },
+    {
+      "hypothesis_id": "H-GAP-007",
+      "claim": "Documented BER figures not independently verifiable",
+      "evidence_ids": [
+        "GAP-007"
+      ],
+      "state": "UNKNOWN",
+      "block_reason": "documented value not independently verifiable; recorded UNKNOWN, not asserted as fact",
+      "suggested_action_id": null
+    },
+    {
+      "hypothesis_id": "H-GAP-008",
+      "claim": "No explicit run scripts / orchestration",
+      "evidence_ids": [
+        "GAP-008"
+      ],
+      "state": "BLOCKED",
+      "block_reason": "missing evidence (GAP-008); action requires approval",
+      "suggested_action_id": "A-GAP-008"
+    },
+    {
+      "hypothesis_id": "H-GAP-009",
+      "claim": "Private test labels absent (by design) (private test labels; forbidden to read/request)",
+      "evidence_ids": [
+        "GAP-009"
+      ],
+      "state": "FORBIDDEN",
+      "block_reason": "forbidden action class; never read/request private test labels",
+      "suggested_action_id": null
+    },
+    {
+      "hypothesis_id": "H-GAP-010",
+      "claim": "CUDA availability / device reproducibility",
+      "evidence_ids": [
+        "GAP-010"
+      ],
+      "state": "BLOCKED",
+      "block_reason": "missing evidence (GAP-010); action requires approval",
+      "suggested_action_id": "A-GAP-010"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.log
+.env
+.env.*
+*.key
+*.pem
+*.p12
+artifacts/
+demo/output/
+.pytest_cache/
+.coverage
+

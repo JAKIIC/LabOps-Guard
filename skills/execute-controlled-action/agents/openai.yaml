@@ -1,0 +1,4 @@
+interface:
+  display_name: "Execute Controlled Action"
+  short_description: "Gate and execute approved experiment actions safely"
+  default_prompt: "Use $execute-controlled-action to classify, approve, and dry-run an experiment action."

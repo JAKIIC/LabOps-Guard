@@ -1,0 +1,141 @@
+{
+  "task_id": "LABOPS-MVP-PLAN-001",
+  "spec_type": "implementation_backlog",
+  "principle": "no_evidence_no_diagnosis | no_approval_no_execution | no_verification_no_closure",
+  "prioritization_note": "P0 must form a runnable vertical slice within 1-2 days. P1 extends coverage. P2 hardens/polishes.",
+  "backlog": [
+    {
+      "id": "P0-01",
+      "priority": "P0",
+      "title": "Snapshot & Contract Registry (REAL)",
+      "description": "CLI subcommand to register a project snapshot: enumerate allowed files, compute SHA-256, load snapshot_verification.json (VERIFIED), record run contract from execution_contract.json.",
+      "dependencies": [],
+      "acceptance": "Given polar-baseline snapshot, produces registry_record.json with 13 allowed-file hashes matching VERIFIED; contract_record.json populated; trace appended.",
+      "risks": ["path encoding", "large excluded files not enumerated (must skip)"]
+    },
+    {
+      "id": "P0-02",
+      "priority": "P0",
+      "title": "Evidence Collector (REAL)",
+      "description": "Load repository_map/evidence_index/evidence_gaps; scan allowed files to re-confirm strong evidence refs; mark missing evidence; never read excluded data.",
+      "dependencies": ["P0-01"],
+      "acceptance": "Produces collected_evidence.json with 22 evidence items (17 strong/2 weak/3 missing) and 10 gaps mapped to states; excluded-data reads = 0.",
+      "risks": ["evidence ref drift", "accidental excluded-data path access"]
+    },
+    {
+      "id": "P0-03",
+      "priority": "P0",
+      "title": "Diagnosis Engine (REAL, rule-based)",
+      "description": "Turn evidence into diagnostic candidates. Every candidate MUST cite evidence_id; missing evidence -> UNKNOWN/BLOCKED.",
+      "dependencies": ["P0-02"],
+      "acceptance": "diagnosis_candidates.json: all 10 gaps represented as BLOCKED/UNKNOWN (none asserted as fact); every candidate has >=1 evidence_id.",
+      "risks": ["temptation to guess -> guarded by schema validation"]
+    },
+    {
+      "id": "P0-04",
+      "priority": "P0",
+      "title": "Approval Gate (REAL policy + SIMULATED triggers)",
+      "description": "Classify actions per approval_policy.json; read-only auto-run; high-risk emit approval request with dry-run; forbidden refuse. In demo, install/download/train use SIMULATED adapter.",
+      "dependencies": ["P0-03", "approval_policy.json"],
+      "acceptance": "approval_requests.json + decisions.json; reject/timeout are first-class; forbidden actions refused even if approved; no real network/install in demo.",
+      "risks": ["approval loop UX", "timeout handling"]
+    },
+    {
+      "id": "P0-05",
+      "priority": "P0",
+      "title": "Action Executor (MIXED: real benign + simulated risky)",
+      "description": "Dry-run-first; command allowlist; workdir boundary; timeout; output truncation + redaction. Benign file/hash ops real; install/download/train simulated.",
+      "dependencies": ["P0-04"],
+      "acceptance": "execution_result.json with dry_run/status; forbidden commands blocked; outputs truncated/redacted; workdir respected.",
+      "risks": ["shell injection -> allowlist mitigates", "long-running simulated actions"]
+    },
+    {
+      "id": "P0-06",
+      "priority": "P0",
+      "title": "Verification Closer (REAL)",
+      "description": "Post-action checks: exit code, artifact existence, hash match. Only PASSED closes incident; FAILED/PARTIAL/NOT_VERIFIED keeps BLOCKED.",
+      "dependencies": ["P0-05"],
+      "acceptance": "verification_result.json; closure rule enforced (no closure without PASSED unless explicit REJECTED/UNVERIFIED).",
+      "risks": ["false-negative hash checks"]
+    },
+    {
+      "id": "P0-07",
+      "priority": "P0",
+      "title": "Append-only Trace Log (REAL)",
+      "description": "Hash-chained append-only trace capturing every entity transition with timestamp + prev_hash.",
+      "dependencies": ["P0-01..P0-06"],
+      "acceptance": "trace.log append-only; integrity check passes; no entry modified/deleted.",
+      "risks": ["concurrent append", "integrity check cost"]
+    },
+    {
+      "id": "P0-08",
+      "priority": "P0",
+      "title": "Polar-baseline Demo Runbook Execution",
+      "description": "Drive demo: register snapshot -> collect evidence -> surface 10 gaps as BLOCKED/UNKNOWN -> approval loop on install/download/calibration -> verification closure.",
+      "dependencies": ["P0-01..P0-07"],
+      "acceptance": "End-to-end vertical slice runs in demo mode within 1-2 days; demonstrates missing-evidence detection + approval closure; no fabricated faults; no excluded-data reads.",
+      "risks": ["scope creep", "demo realism vs safety"]
+    },
+    {
+      "id": "P1-01",
+      "priority": "P1",
+      "title": "Configurable command allowlist + workdir policies",
+      "description": "External policy file (YAML/JSON) for allowlist, timeout defaults, redaction patterns, output limits.",
+      "dependencies": ["P0-04"],
+      "acceptance": "Policy changes without code change; invalid policy rejected.",
+      "risks": ["policy misconfig"]
+    },
+    {
+      "id": "P1-02",
+      "priority": "P1",
+      "title": "Real (non-simulated) executor for safe commands",
+      "description": "Enable REAL execution for approved benign commands (e.g., create requirements.txt from evidence) while keeping risky ops simulated/locked.",
+      "dependencies": ["P0-05"],
+      "acceptance": "Approved benign action executes and verifies; risky actions still blocked/simulated.",
+      "risks": ["accidental real execution of risky op"]
+    },
+    {
+      "id": "P1-03",
+      "priority": "P1",
+      "title": "Evidence-reference integrity validation",
+      "description": "Schema check that every hypothesis/evidence ref resolves to an existing file/line/cell; dangling refs reported.",
+      "dependencies": ["P0-02"],
+      "acceptance": "Dangling evidence refs detected and surfaced; zero silent refs.",
+      "risks": ["false positives on path normalization"]
+    },
+    {
+      "id": "P2-01",
+      "priority": "P2",
+      "title": "Multi-project registry + searchable trace",
+      "description": "Support multiple project snapshots; query trace/incidents by project/evidence/state.",
+      "dependencies": ["P0-07"],
+      "acceptance": "Query returns correct incident/evidence/approval history per project.",
+      "risks": ["index growth"]
+    },
+    {
+      "id": "P2-02",
+      "priority": "P2",
+      "title": "Redaction & secrets scanner hardening",
+      "description": "Improve redaction rules; scan outputs for accidental key/secret leakage.",
+      "dependencies": ["P0-05"],
+      "acceptance": "Redaction tests pass; no secrets in trace/outputs.",
+      "risks": ["over-redaction hiding evidence"]
+    },
+    {
+      "id": "P2-03",
+      "priority": "P2",
+      "title": "Trace integrity + audit export",
+      "description": "Export audit bundle (registry, evidence, approvals, actions, verification, trace) for external review; verify hash chain.",
+      "dependencies": ["P0-07", "P2-01"],
+      "acceptance": "Audit bundle exports and chain-verifies.",
+      "risks": ["bundle size"]
+    }
+  ],
+  "vertical_slice_note": "P0-01..P0-08 together form the 1-2 day runnable vertical slice: registry -> evidence -> diagnosis -> approval -> action(demo) -> verification -> trace, demonstrated on polar-baseline.",
+  "risk_summary": [
+    "Security: forbidden actions must be refused even if approved (P0-04/05 guard)",
+    "Integrity: evidence refs must resolve; no guessing (P0-03/P1-03)",
+    "Safety: demo must not fabricate faults or read excluded data (P0-08 guard)",
+    "Reproducibility: hashes + trace chain must hold (P0-01/P0-07)"
+  ]
+}

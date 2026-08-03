@@ -1,0 +1,4 @@
+interface:
+  display_name: "Diagnose Lab Incident"
+  short_description: "Build evidence-bound incident hypotheses safely"
+  default_prompt: "Use $diagnose-lab-incident to create hypotheses from collected evidence without guessing."

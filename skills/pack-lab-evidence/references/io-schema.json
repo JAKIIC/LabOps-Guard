@@ -1,0 +1,11 @@
+{
+  "input": {
+    "required": ["task_id", "incident_id", "workspace", "verification_result", "trace_chain_ok", "output"],
+    "preconditions": ["trace_chain_ok=true", "verification_result_exists"]
+  },
+  "output": {
+    "required": ["bundle", "bundle_sha256", "manifest", "included_artifacts", "missing_optional", "explicit_exclusions"],
+    "format": "zip"
+  },
+  "errors": ["WORKSPACE_NOT_READY", "OUTPUT_OUTSIDE_WORKSPACE", "TRACE_INVALID", "REQUIRED_ARTIFACT_MISSING", "DISALLOWED_ARTIFACT"]
+}

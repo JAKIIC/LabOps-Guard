@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify Lab Result"
+  short_description: "Independently verify outcomes and audit closure"
+  default_prompt: "Use $verify-lab-result to independently verify an action result and its trace chain."
