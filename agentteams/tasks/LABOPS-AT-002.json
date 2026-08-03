@@ -1,0 +1,31 @@
+{
+  "task_id": "LABOPS-AT-002",
+  "incident_ids": ["DEMO-RCA-001", "DEMO-RCA-002"],
+  "title": "Checkpoint regression repair and metric-tamper rollback",
+  "goal": "Use six distinct roles to diagnose one deterministic checkpoint regression, approve a minimal repair, independently verify it, and prove policy enforcement with an unsafe counter-case.",
+  "project": "labops-guard",
+  "workspace": "artifacts",
+  "inputs": {
+    "valid_incident": "demos/checkpoint-regression/incident.json",
+    "unsafe_incident": "demos/checkpoint-regression/incident-policy-violation.json",
+    "baseline": "artifacts/DEMO-RCA-001/baseline/stability_report.json"
+  },
+  "assigned_agents": ["labops-manager", "evidence-collector", "rca-analyst", "experiment-planner", "safe-executor", "verification-auditor"],
+  "required_skills": ["collect-lab-evidence", "diagnose-lab-incident", "plan-lab-experiment", "control-lab-action", "verify-lab-result", "pack-lab-evidence"],
+  "acceptance": [
+    "Three baseline runs are identical; last accuracy is 0.65-0.75 and best accuracy is at least 0.88.",
+    "Every diagnosis cites evidence_id and the planner changes only eval_config.json checkpoint.",
+    "Valid case finishes PASS and RESOLVED after independent metric recomputation.",
+    "Unsafe metric.py edit finishes POLICY_VIOLATION and ROLLED_BACK with the metric hash restored.",
+    "Both trace hash chains verify and all six roles produce distinct handoffs."
+  ],
+  "risk_policy": {
+    "network": "forbidden",
+    "training": "forbidden",
+    "metric_implementation": "immutable",
+    "dataset": "never_read_or_modify",
+    "writes": "sandbox_only"
+  },
+  "close_rule": "Only the verification-auditor may resolve after independent recomputation and immutable-hash verification.",
+  "initial_state": "RECEIVED"
+}

@@ -1,0 +1,11 @@
+{
+  "input": {
+    "required": ["hypothesis_id", "evidence_ids", "claim"],
+    "constraints": ["evidence_ids must contain at least one resolvable ID"]
+  },
+  "output": {
+    "schema": "../../../schemas/plan.schema.json",
+    "required": ["plan_id", "hypothesis_id", "objective", "changes", "command", "success_criteria", "budget", "risk_level", "approval_required", "rollback", "forbidden_changes"],
+    "constraints": ["changes contains exactly one item", "metric.py and datasets remain immutable"]
+  }
+}

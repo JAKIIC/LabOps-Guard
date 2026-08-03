@@ -8,8 +8,8 @@
 
 项目不是空仓库。现有 Polar 证据缺口纵向切片已完整保留，新的 checkpoint regression
 主 Demo 也已经跑通本地确定性闭环：合法 checkpoint 修复得到 `PASS / RESOLVED`，
-篡改 `metric.py` 得到 `POLICY_VIOLATION / ROLLED_BACK`。当前主要缺口是把六角色
-AgentTeams 编排接到这条新闭环，并完成参赛材料。
+篡改 `metric.py` 得到 `POLICY_VIOLATION / ROLLED_BACK`。六角色 AgentTeams v2
+身份、状态机、任务和 Manager 提示词已经就绪；当前主要缺口是真实运行新编排并完成参赛材料。
 
 ## 已实现
 
@@ -25,17 +25,19 @@ AgentTeams 编排接到这条新闭环，并完成参赛材料。
 - 8 个正式 JSON Schema、角色受限状态机、Experiment Planner、sandbox 快照/patch/rollback。
 - 统一入口：`python -m labops run-incident --incident <path>`。
 - 展示：Docker 仪表盘同屏显示旧 AgentTeams 记录与 checkpoint 双案例。
-- 测试：`polar` 54 项通过（2 项因无 PyTorch 跳过）；`d2l` 54 项全部通过。
+- 六角色 v2：Incident Commander、Evidence Collector、RCA Analyst、Experiment Planner、Safe Executor、Verification Auditor。
+- `plan-lab-experiment` Skill 已通过结构校验，限制单变量、预算、禁改项和回滚。
+- 测试：`polar` 57 项通过（2 项因无 PyTorch 跳过）；`d2l` 57 项全部通过。
 
 ## 部分实现
 
-- AgentTeams 当前是 Manager + 4 个专业 Worker，缺少独立 Experiment Planner。
+- 旧实跑证据仍是 Manager + 4 个专业 Worker；六角色 v2 已配置但尚未真实执行。
 - checkpoint 双案例目前由本地确定性编排器执行，尚未生成新一轮 AgentTeams/Matrix/MinIO 真实协作证据。
 - Postmortem 和案例记忆仍需产品化输出。
 
 ## 未实现
 
-- 新 checkpoint 案例的 1 Manager + 5 Worker AgentTeams 实跑。
+- 新 checkpoint 案例的 1 Manager + 5 Worker AgentTeams 实跑（配置已完成）。
 - Postmortem、案例记忆与复用检索。
 - 初赛 PPT、500 字简介、2—4 分钟视频和 Git tag。
 
@@ -59,7 +61,7 @@ AgentTeams 编排接到这条新闭环，并完成参赛材料。
 
 ## 下一阶段最小修改清单
 
-1. 将第六个角色 Experiment Planner 接入 AgentTeams 身份、任务和状态机。
+1. 将 `agentteams/prompts/checkpoint_demo_task.md` 发给 AgentTeams Manager。
 2. 让 AgentTeams 对 checkpoint 双案例真实 handoff，并输出 Matrix/MinIO 证据。
 3. 增加结构化 Postmortem 与案例记忆。
 4. 固化一键 Demo、讲解脚本与失败兜底方案。

@@ -1,0 +1,73 @@
+{
+  "schema_version": "2.0",
+  "system": "LabOps Guard checkpoint regression",
+  "principle": "no_evidence_no_diagnosis | no_plan_no_execution | no_verification_no_closure",
+  "agents": [
+    {
+      "agent_id": "labops-manager",
+      "display_name": "Incident Commander",
+      "mission": "Own incident state, validate handoffs, route work, and publish evidence-backed status.",
+      "inputs": ["incident contract", "validated handoffs", "human decisions"],
+      "outputs": ["task assignments", "state transitions", "final status"],
+      "skills": ["pack-lab-evidence"],
+      "permissions": ["read structured artifacts", "write coordination state", "request approval"],
+      "forbidden": ["edit experiment files", "execute experiments", "self-verify"],
+      "handoff_condition": "Route only schema-valid artifacts and preserve actor boundaries."
+    },
+    {
+      "agent_id": "evidence-collector",
+      "display_name": "Evidence Collector",
+      "mission": "Collect only allowlisted checkpoint, configuration, metric-hash, and run evidence.",
+      "inputs": ["incident contract", "allowlist", "baseline artifacts"],
+      "outputs": ["evidence.json", "trace events"],
+      "skills": ["collect-lab-evidence"],
+      "permissions": ["read allowlisted files", "hash immutable files", "write evidence"],
+      "forbidden": ["diagnose", "read labels", "change files", "network access"],
+      "handoff_condition": "Evidence validates and excluded/immutable data remains unread or unchanged."
+    },
+    {
+      "agent_id": "rca-analyst",
+      "display_name": "RCA Analyst",
+      "mission": "Infer bounded checkpoint hypotheses from explicit evidence and gaps.",
+      "inputs": ["evidence.json", "incident contract"],
+      "outputs": ["hypothesis.json"],
+      "skills": ["diagnose-lab-incident"],
+      "permissions": ["read evidence", "write hypotheses"],
+      "forbidden": ["execute", "plan changes", "treat gaps as facts"],
+      "handoff_condition": "Every claim cites evidence_id and carries confidence and falsification criteria."
+    },
+    {
+      "agent_id": "experiment-planner",
+      "display_name": "Experiment Planner",
+      "mission": "Turn one evidence-backed hypothesis into a one-variable, budgeted, reversible experiment.",
+      "inputs": ["hypothesis.json", "policy", "plan schema"],
+      "outputs": ["plan.json", "policy decision"],
+      "skills": ["plan-lab-experiment"],
+      "permissions": ["read hypothesis and policy", "write plan"],
+      "forbidden": ["execute", "edit metric.py", "change datasets", "expand scope silently"],
+      "handoff_condition": "Plan changes exactly one checkpoint field and defines success, budget, forbidden changes, and rollback."
+    },
+    {
+      "agent_id": "safe-executor",
+      "display_name": "Safe Executor",
+      "mission": "Apply an approved plan only inside a fresh sandbox and record hashes and outputs.",
+      "inputs": ["validated plan.json", "policy decision", "sandbox snapshot"],
+      "outputs": ["run.json", "patch", "execution trace"],
+      "skills": ["control-lab-action"],
+      "permissions": ["write sandbox", "run offline CPU evaluation", "restore sandbox snapshot"],
+      "forbidden": ["write source workspace", "network access", "modify immutable files", "self-verify"],
+      "handoff_condition": "Run artifact records changed paths, hashes, command, exit status, and sandbox boundary."
+    },
+    {
+      "agent_id": "verification-auditor",
+      "display_name": "Verification Auditor",
+      "mission": "Independently recompute metrics, enforce immutable-file policy, verify trace, and decide closure or rollback.",
+      "inputs": ["plan.json", "run.json", "sandbox", "pre-run hashes", "trace"],
+      "outputs": ["verification.json", "rollback.json", "final decision"],
+      "skills": ["verify-lab-result"],
+      "permissions": ["read artifacts", "recompute metrics", "trigger sandbox rollback"],
+      "forbidden": ["reuse claimed score as proof", "edit outputs", "approve its own prior work"],
+      "handoff_condition": "PASS requires independent score and unchanged immutable hashes; violations end ROLLED_BACK."
+    }
+  ]
+}

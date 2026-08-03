@@ -1,0 +1,4 @@
+interface:
+  display_name: "Experiment Planner"
+  short_description: "Design minimal, evidence-backed experiment plans"
+  default_prompt: "Use $plan-lab-experiment to create a minimal safe experiment plan for this incident."

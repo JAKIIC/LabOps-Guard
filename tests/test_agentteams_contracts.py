@@ -22,6 +22,7 @@ SKILLS = [
     "verify-lab-result",
     "pack-lab-evidence",
 ]
+V2_SKILLS = SKILLS + ["plan-lab-experiment"]
 
 
 class TestAgentIdentities(unittest.TestCase):
@@ -97,6 +98,36 @@ class TestSkillPackages(unittest.TestCase):
             self.assertIn("manifest.json", names)
             self.assertIn("trace.jsonl", names)
             self.assertFalse(any("fixtures" in name or name.endswith(".csv") for name in names))
+
+
+class TestCheckpointAgentTeam(unittest.TestCase):
+    def setUp(self):
+        self.identities = json.loads((ROOT / "agentteams" / "agent_identities_v2.json").read_text(encoding="utf-8"))
+        self.task = json.loads((ROOT / "agentteams" / "tasks" / "LABOPS-AT-002.json").read_text(encoding="utf-8"))
+        self.machine = json.loads((ROOT / "agentteams" / "state_machine_v2.json").read_text(encoding="utf-8"))
+
+    def test_six_roles_include_independent_planner(self):
+        ids = [agent["agent_id"] for agent in self.identities["agents"]]
+        self.assertEqual(len(ids), 6)
+        self.assertIn("experiment-planner", ids)
+        self.assertEqual(set(self.task["assigned_agents"]), set(ids))
+        self.assertEqual(set(self.task["required_skills"]), set(V2_SKILLS))
+
+    def test_v2_closure_and_rollback_are_verifier_only(self):
+        terminal = [transition for transition in self.machine["transitions"] if transition["to"] in {"RESOLVED", "ROLLED_BACK"}]
+        self.assertEqual({transition["to"] for transition in terminal}, {"RESOLVED", "ROLLED_BACK"})
+        self.assertTrue(all(transition["actor"] == "verification-auditor" for transition in terminal))
+        rollback = next(transition for transition in terminal if transition["to"] == "ROLLED_BACK")
+        self.assertIn("rollback_hash_restored", rollback["requires"])
+
+    def test_planning_skill_is_complete(self):
+        path = ROOT / "skills" / "plan-lab-experiment" / "SKILL.md"
+        text = path.read_text(encoding="utf-8")
+        self.assertNotIn("TODO", text)
+        self.assertIn("metric.py", text)
+        payload = json.loads((path.parent / "references" / "io-schema.json").read_text(encoding="utf-8"))
+        self.assertIn("input", payload)
+        self.assertIn("output", payload)
 
 
 if __name__ == "__main__":
