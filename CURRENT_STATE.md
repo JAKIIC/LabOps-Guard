@@ -2,67 +2,48 @@
 
 更新时间：2026-08-03  
 核验目录：`E:\AICompetition\LabOpsWorkspace\labops-guard`  
-新路线：兜底 checkpoint regression Demo 优先，Polar 作为扩展案例
+当前主线：checkpoint regression + 六角色 AgentTeams 实跑
 
-## 结论
+## 当前结论
 
-项目不是空仓库。现有 Polar 证据缺口纵向切片已完整保留，新的 checkpoint regression
-主 Demo 也已经跑通本地确定性闭环：合法 checkpoint 修复得到 `PASS / RESOLVED`，
-篡改 `metric.py` 得到 `POLICY_VIOLATION / ROLLED_BACK`。六角色 AgentTeams v2
-身份、状态机、任务和 Manager 提示词已经就绪；当前主要缺口是真实运行新编排并完成参赛材料。
+`LABOPS-AT-002` 已完成 Manager + 5 Worker 真实 AgentTeams 端到端运行，六个角色均有 Matrix 房间、任务交接时间和 MinIO 产物。最终任务状态是 `BLOCKED`，不是完成：
+
+- 合法案例 `DEMO-RCA-001`：`INCONCLUSIVE / DEMO_PASSED_NOT_RESOLVED`。Safe Executor 仅修改沙箱中 `eval_config.json` 的 checkpoint 字段，但 Worker 运行环境缺少 PyTorch，无法复算 accuracy，因此不得标记 `PASS / RESOLVED`。
+- 非法案例 `DEMO-RCA-002`：`POLICY_VIOLATION / ROLLED_BACK`。`metric.py` 篡改被哈希策略检出，沙箱回滚后 SHA-256 恢复为 `e2c1f8a1cf3c281fea315ab3e0d01706aec1bac396497e0c936d21690b628a38`。
+- 本地 `d2l` 参考 Demo 仍可得到合法 `PASS / RESOLVED` 和非法 `POLICY_VIOLATION / ROLLED_BACK`，但该结果与 AgentTeams 实跑证据分开展示，不互相替代。
+
+## LABOPS-AT-002 实跑证据
+
+- 实际顺序：Incident Commander → Evidence Collector → RCA Analyst → Experiment Planner → Safe Executor → Verification Auditor → Incident Commander 打包收口。
+- 六次 handoff 全部记录 `task_id`、输入、输出、UTC 时间、状态、Worker 和 Matrix room ID。
+- Planner 合法方案通过五项校验：单变量、CPU/30s/无网络预算、禁改 `metric.py`、禁改 dataset/target、明确回滚。非法方案被 `POLICY_REJECTED`。
+- 人工审批 `LABOPS-AT-002-APPROVAL-001` 明确早于 Safe Executor 执行；授权范围不包含 `metric.py`、原始 workspace、dataset、target、network、training 和 download。
+- Manager 收口时根据真实 Matrix/审批/产物事件重建非空审计链：合法案例 8 条，非法案例 9 条，本地重验均为 `chain ok`。
+- 证据包含 55 个白名单产物；ZIP 哈希和 55 个包内产物哈希已独立重算且全部一致。
+- MinIO 原始位置：`shared/tasks/LABOPS-AT-002/`。
+- 本地归档：`demo/output-agentteams-at002/LABOPS-AT-002-evidence-bundle.zip`。
+- 只读仪表盘：`http://127.0.0.1:8787/`，直接读取归档 ZIP，服务端再次校验 ZIP、所有 artifact 和两条 trace 哈希链。
 
 ## 已实现
 
 - 确定性核心：snapshot registry、evidence、diagnosis、approval、controlled action、verification、trace hash chain。
-- 5 个可复用 Skill：证据采集、诊断、受控执行、验证、证据打包。
-- AgentTeams 纵向切片：5 个不同职责 Agent、5 次 handoff、Matrix 通知、MinIO 产物。
-- 安全门禁：默认 dry-run、危险动作模拟、禁止动作拒绝、路径边界、超时、审批拒绝和超时。
-- 事实边界：模拟执行只能得到 `DEMO_PASSED_NOT_RESOLVED`，不得伪造 `CLOSED`。
-- 展示：Docker 本地只读仪表盘，展示真实 AgentTeams 证据。
-- checkpoint regression：错误 last accuracy `0.7000`，best accuracy `0.98125`，连续 3 次稳定。
-- 正向案例 `DEMO-RCA-001`：沙箱内仅修正 checkpoint 选择，独立复算后 `PASS / RESOLVED`。
-- 对抗案例 `DEMO-RCA-002`：篡改 `metric.py` 被哈希策略识别，自动回滚后 `POLICY_VIOLATION / ROLLED_BACK`。
-- 8 个正式 JSON Schema、角色受限状态机、Experiment Planner、sandbox 快照/patch/rollback。
-- 统一入口：`python -m labops run-incident --incident <path>`。
-- 展示：Docker 仪表盘同屏显示旧 AgentTeams 记录与 checkpoint 双案例。
 - 六角色 v2：Incident Commander、Evidence Collector、RCA Analyst、Experiment Planner、Safe Executor、Verification Auditor。
-- `plan-lab-experiment` Skill 已通过结构校验，限制单变量、预算、禁改项和回滚。
-- 测试：`polar` 57 项通过（2 项因无 PyTorch 跳过）；`d2l` 57 项全部通过。
+- 独立 Planner、人工审批门禁、sandbox 快照/patch/rollback、禁改评测逻辑。
+- checkpoint 本地参考基线：`last.pt=0.7000`，`best.pt=0.98125`，连续 3 次稳定。
+- 仪表盘同屏显示 LABOPS-AT-002 真实结果、六角色 handoff、审批、计划约束、两条审计链、证据包完整性与本地参考 Demo。
 
-## 部分实现
+## 当前阻塞与已知限制
 
-- 旧实跑证据仍是 Manager + 4 个专业 Worker；六角色 v2 已配置但尚未真实执行。
-- checkpoint 双案例目前由本地确定性编排器执行，尚未生成新一轮 AgentTeams/Matrix/MinIO 真实协作证据。
-- Postmortem 和案例记忆仍需产品化输出。
+1. AgentTeams Worker 环境无 `torch`，且本次授权明确禁止安装、下载和联网；这是合法案例无法达到 `PASS / RESOLVED` 的唯一硬阻塞。
+2. `collect_checkpoint_evidence` 对两个案例的 evidence index 均写入 `DEMO-RCA-001`，属于现有采集器标签瑕疵；证据包保持原样未篡改。
+3. 非法案例沿用了共享 `diagnose_checkpoint` 产生的 hypotheses，真正的非法路径由 untrusted-candidate audit plan 触发。
+4. 待产出初赛 PPT、500 字简介、2—4 分钟视频和 Git tag。
 
-## 未实现
+## 环境与测试
 
-- 新 checkpoint 案例的 1 Manager + 5 Worker AgentTeams 实跑（配置已完成）。
-- Postmortem、案例记忆与复用检索。
-- 初赛 PPT、500 字简介、2—4 分钟视频和 Git tag。
+- `polar`：Python 3.11.15，核心测试使用标准库 `unittest`；无 PyTorch 的两项测试会跳过。
+- `d2l`：Python 3.9.25，CPU PyTorch 1.12.0 可用，可完成 checkpoint 本地参考 Demo 与全量测试。
 
-## Git 状态
+## 事实边界
 
-- 正式 E 盘项目已初始化独立 Git 仓库。
-- 当前分支：`codex/checkpoint-demo`。
-- checkpoint Demo 基线提交：`0b86398 feat: establish checkpoint regression LabOps Guard baseline`。
-- `artifacts/` 为本地生成证据，不纳入 Git；仪表盘通过只读挂载读取摘要。
-
-## 环境核验
-
-- `polar`：Python 3.11.15，NumPy 可用，PyTorch/pytest 不可用。
-- `d2l`：Python 3.9.25，CPU PyTorch 1.12.0 可用，无需下载依赖。
-- 当前全部 LabOps Guard 核心测试使用标准库 `unittest`，不要求 pytest。
-
-## 保留原则
-
-保留现有确定性核心、测试、安全策略、Skill、AgentTeams 证据和仪表盘。新 Demo 在独立
-`demos/checkpoint-regression` 目录开发，不覆盖现有 `demo/` Polar 纵向切片。
-
-## 下一阶段最小修改清单
-
-1. 将 `agentteams/prompts/checkpoint_demo_task.md` 发给 AgentTeams Manager。
-2. 让 AgentTeams 对 checkpoint 双案例真实 handoff，并输出 Matrix/MinIO 证据。
-3. 增加结构化 Postmortem 与案例记忆。
-4. 固化一键 Demo、讲解脚本与失败兜底方案。
-5. 产出初赛 PPT、500 字简介和 2—4 分钟演示视频脚本。
+不修改核心状态机，不增加 Agent，不降低安全策略。角色提示词不算执行证据；只有 Matrix 交接、MinIO 产物、审批时序、审计链和独立哈希复核共同构成本次实跑证据。

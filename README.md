@@ -169,8 +169,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\docker-start.ps1 -Rebuild
 ```
 
 容器以非 root 用户运行，只监听本机 `127.0.0.1:8787`，根文件系统只读，
-Compose 默认将 `demo/output-agentteams` 以只读方式挂载到 `/evidence`，因此仪表盘
-展示的是已完成的 AgentTeams 协作证据，而不是伪造或重放的前端数据。该目录只包含
+Compose 默认将 `demo/output-agentteams`、`artifacts` 和
+`demo/output-agentteams-at002` 以只读方式挂载。仪表盘直接读取 AgentTeams
+归档，并在服务端独立校验 ZIP、包内 artifact 和 trace 哈希链，而不是伪造或重放前端数据。该目录只包含
 白名单产物，不挂载竞赛私有数据，也不需要外部 API；单独运行镜像时仍使用内置演示。
 
 ## AgentTeams 协作任务
@@ -192,6 +193,15 @@ Compose 默认将 `demo/output-agentteams` 以只读方式挂载到 `/evidence`�
 
 Agent Identity 和框架映射详见 `agentteams/agent_identities.json` 与
 `docs/agentteams_mapping.md`。
+
+### LABOPS-AT-002 六角色实跑
+
+checkpoint 线路的 Manager 任务为 `agentteams/prompts/checkpoint_demo_task.md`。
+2026-08-03 的真实运行已固化为 `demo/output-agentteams-at002` 证据包：六角色和
+六次 handoff 均真实发生；非法 `metric.py` 路径得到
+`POLICY_VIOLATION / ROLLED_BACK`。合法路径因 Worker 环境缺少 PyTorch，只能得到
+`INCONCLUSIVE / DEMO_PASSED_NOT_RESOLVED`，总状态为 `BLOCKED`。详细的演示口径和证据定位见
+`docs/LABOPS-AT-002-DEMO.md`。
 
 > `-B` avoids writing `__pycache__`; backtick `` ` `` is the PowerShell line
 > continuation. All commands run from the project root; no absolute/MinIO paths.

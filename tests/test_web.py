@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import json
 import tempfile
@@ -10,10 +11,11 @@ import threading
 import unittest
 import urllib.error
 import urllib.request
+import zipfile
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
-from labops.web import build_checkpoint_demo_state, build_dashboard_state, make_handler, run_bundled_demo
+from labops.web import build_agentteams_v2_state, build_checkpoint_demo_state, build_dashboard_state, make_handler, run_bundled_demo
 from labops.trace import TraceLog
 
 
@@ -117,7 +119,9 @@ class TestContainerPackaging(unittest.TestCase):
         self.assertIn('"127.0.0.1:8787:8787"', compose)
         self.assertIn('./demo/output-agentteams:/evidence:ro', compose)
         self.assertIn('./artifacts:/checkpoint-artifacts:ro', compose)
+        self.assertIn('./demo/output-agentteams-at002:/agentteams-v2:ro', compose)
         self.assertIn('"--workspace", "/evidence"', compose)
+        self.assertIn('"--agentteams-v2-workspace", "/agentteams-v2"', compose)
         self.assertIn("read_only: true", compose)
         self.assertIn("no-new-privileges:true", compose)
 
@@ -143,6 +147,66 @@ class TestCheckpointDashboardState(unittest.TestCase):
         self.assertEqual(state["valid_case"]["decision"], "PASS")
         self.assertEqual(state["unsafe_case"]["decision"], "POLICY_VIOLATION")
         self.assertTrue(state["unsafe_case"]["rollback_ok"])
+
+
+class TestAgentTeamsV2DashboardState(unittest.TestCase):
+    def test_real_bundle_is_revalidated_and_summarized(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            trace_paths = []
+            for incident, count in (("DEMO-RCA-001", 8), ("DEMO-RCA-002", 9)):
+                path = root / f"{incident}.jsonl"
+                trace = TraceLog(path)
+                for index in range(count):
+                    trace.append("handoff", incident, f"event-{index}", actor="worker")
+                trace_paths.append(path)
+
+            handoffs = [{"handoff": index, "role": role, "worker": worker, "task_id": "LABOPS-AT-002", "input": ["input"], "output": ["output"], "time": "2026-08-03T10:00:00Z", "status": "VALID"} for index, (role, worker) in enumerate((
+                ("evidence-collector", "evidence-collector"),
+                ("rca-analyst", "rca-analyst"),
+                ("experiment-planner", "researcher"),
+                ("safe-executor", "controlled-executor"),
+                ("verification-auditor", "verification-auditor"),
+                ("labops-manager", "labops-manager"),
+            ), 1)]
+            payloads = {
+                "artifacts/handoff_manifest.json": {"task_id": "LABOPS-AT-002", "final_state": "BLOCKED", "six_roles_run": True, "roles_mapping": {"labops-manager": "labops-manager", "evidence-collector": "evidence-collector", "rca-analyst": "rca-analyst", "experiment-planner": "researcher", "safe-executor": "controlled-executor", "verification-auditor": "verification-auditor"}, "handoffs": handoffs, "unresolved_limitations": ["torch missing"]},
+                "artifacts/approval_request_LABOPS-AT-002.json": {"approval_id": "A-1", "decision": "APPROVED", "decided_by": "human-user", "approved_at": "2026-08-03T10:00:00Z", "scope": {"A": "sandbox"}, "not_approved": ["metric.py"]},
+                "artifacts/DEMO-RCA-001/verification.json": {"decision": "INCONCLUSIVE", "resolution_status": "DEMO_PASSED_NOT_RESOLVED", "resolved": False, "reason": "torch missing", "checks": {"approval_before_execution": {"pass": True}, "changed_paths_within_sandbox": {"pass": True}, "metric_immutability": {"hash_unchanged": True}, "concrete_postcondition": {"failure": "ModuleNotFoundError: torch"}}},
+                "artifacts/DEMO-RCA-002/verification.json": {"decision": "POLICY_VIOLATION", "resolution_status": "ROLLED_BACK", "resolved": True, "checks": {"tamper_detected": {"pass": True}, "restored_hash_matches_frozen": {"hash_match": True, "restored_metric_hash": "abc", "frozen_baseline_hash": "abc"}}},
+                "artifacts/DEMO-RCA-001/plan.json": {"changes": [{"file": "eval_config.json", "field": "checkpoint"}], "budget": {"max_runtime_seconds": 30, "device": "cpu", "network": False}, "forbidden_changes": ["metric.py", "dataset", "target_metric"], "rollback": "discard sandbox"},
+                "artifacts/DEMO-RCA-002/approvals/POLICY-REJECTION.json": {"decision": "POLICY_REJECTED"},
+                "artifacts/DEMO-RCA-001/runs/RUN-DEMO-001/run_manifest.json": {"status": "failed"},
+                "artifacts/DEMO-RCA-002/runs/RUN-DEMO-UNSAFE-001/rollback.json": {"metric_hash_restored": True},
+            }
+            raw_files = {name: json.dumps(payload, ensure_ascii=False).encode("utf-8") for name, payload in payloads.items()}
+            raw_files["artifacts/DEMO-RCA-001/trace.jsonl"] = trace_paths[0].read_bytes()
+            raw_files["artifacts/DEMO-RCA-002/trace.jsonl"] = trace_paths[1].read_bytes()
+            bundle_path = root / "LABOPS-AT-002-evidence-bundle.zip"
+            with zipfile.ZipFile(bundle_path, "w") as bundle:
+                for name, data in raw_files.items():
+                    bundle.writestr(name, data)
+            top_manifest = {
+                "task_id": "LABOPS-AT-002",
+                "final_state": "BLOCKED",
+                "artifacts": {name: hashlib.sha256(data).hexdigest() for name, data in raw_files.items()},
+                "zip_sha256": hashlib.sha256(bundle_path.read_bytes()).hexdigest(),
+            }
+            (root / "evidence_bundle_manifest.json").write_text(json.dumps(top_manifest), encoding="utf-8")
+            state = build_agentteams_v2_state(root)
+
+        self.assertTrue(state["ready"])
+        self.assertTrue(state["six_roles_run"])
+        self.assertEqual(len(state["roles"]), 6)
+        self.assertEqual(len(state["handoffs"]), 6)
+        self.assertEqual(state["valid_case"]["decision"], "INCONCLUSIVE")
+        self.assertEqual(state["unsafe_case"]["decision"], "POLICY_VIOLATION")
+        self.assertTrue(state["unsafe_case"]["hash_restored"])
+        self.assertEqual(state["trace_chains"]["DEMO-RCA-001"]["entries"], 8)
+        self.assertEqual(state["trace_chains"]["DEMO-RCA-002"]["entries"], 9)
+        self.assertTrue(state["bundle"]["zip_hash_ok"])
+        self.assertTrue(state["bundle"]["artifact_hashes_ok"])
+        self.assertTrue(all(state["planner_checks"].values()))
 
 
 if __name__ == "__main__":

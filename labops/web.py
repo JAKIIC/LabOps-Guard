@@ -6,7 +6,9 @@ It never serves arbitrary files from the workspace and never reads excluded data
 
 from __future__ import annotations
 
+import hashlib
 import json
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -27,6 +29,171 @@ def _counts(records: list[dict], key: str) -> dict[str, int]:
         value = str(record.get(key, "UNKNOWN"))
         result[value] = result.get(value, 0) + 1
     return result
+
+
+def _sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _verify_trace_bytes(data: bytes) -> dict:
+    """Verify a non-empty TraceLog-compatible JSONL payload without extracting it."""
+    try:
+        records = [json.loads(line) for line in data.decode("utf-8").splitlines() if line]
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        return {"ok": False, "entries": 0, "message": f"trace unreadable: {exc}"}
+    if not records:
+        return {"ok": False, "entries": 0, "message": "empty trace is not evidence"}
+    previous_hash = None
+    for record in records:
+        if record.get("prev_hash") != previous_hash:
+            return {"ok": False, "entries": len(records), "message": f"chain break at seq={record.get('seq')}"}
+        canonical = json.dumps({k: v for k, v in record.items() if k != "hash"}, ensure_ascii=False, sort_keys=True)
+        if _sha256(canonical.encode("utf-8")) != record.get("hash"):
+            return {"ok": False, "entries": len(records), "message": f"hash mismatch at seq={record.get('seq')}"}
+        previous_hash = record.get("hash")
+    return {"ok": True, "entries": len(records), "message": f"chain ok, {len(records)} entries"}
+
+
+def build_agentteams_v2_state(evidence_root: str | Path | None) -> dict:
+    """Read and independently validate the allowlisted LABOPS-AT-002 evidence bundle."""
+    if evidence_root is None:
+        return {"ready": False}
+    evidence_root = Path(evidence_root)
+    top_manifest = _read_json(evidence_root / "evidence_bundle_manifest.json", {})
+    bundle_path = evidence_root / "LABOPS-AT-002-evidence-bundle.zip"
+    if not top_manifest or not bundle_path.is_file():
+        return {"ready": False}
+
+    names = {
+        "handoff": "artifacts/handoff_manifest.json",
+        "approval": "artifacts/approval_request_LABOPS-AT-002.json",
+        "valid_verification": "artifacts/DEMO-RCA-001/verification.json",
+        "unsafe_verification": "artifacts/DEMO-RCA-002/verification.json",
+        "valid_plan": "artifacts/DEMO-RCA-001/plan.json",
+        "unsafe_policy": "artifacts/DEMO-RCA-002/approvals/POLICY-REJECTION.json",
+        "valid_run": "artifacts/DEMO-RCA-001/runs/RUN-DEMO-001/run_manifest.json",
+        "unsafe_rollback": "artifacts/DEMO-RCA-002/runs/RUN-DEMO-UNSAFE-001/rollback.json",
+        "valid_trace": "artifacts/DEMO-RCA-001/trace.jsonl",
+        "unsafe_trace": "artifacts/DEMO-RCA-002/trace.jsonl",
+    }
+    payloads: dict[str, Any] = {}
+    traces: dict[str, dict] = {}
+    artifact_hashes_ok = True
+    artifact_hash_errors: list[str] = []
+    try:
+        bundle_bytes = bundle_path.read_bytes()
+        zip_hash_ok = _sha256(bundle_bytes) == top_manifest.get("zip_sha256")
+        with zipfile.ZipFile(bundle_path) as bundle:
+            expected_hashes = top_manifest.get("artifacts", {})
+            for artifact_name, expected_hash in expected_hashes.items():
+                try:
+                    if _sha256(bundle.read(artifact_name)) != expected_hash:
+                        artifact_hashes_ok = False
+                        artifact_hash_errors.append(artifact_name)
+                except KeyError:
+                    artifact_hashes_ok = False
+                    artifact_hash_errors.append(artifact_name)
+            for key, artifact_name in names.items():
+                raw = bundle.read(artifact_name)
+                if key.endswith("trace"):
+                    traces[key] = _verify_trace_bytes(raw)
+                else:
+                    payloads[key] = json.loads(raw)
+    except (OSError, zipfile.BadZipFile, KeyError, json.JSONDecodeError, ValueError) as exc:
+        return {"ready": False, "error": str(exc)}
+
+    handoff = payloads["handoff"]
+    approval = payloads["approval"]
+    valid_verification = payloads["valid_verification"]
+    unsafe_verification = payloads["unsafe_verification"]
+    valid_plan = payloads["valid_plan"]
+    valid_run = payloads["valid_run"]
+    unsafe_rollback = payloads["unsafe_rollback"]
+    unsafe_policy = payloads["unsafe_policy"]
+    changes = valid_plan.get("changes", [])
+    budget = valid_plan.get("budget", {})
+    forbidden = set(valid_plan.get("forbidden_changes", []))
+    planner_checks = {
+        "single_variable": len(changes) == 1 and changes[0].get("file") == "eval_config.json" and changes[0].get("field") == "checkpoint",
+        "limited_budget": budget.get("max_runtime_seconds", 10**9) <= 30 and budget.get("device") == "cpu" and budget.get("network") is False,
+        "evaluation_logic_immutable": "metric.py" in forbidden and all(change.get("file") != "metric.py" for change in changes),
+        "rollback_defined": bool(valid_plan.get("rollback")),
+        "unsafe_plan_rejected": unsafe_policy.get("decision") == "POLICY_REJECTED",
+    }
+    role_labels = {
+        "labops-manager": "Incident Commander",
+        "evidence-collector": "Evidence Collector",
+        "rca-analyst": "RCA Analyst",
+        "experiment-planner": "Experiment Planner",
+        "safe-executor": "Safe Executor",
+        "verification-auditor": "Verification Auditor",
+    }
+    roles_mapping = handoff.get("roles_mapping", {})
+    role_order = ["labops-manager", "evidence-collector", "rca-analyst", "experiment-planner", "safe-executor", "verification-auditor"]
+    roles = [
+        {"role": role_labels[role], "logical_id": role, "worker": roles_mapping.get(role), "status": "RAN"}
+        for role in role_order if roles_mapping.get(role)
+    ]
+    valid_checks = valid_verification.get("checks", {})
+    unsafe_checks = unsafe_verification.get("checks", {})
+    valid_trace = traces.get("valid_trace", {"ok": False, "entries": 0})
+    unsafe_trace = traces.get("unsafe_trace", {"ok": False, "entries": 0})
+    return {
+        "ready": True,
+        "task_id": top_manifest.get("task_id"),
+        "final_state": top_manifest.get("final_state"),
+        "created_at": top_manifest.get("created_at"),
+        "six_roles_run": handoff.get("six_roles_run") is True and len(roles) == 6,
+        "roles": roles,
+        "handoffs": handoff.get("handoffs", []),
+        "planner_checks": planner_checks,
+        "approval": {
+            "approval_id": approval.get("approval_id"),
+            "decision": approval.get("decision"),
+            "decided_by": approval.get("decided_by"),
+            "approved_at": approval.get("approved_at"),
+            "scope": approval.get("scope", {}),
+            "not_approved": approval.get("not_approved", []),
+            "before_execution": valid_checks.get("approval_before_execution", {}).get("pass") is True,
+        },
+        "valid_case": {
+            "incident_id": "DEMO-RCA-001",
+            "decision": valid_verification.get("decision"),
+            "resolution_status": valid_verification.get("resolution_status"),
+            "resolved": bool(valid_verification.get("resolved", False)),
+            "reason": valid_verification.get("reason"),
+            "run_status": valid_run.get("status"),
+            "failure": valid_checks.get("concrete_postcondition", {}).get("failure"),
+            "single_change_only": valid_checks.get("changed_paths_within_sandbox", {}).get("pass") is True,
+            "metric_unchanged": valid_checks.get("metric_immutability", {}).get("hash_unchanged") is True,
+        },
+        "unsafe_case": {
+            "incident_id": "DEMO-RCA-002",
+            "decision": unsafe_verification.get("decision"),
+            "resolution_status": unsafe_verification.get("resolution_status"),
+            "resolved": bool(unsafe_verification.get("resolved", False)),
+            "tamper_detected": unsafe_checks.get("tamper_detected", {}).get("pass") is True,
+            "rollback_ok": unsafe_rollback.get("metric_hash_restored") is True,
+            "hash_restored": unsafe_checks.get("restored_hash_matches_frozen", {}).get("hash_match") is True,
+            "restored_hash": unsafe_checks.get("restored_hash_matches_frozen", {}).get("restored_metric_hash"),
+            "original_hash": unsafe_checks.get("restored_hash_matches_frozen", {}).get("frozen_baseline_hash"),
+        },
+        "trace_chains": {"DEMO-RCA-001": valid_trace, "DEMO-RCA-002": unsafe_trace},
+        "bundle": {
+            "filename": bundle_path.name,
+            "artifact_count": len(top_manifest.get("artifacts", {})),
+            "zip_sha256": top_manifest.get("zip_sha256"),
+            "zip_hash_ok": zip_hash_ok,
+            "artifact_hashes_ok": artifact_hashes_ok,
+            "artifact_hash_errors": artifact_hash_errors,
+        },
+        "source": {
+            "matrix": "AgentTeams Element rooms",
+            "minio": "shared/tasks/LABOPS-AT-002/",
+            "artifact": "read-only evidence bundle",
+        },
+        "unresolved_limitations": handoff.get("unresolved_limitations", []),
+    }
 
 
 def build_checkpoint_demo_state(artifacts_root: str | Path | None) -> dict:
@@ -84,7 +251,11 @@ def build_checkpoint_demo_state(artifacts_root: str | Path | None) -> dict:
     }
 
 
-def build_dashboard_state(workspace: str | Path, checkpoint_workspace: str | Path | None = None) -> dict:
+def build_dashboard_state(
+    workspace: str | Path,
+    checkpoint_workspace: str | Path | None = None,
+    agentteams_v2_workspace: str | Path | None = None,
+) -> dict:
     """Build the allowlisted dashboard payload from generated demo artifacts."""
     workspace = Path(workspace)
     summary = _read_json(workspace / "demo" / "demo_summary.json", {})
@@ -198,6 +369,7 @@ def build_dashboard_state(workspace: str | Path, checkpoint_workspace: str | Pat
             "unresolved_limitations": manifest.get("unresolved_limitations", []) if is_agentteams else [],
         },
         "checkpoint_demo": build_checkpoint_demo_state(checkpoint_workspace),
+        "agentteams_v2": build_agentteams_v2_state(agentteams_v2_workspace),
         "trace": {
             "ok": trace_ok,
             "message": trace_message,
@@ -238,9 +410,14 @@ def run_bundled_demo(workspace: str | Path, project_root: str | Path) -> int:
     )
 
 
-def make_handler(workspace: str | Path, checkpoint_workspace: str | Path | None = None):
+def make_handler(
+    workspace: str | Path,
+    checkpoint_workspace: str | Path | None = None,
+    agentteams_v2_workspace: str | Path | None = None,
+):
     workspace = Path(workspace).resolve()
     checkpoint_workspace = Path(checkpoint_workspace).resolve() if checkpoint_workspace else None
+    agentteams_v2_workspace = Path(agentteams_v2_workspace).resolve() if agentteams_v2_workspace else None
     dashboard_html = Path(__file__).with_name("dashboard.html")
 
     class DashboardHandler(BaseHTTPRequestHandler):
@@ -274,9 +451,9 @@ def make_handler(workspace: str | Path, checkpoint_workspace: str | Path | None 
                     return
                 self._send(200, "text/html; charset=utf-8", body)
             elif path == "/api/status":
-                self._json(200, build_dashboard_state(workspace, checkpoint_workspace))
+                self._json(200, build_dashboard_state(workspace, checkpoint_workspace, agentteams_v2_workspace))
             elif path == "/healthz":
-                state = build_dashboard_state(workspace, checkpoint_workspace)
+                state = build_dashboard_state(workspace, checkpoint_workspace, agentteams_v2_workspace)
                 self._json(200 if state["ready"] else 503, {"ok": state["ready"], "service": "labops-guard"})
             else:
                 self._json(404, {"ok": False, "error": "not found"})
@@ -296,9 +473,15 @@ def make_handler(workspace: str | Path, checkpoint_workspace: str | Path | None 
     return DashboardHandler
 
 
-def serve(workspace: str | Path, host: str = "127.0.0.1", port: int = 8787, checkpoint_workspace: str | Path | None = None) -> None:
+def serve(
+    workspace: str | Path,
+    host: str = "127.0.0.1",
+    port: int = 8787,
+    checkpoint_workspace: str | Path | None = None,
+    agentteams_v2_workspace: str | Path | None = None,
+) -> None:
     """Serve the dashboard until interrupted."""
-    server = ThreadingHTTPServer((host, port), make_handler(workspace, checkpoint_workspace))
+    server = ThreadingHTTPServer((host, port), make_handler(workspace, checkpoint_workspace, agentteams_v2_workspace))
     print(f"LabOps Guard dashboard: http://{host}:{port}")
     print(f"Workspace: {Path(workspace).resolve()}")
     try:

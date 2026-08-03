@@ -197,7 +197,13 @@ def cmd_web(args) -> int:
         rc = web_mod.run_bundled_demo(_ws(args), project_root)
         if rc != 0:
             return rc
-    web_mod.serve(_ws(args), host=args.host, port=args.port, checkpoint_workspace=args.checkpoint_workspace)
+    web_mod.serve(
+        _ws(args),
+        host=args.host,
+        port=args.port,
+        checkpoint_workspace=args.checkpoint_workspace,
+        agentteams_v2_workspace=args.agentteams_v2_workspace,
+    )
     return 0
 
 
@@ -282,6 +288,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--port", type=int, default=8787)
     sp.add_argument("--run-demo", action="store_true", help="generate bundled demo output if absent")
     sp.add_argument("--checkpoint-workspace", default=None, help="read-only checkpoint demo artifacts")
+    sp.add_argument("--agentteams-v2-workspace", default=None, help="read-only LABOPS-AT-002 evidence bundle")
     sp.set_defaults(func=cmd_web)
 
     return p
