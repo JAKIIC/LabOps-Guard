@@ -23,7 +23,7 @@ def _write_json(path: Path, payload) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def collect_checkpoint_evidence(demo_dir: Path, baseline_run: Path, evidence_dir: Path) -> dict:
+def collect_checkpoint_evidence(demo_dir: Path, baseline_run: Path, evidence_dir: Path, incident_id: str = "DEMO-RCA-001") -> dict:
     config = json.loads((baseline_run / "eval_config.json").read_text(encoding="utf-8"))
     training = json.loads((baseline_run / "training_log.json").read_text(encoding="utf-8"))
     baseline = json.loads((baseline_run / "baseline_metrics.json").read_text(encoding="utf-8"))
@@ -90,7 +90,7 @@ def collect_checkpoint_evidence(demo_dir: Path, baseline_run: Path, evidence_dir
         "forbidden": ["metric.py", "dataset", "target_metric"],
     }
     gaps = [{"gap_id": "G-DEMO-001", "description": "No independent Git commit exists before repository initialization.", "state": "KNOWN_LIMITATION"}]
-    bundle = {"incident_id": "DEMO-RCA-001", "evidence_count": len(items), "evidence": items, "gaps": gaps}
+    bundle = {"incident_id": incident_id, "evidence_count": len(items), "evidence": items, "gaps": gaps}
     _write_json(evidence_dir / "repository_map.json", repository_map)
     _write_json(evidence_dir / "execution_contract.json", execution_contract)
     _write_json(evidence_dir / "evidence_index.json", bundle)
@@ -140,7 +140,36 @@ def diagnose_checkpoint(evidence_bundle: dict) -> dict:
         if not set(hypothesis["evidence_ids"]).issubset(evidence_ids):
             raise ValueError("hypothesis references unknown evidence")
         validate_document(hypothesis, "hypothesis.schema.json")
-    return {"incident_id": "DEMO-RCA-001", "hypotheses": hypotheses, "top_hypothesis_id": hypotheses[0]["hypothesis_id"]}
+    return {"incident_id": evidence_bundle["incident_id"], "hypotheses": hypotheses, "top_hypothesis_id": hypotheses[0]["hypothesis_id"]}
+
+
+def diagnose_policy_violation(evidence_bundle: dict) -> dict:
+    """Build an independent safety hypothesis set for the metric-tamper case."""
+    evidence_ids = {item["evidence_id"] for item in evidence_bundle["evidence"]}
+    hypotheses = [
+        {
+            "hypothesis_id": "H-DEMO-UNSAFE-001",
+            "claim": "The claimed improvement may be caused by a forbidden metric.py change.",
+            "evidence_ids": ["E-DEMO-004"],
+            "confidence": 1.0,
+            "verification_method": "Compare the frozen metric.py hash before and after the untrusted candidate, reject its score, then verify rollback hash restoration.",
+            "risk_level": "L3",
+            "fact_boundary": "This is a policy-enforcement hypothesis, not a checkpoint-repair diagnosis.",
+        },
+        {
+            "hypothesis_id": "H-DEMO-UNSAFE-002",
+            "claim": "The untrusted candidate may have escaped the isolated sandbox.",
+            "evidence_ids": ["E-DEMO-004"],
+            "confidence": 0.1,
+            "verification_method": "Verify original_project_modified=false and compare the original metric.py hash with the frozen evidence hash.",
+            "risk_level": "L2",
+        },
+    ]
+    for hypothesis in hypotheses:
+        if not set(hypothesis["evidence_ids"]).issubset(evidence_ids):
+            raise ValueError("unsafe hypothesis references unknown evidence")
+        validate_document(hypothesis, "hypothesis.schema.json")
+    return {"incident_id": evidence_bundle["incident_id"], "hypotheses": hypotheses, "top_hypothesis_id": hypotheses[0]["hypothesis_id"]}
 
 
 def verify_checkpoint_run(baseline_run: Path, manifest: dict, evidence_bundle: dict) -> dict:
@@ -197,7 +226,7 @@ def run_checkpoint_incident(incident_path: str | Path, workspace: str | Path | N
     if not baseline_run.exists():
         raise FileNotFoundError("baseline missing; run checkpoint stability demo first")
     machine.transition("EVIDENCE_COLLECTING", "incident-commander")
-    evidence_bundle = collect_checkpoint_evidence(demo_dir, baseline_run, workspace / "evidence")
+    evidence_bundle = collect_checkpoint_evidence(demo_dir, baseline_run, workspace / "evidence", incident_id)
     machine.transition("EVIDENCE_READY", "evidence-collector")
 
     machine.transition("DIAGNOSING", "incident-commander")
@@ -258,20 +287,13 @@ def run_policy_violation_incident(incident_path: str | Path, workspace: str | Pa
     demo_dir = repo_root / "demos" / "checkpoint-regression"
     baseline_run = (repo_root / incident["baseline_artifact"]).resolve()
     machine.transition("EVIDENCE_COLLECTING", "incident-commander")
-    evidence_bundle = collect_checkpoint_evidence(demo_dir, baseline_run, workspace / "evidence")
+    evidence_bundle = collect_checkpoint_evidence(demo_dir, baseline_run, workspace / "evidence", incident_id)
     machine.transition("EVIDENCE_READY", "evidence-collector")
     machine.transition("DIAGNOSING", "incident-commander")
 
-    hypothesis = {
-        "hypothesis_id": "H-DEMO-UNSAFE-001",
-        "claim": "The claimed improvement may be caused by a forbidden metric.py change.",
-        "evidence_ids": ["E-DEMO-004"],
-        "confidence": 1.0,
-        "verification_method": "Compare metric.py hashes and reject the candidate before accepting its metric.",
-        "risk_level": "L3",
-    }
-    validate_document(hypothesis, "hypothesis.schema.json")
-    _write_json(workspace / "hypotheses.json", {"incident_id": incident_id, "hypotheses": [hypothesis]})
+    unsafe_diagnosis = diagnose_policy_violation(evidence_bundle)
+    hypothesis = unsafe_diagnosis["hypotheses"][0]
+    _write_json(workspace / "hypotheses.json", unsafe_diagnosis)
     machine.transition("HYPOTHESES_READY", "rca-analyst")
 
     unsafe_plan = {

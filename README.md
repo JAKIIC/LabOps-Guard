@@ -168,6 +168,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\docker-stop.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\docker-start.ps1 -Rebuild
 ```
 
+若 Docker Hub 暂时不可达、但旧版 `labops-guard:local` 已在本机，可只刷新仪表盘代码：
+
+```powershell
+docker build --pull=false -f Dockerfile.dashboard-refresh -t labops-guard:local .
+docker compose up -d --no-build --force-recreate
+```
+
 容器以非 root 用户运行，只监听本机 `127.0.0.1:8787`，根文件系统只读，
 Compose 默认将 `demo/output-agentteams`、`artifacts` 和
 `demo/output-agentteams-at002` 以只读方式挂载。仪表盘直接读取 AgentTeams
@@ -203,6 +210,15 @@ checkpoint 线路的 Manager 任务为 `agentteams/prompts/checkpoint_demo_task.
 `INCONCLUSIVE / DEMO_PASSED_NOT_RESOLVED`，总状态为 `BLOCKED`。详细的演示口径和证据定位见
 `docs/LABOPS-AT-002-DEMO.md`。
 
+### LABOPS-AT-003 专用 PyTorch Runner
+
+AT-003 保留同一六角色治理链，但 Safe Executor 不再在 Worker 中运行或安装
+PyTorch。它只提交经过人工审批的结构化 ExperimentPlan；本机控制面用
+`labops/pytorch-cpu-runner:0.1.0` 在无网络、非 root、只读且限额的容器内运行。
+三次本地验证及真实 AgentTeams 运行均得到 `70.00% → 98.12%`，且 `metric.py`、
+验证数据和原始工作区未修改。Verification Auditor 独立复核通过后，最终状态才是
+`PASS / RESOLVED`。证据和演示口径见 `docs/LABOPS-AT-003-DEMO.md`。
+
 > `-B` avoids writing `__pycache__`; backtick `` ` `` is the PowerShell line
 > continuation. All commands run from the project root; no absolute/MinIO paths.
 
@@ -216,7 +232,8 @@ python3 -m unittest discover -s tests -p "test_*.py" -v
 
 Covers: no-evidence diagnosis refusal, approval rejection/timeout, forbidden action,
 out-of-boundary path, simulated action, verification failure, trace hash-chain integrity
-(+ tamper detection), and the full polar-baseline demo.
+(+ tamper detection), the full polar-baseline demo, the offline Runner contract,
+incident identity isolation, and independent AT-003 evidence-package revalidation.
 
 ---
 

@@ -1,0 +1,6 @@
+# Offline-only dashboard code refresh. The base image must already exist locally.
+FROM labops-guard:local
+
+USER root
+COPY --chown=labops:labops labops /app/labops
+USER labops

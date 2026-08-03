@@ -15,7 +15,7 @@ import zipfile
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
-from labops.web import build_agentteams_v2_state, build_checkpoint_demo_state, build_dashboard_state, make_handler, run_bundled_demo
+from labops.web import build_agentteams_v2_state, build_agentteams_v3_state, build_checkpoint_demo_state, build_dashboard_state, make_handler, run_bundled_demo
 from labops.trace import TraceLog
 
 
@@ -120,8 +120,10 @@ class TestContainerPackaging(unittest.TestCase):
         self.assertIn('./demo/output-agentteams:/evidence:ro', compose)
         self.assertIn('./artifacts:/checkpoint-artifacts:ro', compose)
         self.assertIn('./demo/output-agentteams-at002:/agentteams-v2:ro', compose)
+        self.assertIn('./demo/output-agentteams-at003:/agentteams-v3:ro', compose)
         self.assertIn('"--workspace", "/evidence"', compose)
         self.assertIn('"--agentteams-v2-workspace", "/agentteams-v2"', compose)
+        self.assertIn('"--agentteams-v3-workspace", "/agentteams-v3"', compose)
         self.assertIn("read_only: true", compose)
         self.assertIn("no-new-privileges:true", compose)
 
@@ -207,6 +209,38 @@ class TestAgentTeamsV2DashboardState(unittest.TestCase):
         self.assertTrue(state["bundle"]["zip_hash_ok"])
         self.assertTrue(state["bundle"]["artifact_hashes_ok"])
         self.assertTrue(all(state["planner_checks"].values()))
+
+
+class TestAgentTeamsV3DashboardState(unittest.TestCase):
+    def test_real_at003_bundle_is_revalidated_and_summarized(self):
+        root = repo_root() / "demo" / "output-agentteams-at003"
+        state = build_agentteams_v3_state(root)
+
+        self.assertTrue(state["ready"])
+        self.assertEqual(state["task_id"], "LABOPS-AT-003")
+        self.assertEqual(state["final_state"], "RESOLVED")
+        self.assertTrue(state["six_roles_run"])
+        self.assertEqual(len(state["roles"]), 6)
+        self.assertEqual(len(state["handoffs"]), 6)
+        self.assertTrue(all(state["planner_checks"].values()))
+        self.assertTrue(state["approval"]["before_execution"])
+        self.assertEqual(state["runner"]["network"], "none")
+        self.assertTrue(state["runner"]["metric_unchanged"])
+        self.assertTrue(state["runner"]["validation_data_unchanged"])
+        self.assertAlmostEqual(state["runner"]["baseline_accuracy"], 0.70, places=5)
+        self.assertAlmostEqual(state["runner"]["candidate_accuracy"], 0.98125, places=5)
+        self.assertTrue(state["capability"]["all_pass"])
+        self.assertEqual(state["verification"]["decision"], "PASS")
+        self.assertEqual(state["verification"]["resolution_status"], "RESOLVED")
+        self.assertTrue(state["verification"]["checks_all_pass"])
+        self.assertTrue(state["trace"]["ok"])
+        self.assertEqual(state["trace"]["entries"], 10)
+        self.assertTrue(state["trace"]["event_ids_unique"])
+        self.assertTrue(state["trace"]["issue_preserved"])
+        self.assertTrue(state["trace"]["final_audit_ok"])
+        self.assertTrue(state["bundle"]["zip_hash_ok"])
+        self.assertTrue(state["bundle"]["artifact_hashes_ok"])
+        self.assertTrue(state["bundle"]["runner_artifact_hashes_ok"])
 
 
 if __name__ == "__main__":

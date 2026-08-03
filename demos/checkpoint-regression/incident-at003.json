@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "incident_id": "DEMO-RCA-003",
+  "incident_type": "metric_regression",
+  "project": "checkpoint-regression-demo",
+  "scenario": "valid_checkpoint_runner_repair",
+  "baseline_artifact": "artifacts/DEMO-RCA-001/baseline/run-01",
+  "problem": "Evaluation accuracy regressed because last.pt is selected; validate the checkpoint-only repair in the dedicated offline PyTorch CPU Runner.",
+  "observed_metric": {"name": "accuracy", "maximum_expected": 0.75},
+  "target_metric": {"name": "accuracy", "minimum": 0.88},
+  "constraints": {
+    "network_access": false,
+    "device": "cpu",
+    "max_validation_runs": 3,
+    "modifiable_scope": ["eval_config.json:checkpoint"],
+    "forbidden_scope": ["metric.py", "dataset", "target_metric", "original_workspace"]
+  }
+}

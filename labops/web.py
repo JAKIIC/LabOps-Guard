@@ -196,6 +196,189 @@ def build_agentteams_v2_state(evidence_root: str | Path | None) -> dict:
     }
 
 
+def build_agentteams_v3_state(evidence_root: str | Path | None) -> dict:
+    """Read and independently validate the allowlisted LABOPS-AT-003 evidence bundle."""
+    if evidence_root is None:
+        return {"ready": False}
+    evidence_root = Path(evidence_root)
+    package_root = evidence_root / "artifacts" / "DEMO-RCA-003"
+    if not package_root.is_dir():
+        package_root = evidence_root
+    top_manifest = _read_json(package_root / "evidence_bundle_manifest.json", {})
+    bundle_path = package_root / "LABOPS-AT-003-evidence-bundle.zip"
+    if not top_manifest or not bundle_path.is_file():
+        return {"ready": False}
+
+    json_names = {
+        "handoff": "handoff_manifest.json",
+        "approval": "approval.json",
+        "plan": "plan.json",
+        "run": "run_result.json",
+        "metrics": "metrics.json",
+        "runner_manifest": "artifact_manifest.json",
+        "capability": "host_capability_check.json",
+        "verification": "verification.json",
+        "trace_issue": "agentteams_trace_audit.json",
+        "trace_final": "agentteams_trace_audit_final.json",
+    }
+    payloads: dict[str, Any] = {}
+    artifact_hashes_ok = True
+    artifact_hash_errors: list[str] = []
+    runner_artifact_hashes_ok = True
+    runner_artifact_hash_errors: list[str] = []
+    try:
+        bundle_bytes = bundle_path.read_bytes()
+        zip_hash_ok = _sha256(bundle_bytes) == top_manifest.get("zip_sha256")
+        with zipfile.ZipFile(bundle_path) as bundle:
+            expected_hashes = top_manifest.get("artifacts", {})
+            for artifact_name, expected_hash in expected_hashes.items():
+                try:
+                    if _sha256(bundle.read(artifact_name)) != expected_hash:
+                        artifact_hashes_ok = False
+                        artifact_hash_errors.append(artifact_name)
+                except KeyError:
+                    artifact_hashes_ok = False
+                    artifact_hash_errors.append(artifact_name)
+            for key, artifact_name in json_names.items():
+                payloads[key] = json.loads(bundle.read(artifact_name))
+            trace_raw = bundle.read("agentteams_trace.jsonl")
+            trace = _verify_trace_bytes(trace_raw)
+            trace_records = [json.loads(line) for line in trace_raw.decode("utf-8").splitlines() if line]
+            event_ids = [record.get("event_id") for record in trace_records]
+            trace["event_ids_unique"] = bool(event_ids) and len(event_ids) == len(set(event_ids))
+
+            runner_manifest = payloads["runner_manifest"].get("artifacts", {})
+            for artifact_name, record in runner_manifest.items():
+                try:
+                    raw = bundle.read(artifact_name)
+                except KeyError:
+                    runner_artifact_hashes_ok = False
+                    runner_artifact_hash_errors.append(artifact_name)
+                    continue
+                if _sha256(raw) != record.get("sha256") or len(raw) != record.get("size"):
+                    runner_artifact_hashes_ok = False
+                    runner_artifact_hash_errors.append(artifact_name)
+    except (OSError, zipfile.BadZipFile, KeyError, json.JSONDecodeError, ValueError) as exc:
+        return {"ready": False, "error": str(exc)}
+
+    handoff = payloads["handoff"]
+    approval = payloads["approval"]
+    plan = payloads["plan"]
+    run = payloads["run"]
+    metrics = payloads["metrics"]
+    capability = payloads["capability"]
+    verification = payloads["verification"]
+    trace_issue = payloads["trace_issue"]
+    trace_final = payloads["trace_final"]
+    changes = plan.get("changes", [])
+    budget = plan.get("budget", {})
+    forbidden = set(plan.get("forbidden_changes", []))
+    verification_checks = verification.get("checks", {})
+    checks_all_pass = bool(verification_checks) and all(
+        isinstance(item, dict) and item.get("passed") is True for item in verification_checks.values()
+    )
+    planner_checks = {
+        "single_variable": len(changes) == 1 and changes[0].get("file") == "eval_config.json" and changes[0].get("field") == "checkpoint",
+        "limited_budget": budget.get("max_runtime_seconds", 10**9) <= 30 and budget.get("device") == "cpu" and budget.get("network") is False,
+        "evaluation_logic_immutable": "metric.py" in forbidden and all(change.get("file") != "metric.py" for change in changes),
+        "original_workspace_forbidden": "original_workspace" in forbidden,
+        "rollback_defined": bool(plan.get("rollback")),
+        "approval_required": plan.get("approval_required") is True,
+    }
+    role_details = {
+        "evidence-collector": ("Evidence Collector", "evidence-collector"),
+        "rca-analyst": ("RCA Analyst", "rca-analyst"),
+        "experiment-planner(researcher)": ("Experiment Planner", "researcher"),
+        "safe-executor(controlled-executor)": ("Safe Executor", "controlled-executor"),
+        "verification-auditor": ("Verification Auditor", "verification-auditor"),
+        "manager": ("Incident Commander", "labops-manager"),
+    }
+    roles = [
+        {"role": role_details[item["role"]][0], "logical_id": item["role"], "worker": role_details[item["role"]][1], "status": "RAN"}
+        for item in handoff.get("handoffs", []) if item.get("role") in role_details
+    ]
+    protected = run.get("protected_hashes", {})
+    cap_checks = capability.get("checks", {})
+    approval_before_execution = bool(approval.get("approved_at") and run.get("start_time") and approval["approved_at"] < run["start_time"])
+    return {
+        "ready": True,
+        "task_id": top_manifest.get("task_id"),
+        "incident_id": top_manifest.get("incident_id"),
+        "run_id": top_manifest.get("run_id"),
+        "final_state": top_manifest.get("final_status"),
+        "created_at": top_manifest.get("created_at"),
+        "six_roles_run": len(roles) == 6,
+        "roles": roles,
+        "handoffs": handoff.get("handoffs", []),
+        "planner_checks": planner_checks,
+        "approval": {
+            "approval_id": approval.get("approval_id"),
+            "decision": approval.get("decision"),
+            "decided_by": approval.get("decided_by"),
+            "approved_at": approval.get("approved_at"),
+            "before_execution": approval_before_execution,
+            "approved_scope": approval.get("approved_scope", []),
+            "not_approved": approval.get("not_approved", []),
+        },
+        "runner": {
+            "image": plan.get("runtime", {}).get("image"),
+            "status": run.get("status"),
+            "return_code": run.get("return_code"),
+            "network": run.get("network"),
+            "sandbox_only": run.get("sandbox_only") is True,
+            "original_project_modified": run.get("original_project_modified"),
+            "changed_paths": run.get("changed_paths", []),
+            "baseline_accuracy": metrics.get("baseline_accuracy"),
+            "candidate_accuracy": metrics.get("candidate_accuracy"),
+            "baseline_values": metrics.get("baseline_accuracy_values", []),
+            "candidate_values": metrics.get("candidate_accuracy_values", []),
+            "reproducible": metrics.get("reproducible") is True,
+            "metric_hash": protected.get("metric_after"),
+            "metric_unchanged": protected.get("metric_unchanged") is True,
+            "validation_data_hash": protected.get("validation_data_after"),
+            "validation_data_unchanged": protected.get("validation_data_unchanged") is True,
+        },
+        "capability": {
+            "status": capability.get("status"),
+            "checks": cap_checks,
+            "all_pass": bool(cap_checks) and all(cap_checks.values()),
+            "runtime": capability.get("runtime", {}),
+        },
+        "verification": {
+            "decision": verification.get("decision"),
+            "resolution_status": verification.get("resolution_status"),
+            "verified_by": verification.get("verified_by"),
+            "verified_at": verification.get("verified_at"),
+            "checks_all_pass": checks_all_pass,
+        },
+        "trace": {
+            **trace,
+            "issue_preserved": trace_issue.get("decision") == "ISSUE",
+            "final_audit": trace_final.get("decision"),
+            "final_audit_ok": trace_final.get("chain_ok") is True and trace_final.get("decision") == "CHAIN_OK",
+            "roles_covered": trace_final.get("roles_covered", []),
+            "timeline_monotonic": trace_final.get("timeline_monotonic") is True,
+        },
+        "bundle": {
+            "filename": bundle_path.name,
+            "artifact_count": len(top_manifest.get("artifacts", {})),
+            "size_bytes": top_manifest.get("zip_size_bytes"),
+            "zip_sha256": top_manifest.get("zip_sha256"),
+            "zip_hash_ok": zip_hash_ok,
+            "artifact_hashes_ok": artifact_hashes_ok,
+            "artifact_hash_errors": artifact_hash_errors,
+            "runner_artifact_hashes_ok": runner_artifact_hashes_ok,
+            "runner_artifact_hash_errors": runner_artifact_hash_errors,
+        },
+        "source": {
+            "matrix": "AgentTeams Element rooms",
+            "minio": "shared/tasks/LABOPS-AT-003/",
+            "artifact": "read-only LABOPS-AT-003 evidence bundle",
+            "runner": "control-plane raw five files",
+        },
+    }
+
+
 def build_checkpoint_demo_state(artifacts_root: str | Path | None) -> dict:
     """Return an allowlisted summary of the two checkpoint demo incidents."""
     if artifacts_root is None:
@@ -255,6 +438,7 @@ def build_dashboard_state(
     workspace: str | Path,
     checkpoint_workspace: str | Path | None = None,
     agentteams_v2_workspace: str | Path | None = None,
+    agentteams_v3_workspace: str | Path | None = None,
 ) -> dict:
     """Build the allowlisted dashboard payload from generated demo artifacts."""
     workspace = Path(workspace)
@@ -370,6 +554,7 @@ def build_dashboard_state(
         },
         "checkpoint_demo": build_checkpoint_demo_state(checkpoint_workspace),
         "agentteams_v2": build_agentteams_v2_state(agentteams_v2_workspace),
+        "agentteams_v3": build_agentteams_v3_state(agentteams_v3_workspace),
         "trace": {
             "ok": trace_ok,
             "message": trace_message,
@@ -414,10 +599,12 @@ def make_handler(
     workspace: str | Path,
     checkpoint_workspace: str | Path | None = None,
     agentteams_v2_workspace: str | Path | None = None,
+    agentteams_v3_workspace: str | Path | None = None,
 ):
     workspace = Path(workspace).resolve()
     checkpoint_workspace = Path(checkpoint_workspace).resolve() if checkpoint_workspace else None
     agentteams_v2_workspace = Path(agentteams_v2_workspace).resolve() if agentteams_v2_workspace else None
+    agentteams_v3_workspace = Path(agentteams_v3_workspace).resolve() if agentteams_v3_workspace else None
     dashboard_html = Path(__file__).with_name("dashboard.html")
 
     class DashboardHandler(BaseHTTPRequestHandler):
@@ -451,9 +638,9 @@ def make_handler(
                     return
                 self._send(200, "text/html; charset=utf-8", body)
             elif path == "/api/status":
-                self._json(200, build_dashboard_state(workspace, checkpoint_workspace, agentteams_v2_workspace))
+                self._json(200, build_dashboard_state(workspace, checkpoint_workspace, agentteams_v2_workspace, agentteams_v3_workspace))
             elif path == "/healthz":
-                state = build_dashboard_state(workspace, checkpoint_workspace, agentteams_v2_workspace)
+                state = build_dashboard_state(workspace, checkpoint_workspace, agentteams_v2_workspace, agentteams_v3_workspace)
                 self._json(200 if state["ready"] else 503, {"ok": state["ready"], "service": "labops-guard"})
             else:
                 self._json(404, {"ok": False, "error": "not found"})
@@ -479,9 +666,10 @@ def serve(
     port: int = 8787,
     checkpoint_workspace: str | Path | None = None,
     agentteams_v2_workspace: str | Path | None = None,
+    agentteams_v3_workspace: str | Path | None = None,
 ) -> None:
     """Serve the dashboard until interrupted."""
-    server = ThreadingHTTPServer((host, port), make_handler(workspace, checkpoint_workspace, agentteams_v2_workspace))
+    server = ThreadingHTTPServer((host, port), make_handler(workspace, checkpoint_workspace, agentteams_v2_workspace, agentteams_v3_workspace))
     print(f"LabOps Guard dashboard: http://{host}:{port}")
     print(f"Workspace: {Path(workspace).resolve()}")
     try:

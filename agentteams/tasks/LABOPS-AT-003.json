@@ -1,0 +1,27 @@
+{
+  "task_id": "LABOPS-AT-003",
+  "incident_ids": ["DEMO-RCA-003"],
+  "title": "Dedicated offline PyTorch Runner checkpoint repair",
+  "goal": "Use six distinct roles and the dedicated labops/pytorch-cpu-runner:0.1.0 to produce a real, independently verified checkpoint-only repair.",
+  "project": "labops-guard",
+  "workspace": "artifacts/LABOPS-AT-003",
+  "inputs": {
+    "incident": "demos/checkpoint-regression/incident-at003.json",
+    "local_validation": "artifacts/LABOPS-AT-003-local/local_validation_summary.json",
+    "runner": "labops/pytorch-cpu-runner:0.1.0"
+  },
+  "assigned_agents": ["labops-manager", "evidence-collector", "rca-analyst", "experiment-planner", "safe-executor", "verification-auditor"],
+  "required_skills": ["collect-lab-evidence", "diagnose-lab-incident", "plan-lab-experiment", "control-lab-action", "verify-lab-result", "pack-lab-evidence"],
+  "acceptance": [
+    "RuntimeCapabilityCheck passes runner image, torch, checkpoint, config, path, budget and command checks.",
+    "Safe Executor invokes only labops/pytorch-cpu-runner:0.1.0 after human approval; it does not run or install torch in the Worker.",
+    "Runner is --network none and produces run_result.json, metrics.json, stdout.log, stderr.log and artifact_manifest.json.",
+    "Three reproducible evaluations show baseline about 0.70 and candidate about 0.98125.",
+    "metric.py, deterministic validation data and the original workspace remain unchanged.",
+    "Only Verification Auditor may return PASS / RESOLVED after independent recomputation and trace/hash verification.",
+    "All six roles produce distinct, timestamped handoffs and the evidence bundle hashes verify."
+  ],
+  "risk_policy": {"network": "forbidden", "runtime_install": "forbidden", "metric_implementation": "immutable", "dataset": "immutable", "writes": "runner_output_only"},
+  "close_rule": "Without a concrete runner metric, immutable hashes, human approval and independent verification, remain INCONCLUSIVE or BLOCKED.",
+  "initial_state": "RECEIVED"
+}
