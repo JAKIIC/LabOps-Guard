@@ -79,6 +79,8 @@ class TestRunnerContracts(unittest.TestCase):
         self.assertIsNotNone(RUN_ID.fullmatch("RUN-LABOPS-AT-003-AGENTTEAMS-001"))
         self.assertIsNone(RUN_ID.fullmatch("RUN-ARBITRARY-001"))
         self.assertIn('approval.get("decision") == "APPROVED"', source)
+        self.assertIn("run_id already exists; evidence is append-only", source)
+        self.assertIn('default="127.0.0.1"', source)
         self.assertIn('plan.get("task_id") == "LABOPS-AT-003"', source)
         self.assertNotIn("shell=True", source)
 

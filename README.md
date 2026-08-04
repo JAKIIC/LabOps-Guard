@@ -219,6 +219,22 @@ PyTorch。它只提交经过人工审批的结构化 ExperimentPlan；本机控�
 验证数据和原始工作区未修改。Verification Auditor 独立复核通过后，最终状态才是
 `PASS / RESOLVED`。证据和演示口径见 `docs/LABOPS-AT-003-DEMO.md`。
 
+### v0.2.0-rc1 离线交付
+
+核心冻结边界见 `RELEASE_FREEZE.md`。在工作区干净、Docker Desktop 已启动且两份
+正式证据存在时生成 Release：
+
+```powershell
+.\scripts\check_environment.ps1 -PythonPath D:\APP\Anaconda\envs\polar\python.exe
+.\scripts\verify_evidence.ps1 -PythonPath D:\APP\Anaconda\envs\polar\python.exe
+.\scripts\build_release.ps1 -Version v0.2.0-rc1 -PythonPath D:\APP\Anaconda\envs\polar\python.exe
+```
+
+产物写入被 Git 忽略的 `release/v0.2.0-rc1/`，包含源码 ZIP、固定 Runner/仪表盘
+镜像、确定性 fixture、AT-002/AT-003 证据、manifest 和 SHA-256 清单。离线部署、
+安全边界和赛事对应关系分别见 `docs/deployment.md`、`docs/security-model.md` 和
+`docs/competition-mapping.md`。
+
 > `-B` avoids writing `__pycache__`; backtick `` ` `` is the PowerShell line
 > continuation. All commands run from the project root; no absolute/MinIO paths.
 

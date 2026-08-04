@@ -66,11 +66,15 @@ def verify_run(result: dict, baseline_accuracy: float = 0.70) -> dict:
     }
 
 
-def run_local_validation(repo_root: str | Path, output_root: str | Path) -> dict:
+def run_local_validation(
+    repo_root: str | Path,
+    output_root: str | Path,
+    baseline_run: str | Path | None = None,
+) -> dict:
     repo_root = Path(repo_root).resolve()
     output_root = Path(output_root).resolve()
     demo = repo_root / "demos" / "checkpoint-regression"
-    baseline = repo_root / "artifacts" / "DEMO-RCA-001" / "baseline" / "run-01"
+    baseline = Path(baseline_run).resolve() if baseline_run is not None else repo_root / "artifacts" / "DEMO-RCA-001" / "baseline" / "run-01"
     evidence = collect_checkpoint_evidence(demo, baseline, output_root / "evidence", "DEMO-RCA-003")
     diagnosis = diagnose_checkpoint(evidence)
     _write(output_root / "hypotheses.json", diagnosis)

@@ -90,7 +90,10 @@ def make_handler(repo_root: Path, output_root: Path):
                 return
             try:
                 run_dir = output_root / run_id
-                run_dir.mkdir(parents=True, exist_ok=True)
+                if run_dir.exists():
+                    self._send(409, {"ok": False, "error": "run_id already exists; evidence is append-only"})
+                    return
+                run_dir.mkdir(parents=True, exist_ok=False)
                 (run_dir / "gateway_request.json").write_text(json.dumps(request, ensure_ascii=False, indent=2), encoding="utf-8")
                 result = execute_runner_plan(plan, demo, baseline, run_dir)
                 response = {
@@ -116,7 +119,7 @@ def make_handler(repo_root: Path, output_root: Path):
     return Handler
 
 
-def serve(repo_root: str | Path, output_root: str | Path, host: str = "0.0.0.0", port: int = 18103) -> None:
+def serve(repo_root: str | Path, output_root: str | Path, host: str = "127.0.0.1", port: int = 18103) -> None:
     repo_root = Path(repo_root).resolve()
     output_root = Path(output_root).resolve()
     output_root.mkdir(parents=True, exist_ok=True)
@@ -134,7 +137,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", required=True)
     parser.add_argument("--output-root", required=True)
-    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=18103)
     args = parser.parse_args()
     serve(args.repo_root, args.output_root, args.host, args.port)

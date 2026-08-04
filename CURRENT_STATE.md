@@ -1,6 +1,6 @@
 # LabOps Guard Current State
 
-更新时间：2026-08-03  
+更新时间：2026-08-04
 核验目录：`E:\AICompetition\LabOpsWorkspace\labops-guard`  
 当前主线：专用 PyTorch CPU Runner + 六角色 AgentTeams 可审计闭环
 
@@ -41,6 +41,14 @@
 - `polar`：Python 3.11.15，用于核心、Web、Runner 合约和证据包重验。
 - Runner：Python 3.11.15、CPU PyTorch 2.5.1，实验运行时完全断网。
 - `d2l`：Python 3.9.25、CPU PyTorch 1.12.0，保留本地参考 Demo 回归测试。
+
+## 初赛交付状态
+
+- 核心工程已进入 `v0.2.0-rc1` 冻结范围；只接受 P0/P1 缺陷、复现脚本、文档和展示改进。
+- 已增加环境检查、证据重验、离线镜像加载、三次本地 Demo、仪表盘启停、Release 构建和校验脚本。
+- Release 构建会导出源码、Runner 镜像、仪表盘镜像、固定 fixture、两份证据与统一 SHA-256 清单；`release/` 不提交 Git。
+- 赛事要求映射、部署说明、安全模型、493 字作品简介和 14 页 PPT 文字骨架已建立。
+- 待办：生成并验收离线包、创建 `v0.2.0-rc1` 标签、制作 PPT 视觉稿与第一版演示视频。
 
 ## 事实边界
 

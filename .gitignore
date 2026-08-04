@@ -10,4 +10,4 @@ artifacts/
 demo/output/
 .pytest_cache/
 .coverage
-
+release/
