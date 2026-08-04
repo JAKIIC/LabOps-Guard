@@ -30,6 +30,16 @@ function Assert-LabOpsChildPath([string]$Path, [string]$Boundary) {
     return $full
 }
 
+function Get-LabOpsRelativePath([string]$Boundary, [string]$Path) {
+    $root = [IO.Path]::GetFullPath($Boundary).TrimEnd([IO.Path]::DirectorySeparatorChar)
+    $prefix = $root + [IO.Path]::DirectorySeparatorChar
+    $full = [IO.Path]::GetFullPath($Path)
+    if (-not $full.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing relative path outside boundary: $full"
+    }
+    return $full.Substring($prefix.Length).Replace('\', '/')
+}
+
 function Invoke-LabOpsChecked([string]$Executable, [string[]]$Arguments) {
     & $Executable @Arguments
     if ($LASTEXITCODE -ne 0) {

@@ -27,7 +27,8 @@ try {
     $runnerTar = Join-Path $releaseRoot 'labops-pytorch-runner-0.1.0.tar'
     Invoke-LabOpsChecked $docker @('save', '--output', $runnerTar, 'labops/pytorch-cpu-runner:0.1.0')
     $dashboardTar = Join-Path $releaseRoot 'labops-guard-dashboard-local.tar'
-    Invoke-LabOpsChecked $docker @('image', 'inspect', 'labops-guard:local')
+    & $docker image inspect 'labops-guard:local' *> $null
+    if ($LASTEXITCODE -ne 0) { throw "Dashboard image labops-guard:local is missing" }
     Invoke-LabOpsChecked $docker @('save', '--output', $dashboardTar, 'labops-guard:local')
 
     $fixtureSource = Join-Path $root 'artifacts\DEMO-RCA-001\baseline\run-01'
@@ -60,7 +61,7 @@ try {
     $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $releaseRoot 'release_manifest.json') -Encoding UTF8
 
     $checksumLines = Get-ChildItem -LiteralPath $releaseRoot -Recurse -File | Where-Object { $_.Name -ne 'checksums.sha256' } | Sort-Object FullName | ForEach-Object {
-        $relative = [IO.Path]::GetRelativePath($releaseRoot, $_.FullName).Replace('\', '/')
+        $relative = Get-LabOpsRelativePath $releaseRoot $_.FullName
         $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
         "$hash  $relative"
     }
