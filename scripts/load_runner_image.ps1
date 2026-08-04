@@ -9,14 +9,17 @@ $ErrorActionPreference = "Stop"
 $docker = Get-LabOpsDocker
 $archivePath = (Resolve-Path -LiteralPath $Archive -ErrorAction Stop).Path
 if (-not $Checksums) { $Checksums = Join-Path (Split-Path -Parent $archivePath) 'checksums.sha256' }
-if (Test-Path -LiteralPath $Checksums) {
-    $name = [IO.Path]::GetFileName($archivePath)
-    $line = Get-Content -LiteralPath $Checksums | Where-Object { $_ -match "  $([regex]::Escape($name))$" } | Select-Object -First 1
+if (-not (Test-Path -LiteralPath $Checksums -PathType Leaf)) { throw "checksums.sha256 missing" }
+
+function Assert-ReleaseArchiveChecksum([string]$Path, [string]$ChecksumFile) {
+    $name = [IO.Path]::GetFileName($Path)
+    $line = Get-Content -LiteralPath $ChecksumFile | Where-Object { $_ -match "  $([regex]::Escape($name))$" } | Select-Object -First 1
     if (-not $line) { throw "No checksum entry for $name" }
     $expected = ($line -split '\s+', 2)[0].ToLowerInvariant()
-    $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $archivePath).Hash.ToLowerInvariant()
-    if ($actual -ne $expected) { throw "Runner image archive checksum mismatch" }
+    $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+    if ($actual -ne $expected) { throw "Release archive checksum mismatch: $name" }
 }
+Assert-ReleaseArchiveChecksum $archivePath $Checksums
 Invoke-LabOpsChecked $docker @('load', '--input', $archivePath)
 $labelsRaw = & $docker image inspect 'labops/pytorch-cpu-runner:0.1.0' --format '{{json .Config.Labels}}'
 if ($LASTEXITCODE -ne 0) { throw "Loaded image cannot be inspected" }
@@ -31,6 +34,7 @@ if (-not $DashboardArchive) {
 }
 if ($DashboardArchive) {
     $dashboardPath = (Resolve-Path -LiteralPath $DashboardArchive -ErrorAction Stop).Path
+    Assert-ReleaseArchiveChecksum $dashboardPath $Checksums
     Invoke-LabOpsChecked $docker @('load', '--input', $dashboardPath)
     & $docker image inspect 'labops-guard:local' *> $null
     if ($LASTEXITCODE -ne 0) { throw "Dashboard archive did not restore labops-guard:local" }

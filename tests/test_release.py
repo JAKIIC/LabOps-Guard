@@ -51,6 +51,8 @@ class TestReleaseScriptSafety(unittest.TestCase):
         self.assertIn("git status --porcelain", text)
         self.assertIn("verify_evidence.py", text)
         self.assertIn("checksums.sha256", text)
+        loader = (Path(__file__).parents[1] / "scripts" / "load_runner_image.ps1").read_text(encoding="utf-8")
+        self.assertEqual(loader.count("Assert-ReleaseArchiveChecksum"), 3)
 
 
 if __name__ == "__main__":
