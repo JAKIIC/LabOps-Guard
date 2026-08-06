@@ -1,0 +1,174 @@
+{
+  "manifest_id": "EVIDENCE-MANIFEST-LABOPS-AT-004-EVAL-DRIFT-001",
+  "task_id": "LABOPS-AT-004-EVAL-DRIFT",
+  "incident_id": "DEMO-EVAL-DRIFT-004",
+  "created_at": "2026-08-04T17:41:30Z",
+  "created_by": "labops-manager",
+  "schema_version": "1.0",
+  "whitelist_policy": {
+    "included": "event evidence, evidence/registry/hypotheses/plan/approval, 9 execution/control-plane artifacts, verification, first ISSUE audit, 7-entry final audit, pre_manager transparent intermediates, handoff manifest, reproduction scripts",
+    "excluded": "credentials, tokens, worker configs, caches, __pycache__, non-essential large files (checkpoint .pt, validation_data .pt kept as hashes only)",
+    "protected_hashes_reference": "checkpoint a8a4ca3b..., validation_data fa01bcbb..., metric 57570ffe..., evaluation_protocol 238fa963..., model b2433ac5..., preprocessing 9de89cc4... (before==after unchanged)"
+  },
+  "self_reference": "evidence_manifest.json itself ships in the bundle; its integrity is protected by the bundle-level sha256 (LABOPS-AT-004-EVAL-DRIFT-evidence-bundle.zip) and by re-computation from the ZIP in step 5 verification; it is intentionally not self-listed to avoid a hash self-reference cycle.",
+  "files": [
+    {
+      "path": "agentteams_trace.jsonl",
+      "size": 3628,
+      "sha256": "d8cd8c73fbbbf34ef716efc9c5271b2d8e811943d46bc056f08fa18a13a3694e",
+      "provenance": "manager-generated (7-entry authoritative, canonical separators)"
+    },
+    {
+      "path": "agentteams_trace.pre_manager.jsonl",
+      "size": 3003,
+      "sha256": "a50714bb618d176e9cd91807efffd86f139dc22b0b1923f2b0414e8527cb34ff",
+      "provenance": "manager-generated (6-entry intermediate, byte-identical backup)"
+    },
+    {
+      "path": "agentteams_trace_audit.json",
+      "size": 11093,
+      "sha256": "bdd26e280aadfe3636c6e1e0071ce8351a72179c44c3a0e487729e9655122cd2",
+      "provenance": "verification-auditor (first ISSUE audit, preserved as-is)"
+    },
+    {
+      "path": "agentteams_trace_audit_final.json",
+      "size": 10064,
+      "sha256": "ff2a7c034877d645c45d8e4131c0337a058d885423c17c770954c32173b50380",
+      "provenance": "verification-auditor (7-entry CHAIN_OK/ACCEPTED)"
+    },
+    {
+      "path": "agentteams_trace_audit_final.pre_manager.json",
+      "size": 7253,
+      "sha256": "f32d6026f232ddd54c0a565b9142608feed953c3c74bfa1faa4b2aedf488bb48",
+      "provenance": "verification-auditor (6-entry CHAIN_OK, pre_manager backup)"
+    },
+    {
+      "path": "approval.json",
+      "size": 1341,
+      "sha256": "460f0994222576b182a6f951b9bc72d6e7aa63b61448012b4e4790dbea1adb57",
+      "provenance": "human approval (LABOPS-AT-004-APPROVAL-001, admin-on-explicit-user-delegation)"
+    },
+    {
+      "path": "hypotheses.json",
+      "size": 4474,
+      "sha256": "6f9df5c40c9e77530bf44254e522efe5151fe7f370d4f75b2e2dce993f4c3a08",
+      "provenance": "rca-analyst (hypotheses_ranked)"
+    },
+    {
+      "path": "plan.json",
+      "size": 2960,
+      "sha256": "3a6c9a18ad5508fec3f063b4cb2686bb76278af9606e5951d52648b60488fce6",
+      "provenance": "experiment-planner (AUTO_APPROVED by real check_plan_policy)"
+    },
+    {
+      "path": "verification.json",
+      "size": 5621,
+      "sha256": "7ad2e748e3e3317703c00482938434c68f8b99d2585bbcef9113debb559855bc",
+      "provenance": "verification-auditor (PASS/RESOLVED, independent_recomputation)"
+    },
+    {
+      "path": "handoff_manifest.json",
+      "size": 6234,
+      "sha256": "64782ecc87d8dbf99e41ccdac3fe66e221b79f9e20056273ccedf25e4f957810",
+      "provenance": "labops-manager (this packaging)"
+    },
+    {
+      "path": "analyze_hypotheses.py",
+      "size": 4739,
+      "sha256": "c5ed5c58c401dc688e712c318c7cd13074dc02ce5005c31ee1ea4565ff3c2787",
+      "provenance": "reproduction script (rca-analyst analysis)"
+    },
+    {
+      "path": "collect_evidence.py",
+      "size": 10691,
+      "sha256": "3d41f4c229e5120d8e762027730664022a286bdb0a5263d47dcade5a88a5293c",
+      "provenance": "reproduction script (evidence collection)"
+    },
+    {
+      "path": "evidence/collected_evidence.json",
+      "size": 6122,
+      "sha256": "ac8cf5f20a81dff1b1e4356abbfbf125e31a478323233c955c5bc7df097fa8ff",
+      "provenance": "evidence-collector (evidence_collected)"
+    },
+    {
+      "path": "evidence/collection_summary.json",
+      "size": 391,
+      "sha256": "29c8931ac9f59541e4090ce245a43ecf8701a5fff3400294f890f14b33d68282",
+      "provenance": "evidence-collector"
+    },
+    {
+      "path": "evidence/evidence_index.json",
+      "size": 988,
+      "sha256": "0101f1998cb98e8c35e386bef50c11942c01fbe67a904a6e350719bd1a1dc2c2",
+      "provenance": "evidence-collector"
+    },
+    {
+      "path": "evidence/registry_record.json",
+      "size": 2434,
+      "sha256": "5b3a74ec4f120370d385b4f00e64dadf990b7c5711892194920115ce976c9904",
+      "provenance": "evidence-collector"
+    },
+    {
+      "path": "evidence/trace.jsonl",
+      "size": 1242,
+      "sha256": "17c3175af156cb578b3f2930c2c714da56e2d0728f8fdcad41635046a62cb19f",
+      "provenance": "evidence-collector (3-entry stage trace, chain ok)"
+    },
+    {
+      "path": "runs/RUN-LABOPS-AT-004-AGENTTEAMS-001/artifact_manifest.json",
+      "size": 2030,
+      "sha256": "6c19e2f1727784445422bb2d775a564f200e65aac8255c336d79093c8e91d67c",
+      "provenance": "control-plane original (host /host-share/labops-guard/artifacts/LABOPS-AT-004-agentteams/runs/RUN-LABOPS-AT-004-AGENTTEAMS-001/)"
+    },
+    {
+      "path": "runs/RUN-LABOPS-AT-004-AGENTTEAMS-001/metrics.json",
+      "size": 339,
+      "sha256": "e44a5c2145c716216341778426e91cec216ae50c3a90b708f4668e3b87deaff4",
+      "provenance": "control-plane original"
+    },
+    {
+      "path": "runs/RUN-LABOPS-AT-004-AGENTTEAMS-001/stdout.log",
+      "size": 3152,
+      "sha256": "822dab963476a2808b7f458bef879f0c3d8f0fcc5bcb411aa22b00d6c8051414",
+      "provenance": "control-plane original"
+    },
+    {
+      "path": "runs/RUN-LABOPS-AT-004-AGENTTEAMS-001/stderr.log",
+      "size": 1685,
+      "sha256": "11215e627f6003e1436fcf9d0a968925adbbc22c2cf17058744653be29b132fe",
+      "provenance": "control-plane original"
+    },
+    {
+      "path": "runs/RUN-LABOPS-AT-004-AGENTTEAMS-001/run_result.json",
+      "size": 2990,
+      "sha256": "aa471eea3e9137622accb13b0932b0037e287a8c242d5f8e38dd247fa5600630",
+      "provenance": "control-plane original"
+    },
+    {
+      "path": "runs/RUN-LABOPS-AT-004-AGENTTEAMS-001/host_capability_check.json",
+      "size": 614,
+      "sha256": "0bdb2b44b1374b3d11c199b356dbe964c93c97b68e0862a66fca8ea27fd32c28",
+      "provenance": "control-plane original"
+    },
+    {
+      "path": "runs/RUN-LABOPS-AT-004-AGENTTEAMS-001/gateway_request.json",
+      "size": 4660,
+      "sha256": "d820d22135be47af3fcee47504ab16c46b21859471323038084d8a923bcf1658",
+      "provenance": "control-plane original"
+    },
+    {
+      "path": "runs/RUN-LABOPS-AT-004-AGENTTEAMS-001/gateway_response.json",
+      "size": 11642,
+      "sha256": "c92d421ac5639cda8d8e88eeb8d7a7918134bbd24db48a490b6c88f9b3a3150c",
+      "provenance": "control-plane original"
+    },
+    {
+      "path": "runs/RUN-LABOPS-AT-004-AGENTTEAMS-001/status.json",
+      "size": 1781,
+      "sha256": "8f10a41445010823af718c1cbd493d95624eb6f0301f4fc5be70392063ee3185",
+      "provenance": "worker-attached status (additional evidence, not control-plane)"
+    }
+  ],
+  "file_count": 26,
+  "total_size_bytes": 111171
+}

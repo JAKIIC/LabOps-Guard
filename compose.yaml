@@ -13,7 +13,8 @@ services:
       - "./artifacts:/checkpoint-artifacts:ro"
       - "./demo/output-agentteams-at002:/agentteams-v2:ro"
       - "./demo/output-agentteams-at003:/agentteams-v3:ro"
-    command: ["python", "-B", "-m", "labops", "web", "--workspace", "/evidence", "--checkpoint-workspace", "/checkpoint-artifacts", "--agentteams-v2-workspace", "/agentteams-v2", "--agentteams-v3-workspace", "/agentteams-v3", "--host", "0.0.0.0", "--port", "8787"]
+      - "./demo/output-agentteams-at004:/at004:ro"
+    command: ["python", "-B", "-m", "labops", "web", "--workspace", "/evidence", "--checkpoint-workspace", "/checkpoint-artifacts", "--agentteams-v2-workspace", "/agentteams-v2", "--agentteams-v3-workspace", "/agentteams-v3", "--at004-workspace", "/at004", "--host", "0.0.0.0", "--port", "8787"]
     security_opt:
       - no-new-privileges:true
     cap_drop:

@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "incident_id": "DEMO-EVAL-DRIFT-004",
+  "task_id": "LABOPS-AT-004-EVAL-DRIFT",
+  "scenario": "evaluation_preprocessing_drift",
+  "incident_type": "evaluation_regression",
+  "project": "eval-drift-fixture",
+  "problem": "The same model evaluated near 97.8% historically and now evaluates near 72%. Investigate without changing the metric, checkpoint, validation data, protocol, or original workspace.",
+  "observed_metric": {"name": "accuracy", "value": 0.72},
+  "target_metric": {"name": "accuracy", "minimum": 0.97},
+  "constraints": {
+    "protected_files": ["metric.py", "validation_data.pt", "checkpoints/reference.pt", "evaluation_protocol.yaml"],
+    "max_experiments": 3,
+    "max_runtime_seconds": 90,
+    "network": false,
+    "original_workspace_writable": false
+  }
+}
+

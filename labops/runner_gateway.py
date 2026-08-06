@@ -1,8 +1,8 @@
 """Short-lived, allowlisted control plane for AgentTeams Safe Executor.
 
 The gateway is not an experiment runtime and is not an Agent. It accepts only
-one LABOPS-AT-003 plan shape and starts the network-disabled Runner through the
-host Docker adapter. It should be stopped after the AgentTeams run.
+one allowlisted task contract and starts the network-disabled Runner through
+the host Docker adapter. It should be stopped after the AgentTeams run.
 """
 
 from __future__ import annotations
@@ -14,11 +14,28 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from labops.runner import RUNNER_IMAGE, execute_runner_plan
+from labops.runner import AT004_RUNNER_IMAGE, RUNNER_IMAGE, execute_runner_plan
 
 
 MAX_BODY = 64 * 1024
 RUN_ID = re.compile(r"^RUN-LABOPS-AT-003-AGENTTEAMS-[0-9]{3}$")
+RUN_ID_AT004 = re.compile(r"^RUN-LABOPS-AT-004-AGENTTEAMS-[0-9]{3}$")
+TASK_CONTRACTS = {
+    "LABOPS-AT-003": {
+        "incident_id": "DEMO-RCA-003",
+        "image": RUNNER_IMAGE,
+        "run_id": RUN_ID,
+        "demo": ("demos", "checkpoint-regression"),
+        "baseline": ("artifacts", "DEMO-RCA-001", "baseline", "run-01"),
+    },
+    "LABOPS-AT-004-EVAL-DRIFT": {
+        "incident_id": "DEMO-EVAL-DRIFT-004",
+        "image": AT004_RUNNER_IMAGE,
+        "run_id": RUN_ID_AT004,
+        "demo": ("demos", "eval-drift"),
+        "baseline": ("demos", "eval-drift", "fixture", "run-01"),
+    },
+}
 
 
 def _read_outputs(run_dir: Path) -> dict:
@@ -33,11 +50,9 @@ def _read_outputs(run_dir: Path) -> dict:
 
 def make_handler(repo_root: Path, output_root: Path):
     lock = threading.Lock()
-    demo = repo_root / "demos" / "checkpoint-regression"
-    baseline = repo_root / "artifacts" / "DEMO-RCA-001" / "baseline" / "run-01"
 
     class Handler(BaseHTTPRequestHandler):
-        server_version = "LabOpsRunnerGateway/0.1.0"
+        server_version = "LabOpsRunnerGateway/0.2.0"
 
         def _send(self, status: int, payload: dict) -> None:
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -51,7 +66,12 @@ def make_handler(repo_root: Path, output_root: Path):
 
         def do_GET(self) -> None:  # noqa: N802
             if self.path == "/healthz":
-                self._send(200, {"ok": True, "service": "labops-runner-gateway", "runner_image": RUNNER_IMAGE})
+                self._send(200, {
+                    "ok": True,
+                    "service": "labops-runner-gateway",
+                    "runner_images": [RUNNER_IMAGE, AT004_RUNNER_IMAGE],
+                    "task_contracts": sorted(TASK_CONTRACTS),
+                })
             else:
                 self._send(404, {"ok": False, "error": "not found"})
 
@@ -70,13 +90,18 @@ def make_handler(repo_root: Path, output_root: Path):
             except (KeyError, json.JSONDecodeError, TypeError):
                 self._send(400, {"ok": False, "error": "structured experiment_plan and approval required"})
                 return
+            if not isinstance(plan, dict) or not isinstance(approval, dict):
+                self._send(400, {"ok": False, "error": "structured experiment_plan and approval required"})
+                return
+            task_id = str(plan.get("task_id", ""))
+            contract = TASK_CONTRACTS.get(task_id)
             run_id = str(plan.get("run_id", ""))
             allowed = (
-                plan.get("task_id") == "LABOPS-AT-003"
-                and plan.get("incident_id") == "DEMO-RCA-003"
-                and RUN_ID.fullmatch(run_id) is not None
-                and plan.get("runtime", {}).get("image") == RUNNER_IMAGE
-                and approval.get("task_id") == "LABOPS-AT-003"
+                contract is not None
+                and plan.get("incident_id") == contract["incident_id"]
+                and contract["run_id"].fullmatch(run_id) is not None
+                and plan.get("runtime", {}).get("image") == contract["image"]
+                and approval.get("task_id") == task_id
                 and approval.get("decision") == "APPROVED"
                 and bool(approval.get("approval_id"))
                 and bool(approval.get("decided_by"))
@@ -95,15 +120,17 @@ def make_handler(repo_root: Path, output_root: Path):
                     return
                 run_dir.mkdir(parents=True, exist_ok=False)
                 (run_dir / "gateway_request.json").write_text(json.dumps(request, ensure_ascii=False, indent=2), encoding="utf-8")
-                result = execute_runner_plan(plan, demo, baseline, run_dir)
+                demo = repo_root.joinpath(*contract["demo"])
+                baseline = repo_root.joinpath(*contract["baseline"])
+                result = execute_runner_plan(plan, demo, baseline, run_dir, contract["image"])
                 response = {
                     "ok": result.get("status") == "completed",
-                    "task_id": "LABOPS-AT-003",
+                    "task_id": task_id,
                     "run_id": run_id,
                     "approval_id": approval["approval_id"],
                     "control_plane": "short-lived local gateway",
                     "experiment_network": "none",
-                    "runner_image": RUNNER_IMAGE,
+                    "runner_image": contract["image"],
                     "artifacts": _read_outputs(run_dir),
                 }
                 (run_dir / "gateway_response.json").write_text(json.dumps(response, ensure_ascii=False, indent=2), encoding="utf-8")

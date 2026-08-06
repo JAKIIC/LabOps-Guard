@@ -1,0 +1,137 @@
+{
+  "manifest_id": "HANDOFF-MANIFEST-LABOPS-AT-004-EVAL-DRIFT-001",
+  "task_id": "LABOPS-AT-004-EVAL-DRIFT",
+  "incident_id": "DEMO-EVAL-DRIFT-004",
+  "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-001",
+  "plan_id": "PLAN-LABOPS-AT-004-EVAL-DRIFT-001",
+  "approval_id": "LABOPS-AT-004-APPROVAL-001",
+  "verification_id": "VERIFY-RUN-LABOPS-AT-004-AGENTTEAMS-001",
+  "final_audit_id": "AUDIT-AGENTTEAMS-TRACE-LABOPS-AT-004-003-FINAL",
+  "created_at": "2026-08-04T17:41:00Z",
+  "created_by": "labops-manager",
+  "schema_version": "1.0",
+  "incident_commander": "labops-manager",
+  "agent_roles_actual_order": [
+    "labops-manager",
+    "evidence-collector",
+    "rca-analyst",
+    "experiment-planner",
+    "safe-executor",
+    "verification-auditor"
+  ],
+  "human_approval_separate": {
+    "note": "human-user approval is a human approval gate, NOT counted as an Agent role",
+    "actor": "human-user",
+    "event": "approval_granted",
+    "status": "APPROVED",
+    "event_id": "$AsY0ve0VOF12UlpbwVWc8I-cg666UXCLD-w2hglwwys",
+    "source_event_time": "2026-08-04T17:06:27Z",
+    "input": "artifacts/DEMO-EVAL-DRIFT-004/plan.json",
+    "output": "artifacts/DEMO-EVAL-DRIFT-004/approval.json (LABOPS-AT-004-APPROVAL-001, decided_by=admin-on-explicit-user-delegation)"
+  },
+  "handoffs": [
+    {
+      "handoff": "1/6",
+      "from": "labops-manager (Incident Commander)",
+      "to": "evidence-collector",
+      "event": "task_accepted_dispatched",
+      "status": "accepted/dispatched",
+      "event_id": "$7epuOKu4Jlt2Vpr6No86D0Wv-NHQUuDD44aYYiGgoDI",
+      "source_event_time": "2026-08-04T16:52:40Z",
+      "input": "agentteams/tasks/LABOPS-AT-004-EVAL-DRIFT.json (admin dispatch $UrSoOcihZ-k5c1MRBnYhuxRdvbfNqbzDH1LuRxz92eY)",
+      "output": "handoff 1/6 dispatched to evidence-collector (evidence collection, read-only)",
+      "completion": {
+        "event": "evidence_collected",
+        "status": "DONE",
+        "event_id": "$sngWjO4jg1Mgm2ZpT6GMMKSzZrHr8pWdyrK79hW1dGY",
+        "source_event_time": "2026-08-04T16:58:13Z",
+        "output": "artifacts/DEMO-EVAL-DRIFT-004/evidence/collected_evidence.json"
+      }
+    },
+    {
+      "handoff": "2/6",
+      "from": "evidence-collector",
+      "to": "rca-analyst",
+      "event": "hypotheses_ranked",
+      "status": "DONE",
+      "event_id": "$c6FcTPum5_TyxFUI9LthBoWVa3RiKOSIzSZ3JAuKhF4",
+      "source_event_time": "2026-08-04T16:59:45Z",
+      "input": "artifacts/DEMO-EVAL-DRIFT-004/evidence/collected_evidence.json",
+      "output": "artifacts/DEMO-EVAL-DRIFT-004/hypotheses.json (top H-AT004-PREPROCESSING-DRIFT conf 0.92)",
+      "completion": {
+        "note": "handoff 2/6 accepted by Manager after independent re-verification of 4 candidate hypotheses"
+      }
+    },
+    {
+      "handoff": "3/6",
+      "from": "rca-analyst",
+      "to": "experiment-planner",
+      "event": "plan_approved_policy",
+      "status": "AUTO_APPROVED",
+      "event_id": "$UKB6QtQxXZRm7G1xNOlTHeoCZjdwH7-Nqd31GEiAgI0",
+      "source_event_time": "2026-08-04T17:04:45Z",
+      "input": "artifacts/DEMO-EVAL-DRIFT-004/hypotheses.json",
+      "output": "artifacts/DEMO-EVAL-DRIFT-004/plan.json (AUTO_APPROVED by real labops.planner.check_plan_policy; changes[0] before=train_augmented/after=eval_standard; forbidden 7 items incl. target_metric)",
+      "completion": {
+        "note": "first version REJECTED (old/new keys), corrected version AUTO_APPROVED; MinIO updated to corrected plan and re-pulled before approval gate"
+      }
+    },
+    {
+      "handoff": "4/6",
+      "from": "experiment-planner",
+      "to": "safe-executor",
+      "event": "run_executed",
+      "status": "EXECUTION_COMPLETED",
+      "event_id": "$mPBP-HoawJDByPhSdVbJW9HFse-b76lcvqEPjm6ESAg",
+      "source_event_time": "2026-08-04T17:11:32Z",
+      "input": "artifacts/DEMO-EVAL-DRIFT-004/approval.json (LABOPS-AT-004-APPROVAL-001, APPROVED 17:06:27.191Z < run start 17:10:11Z)",
+      "output": "artifacts/DEMO-EVAL-DRIFT-004/runs/RUN-LABOPS-AT-004-AGENTTEAMS-001/ (9 files: 8 control-plane originals + status.json)",
+      "completion": {
+        "run_start": "2026-08-04T17:10:11Z",
+        "run_end": "2026-08-04T17:10:18Z",
+        "duration_seconds": 7.670611,
+        "return_code": 0,
+        "network": "none",
+        "sandbox_only": true,
+        "changed_paths": ["sandbox/eval_config.json:evaluation.preprocessing_profile"],
+        "baseline_accuracy": 0.71875,
+        "candidate_accuracy": 0.9781249761581421,
+        "reproducible": true
+      }
+    },
+    {
+      "handoff": "5/6",
+      "from": "safe-executor",
+      "to": "verification-auditor",
+      "event": "verification_completed",
+      "status": "RESOLVED",
+      "event_id": "$c9PLqgFbB2792QvsQSh5tiTC-RQSm3XEBkMfERN1tzY",
+      "source_event_time": "2026-08-04T17:13:50Z",
+      "input": "artifacts/DEMO-EVAL-DRIFT-004/runs/RUN-LABOPS-AT-004-AGENTTEAMS-001/ (control-plane raw files)",
+      "output": "artifacts/DEMO-EVAL-DRIFT-004/verification.json (VERIFY-RUN-LABOPS-AT-004-AGENTTEAMS-001, decision=PASS, resolution_status=RESOLVED, method=independent_recomputation)",
+      "completion": {
+        "note": "Manager independently re-verified 4 manifest hashes and recomputed metrics from raw stdout.log before accepting"
+      }
+    },
+    {
+      "handoff": "6/6",
+      "from": "verification-auditor",
+      "to": "labops-manager (final packaging)",
+      "event": "final_audit_accepted",
+      "status": "CHAIN_OK/ACCEPTED",
+      "event_id": "n/a (audit artifact AUDIT-AGENTTEAMS-TRACE-LABOPS-AT-004-003-FINAL, audited_at 2026-08-04T17:42:00Z)",
+      "source_event_time": "2026-08-04T17:42:00Z",
+      "input": "artifacts/DEMO-EVAL-DRIFT-004/agentteams_trace.jsonl (7 entries, canonical separators)",
+      "output": "artifacts/DEMO-EVAL-DRIFT-004/agentteams_trace_audit_final.json (7-entry CHAIN_OK/ACCEPTED; first ISSUE audit and pre_manager backups preserved)",
+      "completion": {
+        "note": "handoff 6/6 COMPLETED only after all independent re-verifications pass; see evidence_manifest.json and bundle ZIP"
+      }
+    }
+  ],
+  "approval_timing": {
+    "approved_at": "2026-08-04T17:06:27.191Z",
+    "run_start": "2026-08-04T17:10:11Z",
+    "approval_before_run_start": true
+  },
+  "final_status": "RESOLVED"
+}

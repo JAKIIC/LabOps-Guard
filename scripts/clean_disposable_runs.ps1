@@ -12,7 +12,7 @@ $boundaryPrefix = $boundaryFull + [IO.Path]::DirectorySeparatorChar
 if ($target -ne $boundaryFull -and -not $target.StartsWith($boundaryPrefix, [StringComparison]::OrdinalIgnoreCase)) {
     throw "Refusing path outside disposable boundary: $target"
 }
-if ($target -eq [IO.Path]::GetFullPath($root) -or $target -match 'output-agentteams-at00[23]') {
+if ($target -eq [IO.Path]::GetFullPath($root) -or $target -match 'output-agentteams-at00[234]') {
     throw "Refusing to remove protected project or formal evidence path"
 }
 if (Test-Path -LiteralPath $target) {

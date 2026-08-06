@@ -24,8 +24,10 @@ try {
     $sourceZip = Join-Path $releaseRoot 'labops-guard-source.zip'
     Invoke-LabOpsChecked 'git' @('archive', '--format=zip', "--output=$sourceZip", 'HEAD')
 
-    $runnerTar = Join-Path $releaseRoot 'labops-pytorch-runner-0.1.0.tar'
-    Invoke-LabOpsChecked $docker @('save', '--output', $runnerTar, 'labops/pytorch-cpu-runner:0.1.0')
+    $runnerTarAt003 = Join-Path $releaseRoot 'labops-pytorch-runner-0.1.0.tar'
+    Invoke-LabOpsChecked $docker @('save', '--output', $runnerTarAt003, 'labops/pytorch-cpu-runner:0.1.0')
+    $runnerTarAt004 = Join-Path $releaseRoot 'labops-pytorch-runner-0.2.0.tar'
+    Invoke-LabOpsChecked $docker @('save', '--output', $runnerTarAt004, 'labops/pytorch-cpu-runner:0.2.0')
     $dashboardTar = Join-Path $releaseRoot 'labops-guard-dashboard-local.tar'
     & $docker image inspect 'labops-guard:local' *> $null
     if ($LASTEXITCODE -ne 0) { throw "Dashboard image labops-guard:local is missing" }
@@ -42,21 +44,28 @@ try {
     Copy-Item -LiteralPath 'demo\output-agentteams-at002\evidence_bundle_manifest.json' -Destination (Join-Path $releaseRoot 'evidence\LABOPS-AT-002-evidence-manifest.json')
     Copy-Item -LiteralPath 'demo\output-agentteams-at003\artifacts\DEMO-RCA-003\LABOPS-AT-003-evidence-bundle.zip' -Destination (Join-Path $releaseRoot 'evidence\LABOPS-AT-003-evidence-bundle.zip')
     Copy-Item -LiteralPath 'demo\output-agentteams-at003\artifacts\DEMO-RCA-003\evidence_bundle_manifest.json' -Destination (Join-Path $releaseRoot 'evidence\LABOPS-AT-003-evidence-manifest.json')
+    Copy-Item -LiteralPath 'demo\output-agentteams-at004\LABOPS-AT-004-EVAL-DRIFT-evidence-bundle.zip' -Destination (Join-Path $releaseRoot 'evidence\LABOPS-AT-004-EVAL-DRIFT-evidence-bundle.zip')
+    Copy-Item -LiteralPath 'demo\output-agentteams-at004\evidence_manifest.json' -Destination (Join-Path $releaseRoot 'evidence\LABOPS-AT-004-evidence-manifest.json')
+    Copy-Item -LiteralPath 'demo\output-agentteams-at004\handoff_manifest.json' -Destination (Join-Path $releaseRoot 'evidence\LABOPS-AT-004-handoff-manifest.json')
     Copy-Item -LiteralPath 'RELEASE_NOTES.md' -Destination (Join-Path $releaseRoot 'RELEASE_NOTES.md')
 
     $commit = (git rev-parse HEAD).Trim()
-    $imageId = (& $docker image inspect 'labops/pytorch-cpu-runner:0.1.0' --format '{{.Id}}').Trim()
+    $imageIdAt003 = (& $docker image inspect 'labops/pytorch-cpu-runner:0.1.0' --format '{{.Id}}').Trim()
+    $imageIdAt004 = (& $docker image inspect 'labops/pytorch-cpu-runner:0.2.0' --format '{{.Id}}').Trim()
     $manifest = [ordered]@{
         version = $Version
         git_commit = $commit
-        runner_image = 'labops/pytorch-cpu-runner:0.1.0'
-        runner_image_id = $imageId
+        runner_images = @(
+            [ordered]@{ task = 'LABOPS-AT-003'; image = 'labops/pytorch-cpu-runner:0.1.0'; image_id = $imageIdAt003 },
+            [ordered]@{ task = 'LABOPS-AT-004-EVAL-DRIFT'; image = 'labops/pytorch-cpu-runner:0.2.0'; image_id = $imageIdAt004 }
+        )
         dashboard_image = 'labops-guard:local'
         generated_at = (Get-Date).ToUniversalTime().ToString('o')
         experiment_network = 'none'
         contains_credentials = $false
         at002_state = 'BLOCKED'
         at003_state = 'PASS / RESOLVED'
+        at004_state = 'PASS / RESOLVED'
     }
     $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $releaseRoot 'release_manifest.json') -Encoding UTF8
 

@@ -204,6 +204,7 @@ def cmd_web(args) -> int:
         checkpoint_workspace=args.checkpoint_workspace,
         agentteams_v2_workspace=args.agentteams_v2_workspace,
         agentteams_v3_workspace=args.agentteams_v3_workspace,
+        at004_workspace=args.at004_workspace,
     )
     return 0
 
@@ -291,6 +292,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--checkpoint-workspace", default=None, help="read-only checkpoint demo artifacts")
     sp.add_argument("--agentteams-v2-workspace", default=None, help="read-only LABOPS-AT-002 evidence bundle")
     sp.add_argument("--agentteams-v3-workspace", default=None, help="read-only LABOPS-AT-003 evidence bundle")
+    sp.add_argument("--at004-workspace", default=None, help="read-only LABOPS-AT-004 local or AgentTeams evidence")
     sp.set_defaults(func=cmd_web)
 
     return p

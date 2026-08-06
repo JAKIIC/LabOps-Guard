@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independently verify LABOPS-AT-002/003 evidence archives."""
+"""Independently verify LABOPS-AT-002/003/004 evidence archives."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def verify_trace(raw: bytes) -> tuple[bool, str]:
     previous = None
     records = [json.loads(line) for line in raw.decode("utf-8").splitlines() if line]
     for index, record in enumerate(records):
-        if record.get("seq") != index or record.get("prev_hash") != previous:
+        if ("seq" in record and record.get("seq") != index) or record.get("prev_hash") != previous:
             return False, f"chain link mismatch at seq {index}"
         canonical = json.dumps({k: v for k, v in record.items() if k != "hash"}, ensure_ascii=False, sort_keys=True)
         expected = sha256(canonical.encode("utf-8"))
@@ -33,7 +33,7 @@ def verify_bundle(bundle_path: Path, manifest_path: Path) -> dict:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     errors: list[str] = []
     bundle_raw = bundle_path.read_bytes()
-    if sha256(bundle_raw) != manifest.get("zip_sha256"):
+    if manifest.get("zip_sha256") and sha256(bundle_raw) != manifest.get("zip_sha256"):
         errors.append("bundle SHA-256 mismatch")
     with zipfile.ZipFile(bundle_path) as archive:
         names = archive.namelist()
@@ -43,7 +43,11 @@ def verify_bundle(bundle_path: Path, manifest_path: Path) -> dict:
             path = PurePosixPath(name)
             if path.is_absolute() or ".." in path.parts:
                 errors.append(f"unsafe ZIP member: {name}")
-        expected = manifest.get("artifacts", {})
+        if isinstance(manifest.get("files"), list):
+            expected = {item["path"]: item["sha256"] for item in manifest["files"]}
+            expected["evidence_manifest.json"] = sha256(manifest_path.read_bytes())
+        else:
+            expected = manifest.get("artifacts", {})
         if set(names) != set(expected):
             errors.append("ZIP member set differs from manifest")
         for name, expected_hash in expected.items():
@@ -77,6 +81,27 @@ def verify_bundle(bundle_path: Path, manifest_path: Path) -> dict:
             verification = json.loads(archive.read("verification.json"))
             if verification.get("decision") != "PASS" or verification.get("resolution_status") != "RESOLVED":
                 errors.append("AT-003 verification is not PASS / RESOLVED")
+        elif task_id == "LABOPS-AT-004-EVAL-DRIFT":
+            trace_name = "agentteams_trace.jsonl"
+            ok, message = verify_trace(archive.read(trace_name))
+            trace_results[trace_name] = {"ok": ok, "message": message}
+            final_audit = json.loads(archive.read("agentteams_trace_audit_final.json"))
+            handoff = json.loads(archive.read("handoff_manifest.json"))
+            verification = json.loads(archive.read("verification.json"))
+            if not ok or final_audit.get("decision") != "CHAIN_OK" or final_audit.get("acceptance") != "ACCEPTED":
+                errors.append("AT-004 final trace audit failed")
+            if final_audit.get("entries") != 7 or final_audit.get("six_agent_roles_covered") is not True:
+                errors.append("AT-004 trace does not cover six Agent roles plus human approval")
+            if verification.get("decision") != "PASS" or verification.get("resolution_status") != "RESOLVED":
+                errors.append("AT-004 verification is not PASS / RESOLVED")
+            if handoff.get("final_status") != "RESOLVED" or len(handoff.get("agent_roles_actual_order", [])) != 6:
+                errors.append("AT-004 handoff manifest is incomplete")
+            run_prefix = "runs/RUN-LABOPS-AT-004-AGENTTEAMS-001/"
+            runner_manifest = json.loads(archive.read(run_prefix + "artifact_manifest.json")).get("artifacts", {})
+            for name, record in runner_manifest.items():
+                raw = archive.read(run_prefix + name)
+                if sha256(raw) != record.get("sha256") or len(raw) != record.get("size"):
+                    errors.append(f"runner manifest mismatch: {name}")
         else:
             errors.append(f"unexpected task_id: {task_id}")
     return {
@@ -84,7 +109,7 @@ def verify_bundle(bundle_path: Path, manifest_path: Path) -> dict:
         "status": "PASS" if not errors else "FAIL",
         "bundle": str(bundle_path),
         "sha256": sha256(bundle_raw),
-        "artifact_count": len(manifest.get("artifacts", {})),
+        "artifact_count": len(expected),
         "trace": trace_results,
         "errors": errors,
     }
@@ -97,10 +122,13 @@ def main() -> int:
     parser.add_argument("--at002-manifest", type=Path, default=root / "demo/output-agentteams-at002/evidence_bundle_manifest.json")
     parser.add_argument("--at003-bundle", type=Path, default=root / "demo/output-agentteams-at003/artifacts/DEMO-RCA-003/LABOPS-AT-003-evidence-bundle.zip")
     parser.add_argument("--at003-manifest", type=Path, default=root / "demo/output-agentteams-at003/artifacts/DEMO-RCA-003/evidence_bundle_manifest.json")
+    parser.add_argument("--at004-bundle", type=Path, default=root / "demo/output-agentteams-at004/LABOPS-AT-004-EVAL-DRIFT-evidence-bundle.zip")
+    parser.add_argument("--at004-manifest", type=Path, default=root / "demo/output-agentteams-at004/evidence_manifest.json")
     args = parser.parse_args()
     results = [
         verify_bundle(args.at002_bundle.resolve(), args.at002_manifest.resolve()),
         verify_bundle(args.at003_bundle.resolve(), args.at003_manifest.resolve()),
+        verify_bundle(args.at004_bundle.resolve(), args.at004_manifest.resolve()),
     ]
     print(json.dumps({"status": "PASS" if all(item["status"] == "PASS" for item in results) else "FAIL", "results": results}, ensure_ascii=False, indent=2))
     return 0 if all(item["status"] == "PASS" for item in results) else 1

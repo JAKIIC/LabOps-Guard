@@ -1,7 +1,8 @@
 param(
     [string]$Archive = (Join-Path (Split-Path -Parent $PSScriptRoot) 'release\v0.2.0-rc1\labops-pytorch-runner-0.1.0.tar'),
     [string]$Checksums,
-    [string]$DashboardArchive
+    [string]$DashboardArchive,
+    [string]$At004Archive
 )
 
 $ErrorActionPreference = "Stop"
@@ -28,9 +29,23 @@ if ($labels.'io.labops.runner.torch' -ne '2.5.1+cpu' -or $labels.'io.labops.runn
     throw "Loaded Runner labels do not match the frozen contract"
 }
 Write-Host "Runner image loaded and contract verified." -ForegroundColor Green
+if (-not $At004Archive) {
+    $candidate = Join-Path (Split-Path -Parent $archivePath) 'labops-pytorch-runner-0.2.0.tar'
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) { $At004Archive = $candidate }
+}
+if ($At004Archive) {
+    $at004Path = (Resolve-Path -LiteralPath $At004Archive -ErrorAction Stop).Path
+    Assert-ReleaseArchiveChecksum $at004Path $Checksums
+    Invoke-LabOpsChecked $docker @('load', '--input', $at004Path)
+    $at004Labels = (& $docker image inspect 'labops/pytorch-cpu-runner:0.2.0' --format '{{json .Config.Labels}}') | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or $at004Labels.'io.labops.runner.torch' -ne '2.5.1+cpu' -or $at004Labels.'io.labops.runner.network-runtime' -ne 'none') {
+        throw "Loaded AT-004 Runner labels do not match the frozen contract"
+    }
+    Write-Host "AT-004 Runner image loaded and contract verified." -ForegroundColor Green
+}
 if (-not $DashboardArchive) {
-    $candidate = Join-Path (Split-Path -Parent $archivePath) 'labops-guard-dashboard-local.tar'
-    if (Test-Path -LiteralPath $candidate -PathType Leaf) { $DashboardArchive = $candidate }
+    $dashboardCandidate = Join-Path (Split-Path -Parent $archivePath) 'labops-guard-dashboard-local.tar'
+    if (Test-Path -LiteralPath $dashboardCandidate -PathType Leaf) { $DashboardArchive = $dashboardCandidate }
 }
 if ($DashboardArchive) {
     $dashboardPath = (Resolve-Path -LiteralPath $DashboardArchive -ErrorAction Stop).Path

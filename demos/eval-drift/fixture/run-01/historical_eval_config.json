@@ -1,0 +1,10 @@
+{
+  "checkpoint": "checkpoints/reference.pt",
+  "validation_data": "validation_data.pt",
+  "metric": "accuracy",
+  "evaluation": {
+    "preprocessing_profile": "eval_standard",
+    "augmentation_seed": 77,
+    "noise_std": 1.35
+  }
+}

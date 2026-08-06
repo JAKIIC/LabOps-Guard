@@ -15,7 +15,7 @@ import zipfile
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
-from labops.web import build_agentteams_v2_state, build_agentteams_v3_state, build_checkpoint_demo_state, build_dashboard_state, make_handler, run_bundled_demo
+from labops.web import build_agentteams_v2_state, build_agentteams_v3_state, build_at004_state, build_checkpoint_demo_state, build_dashboard_state, make_handler, run_bundled_demo
 from labops.trace import TraceLog
 
 
@@ -121,9 +121,11 @@ class TestContainerPackaging(unittest.TestCase):
         self.assertIn('./artifacts:/checkpoint-artifacts:ro', compose)
         self.assertIn('./demo/output-agentteams-at002:/agentteams-v2:ro', compose)
         self.assertIn('./demo/output-agentteams-at003:/agentteams-v3:ro', compose)
+        self.assertIn('./demo/output-agentteams-at004:/at004:ro', compose)
         self.assertIn('"--workspace", "/evidence"', compose)
         self.assertIn('"--agentteams-v2-workspace", "/agentteams-v2"', compose)
         self.assertIn('"--agentteams-v3-workspace", "/agentteams-v3"', compose)
+        self.assertIn('"--at004-workspace", "/at004"', compose)
         self.assertIn("read_only: true", compose)
         self.assertIn("no-new-privileges:true", compose)
 
@@ -241,6 +243,55 @@ class TestAgentTeamsV3DashboardState(unittest.TestCase):
         self.assertTrue(state["bundle"]["zip_hash_ok"])
         self.assertTrue(state["bundle"]["artifact_hashes_ok"])
         self.assertTrue(state["bundle"]["runner_artifact_hashes_ok"])
+
+
+class TestAT004DashboardState(unittest.TestCase):
+    def test_local_validation_is_honest_and_allowlisted(self):
+        root = repo_root() / "artifacts" / "LABOPS-AT-004-local"
+        state = build_at004_state(root)
+
+        self.assertTrue(state["ready"])
+        self.assertEqual(state["source_mode"], "LOCAL_VALIDATION")
+        self.assertFalse(state["agentteams"]["six_roles_run"])
+        self.assertEqual(state["evidence_count"], 10)
+        self.assertEqual(state["top_hypothesis"]["hypothesis_id"], "H-AT004-PREPROCESSING-DRIFT")
+        self.assertEqual(len(state["runs"]), 3)
+        self.assertTrue(all(run["baseline_accuracy"] == 0.71875 for run in state["runs"]))
+        self.assertTrue(all(abs(run["candidate_accuracy"] - 0.978125) < 1e-6 for run in state["runs"]))
+        self.assertTrue(all(state["plan_checks"].values()))
+        self.assertTrue(all(state["integrity"].values()))
+        self.assertTrue(state["capability"]["all_pass"])
+
+    def test_main_payload_keeps_local_and_agentteams_provenance_separate(self):
+        root = repo_root() / "artifacts" / "LABOPS-AT-004-local"
+        state = build_dashboard_state(repo_root() / "demo" / "output-agentteams", at004_workspace=root)
+        self.assertEqual(state["main_demo"]["source_mode"], "LOCAL_VALIDATION")
+        self.assertFalse(state["main_demo"]["agentteams"]["six_roles_run"])
+
+    def test_real_agentteams_bundle_is_revalidated_and_becomes_main_demo(self):
+        root = repo_root() / "demo" / "output-agentteams-at004"
+        state = build_at004_state(root)
+
+        self.assertTrue(state["ready"])
+        self.assertEqual(state["source_mode"], "AGENTTEAMS_RUN")
+        self.assertEqual(state["task_id"], "LABOPS-AT-004-EVAL-DRIFT")
+        self.assertEqual(state["status"], "PASS")
+        self.assertEqual(state["resolution_status"], "RESOLVED")
+        self.assertTrue(state["agentteams"]["six_roles_run"])
+        self.assertEqual(len(state["agentteams"]["roles"]), 6)
+        self.assertEqual(len(state["agentteams"]["handoffs"]), 6)
+        self.assertEqual(state["trace"]["entries"], 7)
+        self.assertTrue(state["trace"]["event_ids_unique"])
+        self.assertEqual(state["trace"]["final_audit"], "CHAIN_OK")
+        self.assertEqual(state["trace"]["final_acceptance"], "ACCEPTED")
+        self.assertTrue(state["trace"]["first_issue_preserved"])
+        self.assertEqual(len(state["runs"]), 1)
+        self.assertAlmostEqual(state["runs"][0]["baseline_accuracy"], 0.71875)
+        self.assertAlmostEqual(state["runs"][0]["candidate_accuracy"], 0.9781249761581421)
+        self.assertTrue(all(state["plan_checks"].values()))
+        self.assertTrue(all(state["integrity"].values()))
+        self.assertTrue(state["verification"]["checks_all_pass"])
+        self.assertEqual(state["bundle"]["sha256"], "4092b43f39df52db3847caa28ca01e4321129a1c17ec7ca5efd2029ab1fb77cd")
 
 
 if __name__ == "__main__":

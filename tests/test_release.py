@@ -43,7 +43,7 @@ class TestReleaseScriptSafety(unittest.TestCase):
     def test_cleanup_is_bounded_and_formal_evidence_is_protected(self):
         text = (Path(__file__).parents[1] / "scripts" / "clean_disposable_runs.ps1").read_text(encoding="utf-8")
         self.assertIn("artifacts\\release-validation", text)
-        self.assertIn("output-agentteams-at00[23]", text)
+        self.assertIn("output-agentteams-at00[234]", text)
         self.assertIn("SupportsShouldProcess", text)
 
     def test_release_requires_clean_git_and_verifies_checksums(self):
@@ -52,7 +52,7 @@ class TestReleaseScriptSafety(unittest.TestCase):
         self.assertIn("verify_evidence.py", text)
         self.assertIn("checksums.sha256", text)
         loader = (Path(__file__).parents[1] / "scripts" / "load_runner_image.ps1").read_text(encoding="utf-8")
-        self.assertEqual(loader.count("Assert-ReleaseArchiveChecksum"), 3)
+        self.assertEqual(loader.count("Assert-ReleaseArchiveChecksum"), 4)
 
 
 if __name__ == "__main__":

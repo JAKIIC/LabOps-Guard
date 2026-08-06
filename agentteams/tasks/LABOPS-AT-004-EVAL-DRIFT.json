@@ -1,0 +1,36 @@
+{
+  "task_id": "LABOPS-AT-004-EVAL-DRIFT",
+  "incident_ids": ["DEMO-EVAL-DRIFT-004"],
+  "title": "Evaluation preprocessing drift investigation and controlled repair",
+  "assigned_agents": [
+    "labops-manager",
+    "evidence-collector",
+    "rca-analyst",
+    "researcher",
+    "controlled-executor",
+    "verification-auditor"
+  ],
+  "prompt_file": "agentteams/prompts/eval_drift_task.md",
+  "state_machine": "agentteams/state_machine_v2.json",
+  "workspace": "shared/tasks/LABOPS-AT-004-EVAL-DRIFT/",
+  "runner_contract": {
+    "endpoint": "http://host.docker.internal:18103/v1/run",
+    "image": "labops/pytorch-cpu-runner:0.2.0",
+    "command": "evaluate_preprocessing_profile",
+    "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-001",
+    "network": "none"
+  },
+  "required_handoffs": [
+    "labops-manager -> evidence-collector",
+    "evidence-collector -> rca-analyst",
+    "rca-analyst -> researcher",
+    "researcher -> controlled-executor",
+    "controlled-executor -> verification-auditor",
+    "verification-auditor -> labops-manager"
+  ],
+  "archival_constraints": [
+    "Do not modify or replace LABOPS-AT-002 or LABOPS-AT-003 evidence.",
+    "Do not treat local validation or role text as AgentTeams execution evidence.",
+    "Do not mark the task RESOLVED without Runner evidence and independent Auditor PASS."
+  ]
+}

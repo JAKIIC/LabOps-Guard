@@ -10,7 +10,7 @@ import hashlib
 import json
 import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from labops.trace import TraceLog
@@ -379,6 +379,385 @@ def build_agentteams_v3_state(evidence_root: str | Path | None) -> dict:
     }
 
 
+def _build_at004_agentteams_state(root: Path) -> dict:
+    """Validate and summarize the immutable AT-004 AgentTeams evidence bundle."""
+    manifest_path = root / "evidence_manifest.json"
+    bundle_path = root / "LABOPS-AT-004-EVAL-DRIFT-evidence-bundle.zip"
+    manifest = _read_json(manifest_path, {})
+    if manifest.get("task_id") != "LABOPS-AT-004-EVAL-DRIFT" or not bundle_path.is_file():
+        return {"ready": False}
+
+    run_prefix = "runs/RUN-LABOPS-AT-004-AGENTTEAMS-001/"
+    json_names = {
+        "handoff": "handoff_manifest.json",
+        "approval": "approval.json",
+        "hypotheses": "hypotheses.json",
+        "plan": "plan.json",
+        "verification": "verification.json",
+        "trace_issue": "agentteams_trace_audit.json",
+        "trace_final": "agentteams_trace_audit_final.json",
+        "evidence": "evidence/collected_evidence.json",
+        "run": run_prefix + "run_result.json",
+        "metrics": run_prefix + "metrics.json",
+        "runner_manifest": run_prefix + "artifact_manifest.json",
+        "capability": run_prefix + "host_capability_check.json",
+    }
+    payloads: dict[str, Any] = {}
+    artifact_hash_errors: list[str] = []
+    runner_hash_errors: list[str] = []
+    member_set_ok = False
+    manifest_copy_ok = False
+    try:
+        bundle_bytes = bundle_path.read_bytes()
+        with zipfile.ZipFile(bundle_path) as bundle:
+            names = bundle.namelist()
+            expected = {item["path"]: item["sha256"] for item in manifest.get("files", [])}
+            expected_names = set(expected) | {"evidence_manifest.json"}
+            member_set_ok = len(names) == len(set(names)) and set(names) == expected_names and all(
+                not PurePosixPath(name).is_absolute() and ".." not in PurePosixPath(name).parts for name in names
+            )
+            for name, expected_hash in expected.items():
+                try:
+                    if _sha256(bundle.read(name)) != expected_hash:
+                        artifact_hash_errors.append(name)
+                except KeyError:
+                    artifact_hash_errors.append(name)
+            manifest_copy_ok = bundle.read("evidence_manifest.json") == manifest_path.read_bytes()
+            for key, name in json_names.items():
+                payloads[key] = json.loads(bundle.read(name))
+            trace_raw = bundle.read("agentteams_trace.jsonl")
+            trace = _verify_trace_bytes(trace_raw)
+            trace_records = [json.loads(line) for line in trace_raw.decode("utf-8").splitlines() if line]
+            runner_manifest = payloads["runner_manifest"].get("artifacts", {})
+            for name, record in runner_manifest.items():
+                try:
+                    raw = bundle.read(run_prefix + name)
+                except KeyError:
+                    runner_hash_errors.append(name)
+                    continue
+                if _sha256(raw) != record.get("sha256") or len(raw) != record.get("size"):
+                    runner_hash_errors.append(name)
+    except (OSError, zipfile.BadZipFile, KeyError, json.JSONDecodeError, ValueError) as exc:
+        return {"ready": False, "error": str(exc)}
+
+    handoff = payloads["handoff"]
+    approval = payloads["approval"]
+    hypotheses_doc = payloads["hypotheses"]
+    plan = payloads["plan"]
+    verification = payloads["verification"]
+    trace_issue = payloads["trace_issue"]
+    trace_final = payloads["trace_final"]
+    evidence_doc = payloads["evidence"]
+    run = payloads["run"]
+    metrics = payloads["metrics"]
+    capability = payloads["capability"]
+    changes = plan.get("changes", [])
+    budget = plan.get("budget", {})
+    forbidden = set(plan.get("forbidden_changes", []))
+    protected = run.get("protected_hashes", {})
+    expected_roles = [
+        "labops-manager", "evidence-collector", "rca-analyst",
+        "experiment-planner", "safe-executor", "verification-auditor",
+    ]
+    role_labels = {
+        "labops-manager": "Incident Commander",
+        "evidence-collector": "Evidence Collector",
+        "rca-analyst": "RCA Analyst",
+        "experiment-planner": "Experiment Planner",
+        "safe-executor": "Safe Executor",
+        "verification-auditor": "Verification Auditor",
+    }
+    actual_roles = handoff.get("agent_roles_actual_order", [])
+    trace_event_ids = [record.get("event_id") for record in trace_records]
+    final_checks = trace_final.get("checks", {})
+    verification_checks = verification.get("checks", {})
+    plan_checks = {
+        "single_variable": len(changes) == 1 and changes[0] == {
+            "file": "eval_config.json",
+            "field": "evaluation.preprocessing_profile",
+            "before": "train_augmented",
+            "after": "eval_standard",
+        },
+        "limited_budget": budget.get("max_runtime_seconds", 10**9) <= 30 and budget.get("device") == "cpu" and budget.get("network") is False,
+        "protected_inputs_forbidden": {"metric.py", "validation_data.pt", "checkpoint", "evaluation_protocol.yaml", "thresholds", "target_metric", "original_workspace"}.issubset(forbidden),
+        "rollback_defined": bool(plan.get("rollback")),
+        "approval_required": plan.get("approval_required") is True,
+    }
+    approval_before_execution = bool(
+        approval.get("decision") == "APPROVED"
+        and approval.get("approved_at")
+        and run.get("start_time")
+        and approval["approved_at"] < run["start_time"]
+    )
+    protected_ok = all(protected.get(name) is True for name in (
+        "checkpoint_unchanged", "validation_data_unchanged", "metric_unchanged",
+        "evaluation_protocol_unchanged", "model_unchanged", "preprocessing_unchanged",
+    ))
+    hypotheses = hypotheses_doc.get("hypotheses", [])
+    top_id = hypotheses_doc.get("top_hypothesis_id")
+    top = next((item for item in hypotheses if item.get("hypothesis_id") == top_id), hypotheses[0] if hypotheses else {})
+    run_view = {
+        "run_id": run.get("run_id"),
+        "status": run.get("status"),
+        "decision": verification.get("decision"),
+        "baseline_accuracy": metrics.get("baseline_accuracy"),
+        "candidate_accuracy": metrics.get("candidate_accuracy"),
+        "baseline_values": metrics.get("baseline_accuracy_values", []),
+        "candidate_values": metrics.get("candidate_accuracy_values", []),
+        "network": run.get("network"),
+        "sandbox_only": run.get("sandbox_only") is True,
+        "changed_paths": run.get("changed_paths", []),
+        "approval_before_execution": approval_before_execution,
+        "protected_hashes_ok": protected_ok,
+        "artifact_hashes_ok": not runner_hash_errors,
+    }
+    integrity = {
+        "bundle_member_set_ok": member_set_ok,
+        "manifest_copy_ok": manifest_copy_ok,
+        "artifact_hashes_ok": not artifact_hash_errors,
+        "runner_artifact_hashes_ok": not runner_hash_errors,
+        "protected_hashes_ok": protected_ok,
+        "approval_order_ok": approval_before_execution,
+        "trace_ok": trace.get("ok") is True,
+        "trace_final_audit_ok": trace_final.get("decision") == "CHAIN_OK" and trace_final.get("acceptance") == "ACCEPTED" and all(
+            isinstance(check, dict) and check.get("passed") is True for check in final_checks.values()
+        ),
+    }
+    return {
+        "ready": True,
+        "source_mode": "AGENTTEAMS_RUN",
+        "source_label": "AT-004 六角色 AgentTeams 真实运行与离线 Runner 证据",
+        "task_id": manifest.get("task_id"),
+        "incident_id": manifest.get("incident_id"),
+        "status": verification.get("decision"),
+        "resolution_status": verification.get("resolution_status"),
+        "runner_image": plan.get("runtime", {}).get("image"),
+        "evidence": evidence_doc.get("evidence", []),
+        "evidence_count": len(evidence_doc.get("evidence", [])),
+        "hypotheses": hypotheses,
+        "top_hypothesis": top,
+        "plan": plan,
+        "plan_checks": plan_checks,
+        "approval": {
+            "approval_id": approval.get("approval_id"),
+            "decision": approval.get("decision"),
+            "decided_by": approval.get("decided_by"),
+            "approved_at": approval.get("approved_at"),
+            "before_execution": approval_before_execution,
+        },
+        "verification": {
+            "decision": verification.get("decision"),
+            "resolution_status": verification.get("resolution_status"),
+            "verified_by": verification.get("verified_by"),
+            "checks_all_pass": bool(verification_checks) and all(
+                isinstance(check, dict) and check.get("pass") is True for check in verification_checks.values()
+            ),
+        },
+        "capability": {
+            "status": capability.get("status"),
+            "checks": capability.get("checks", {}),
+            "runtime": capability.get("runtime", {}),
+            "all_pass": bool(capability.get("checks")) and all(capability.get("checks", {}).values()),
+        },
+        "runs": [run_view],
+        "integrity": integrity,
+        "trace": {
+            **trace,
+            "event_ids_unique": bool(trace_event_ids) and len(trace_event_ids) == len(set(trace_event_ids)),
+            "final_audit": trace_final.get("decision"),
+            "final_acceptance": trace_final.get("acceptance"),
+            "first_issue_preserved": trace_issue.get("decision") == "ISSUE",
+        },
+        "agentteams": {
+            "six_roles_run": actual_roles == expected_roles and trace_final.get("six_agent_roles_covered") is True,
+            "roles": [{"logical_id": role, "role": role_labels[role], "status": "RAN"} for role in actual_roles if role in role_labels],
+            "handoffs": handoff.get("handoffs", []),
+            "human_approval": handoff.get("human_approval_separate", {}),
+            "note": "六个 Agent 角色与人工审批分别记录；Matrix event ID、MinIO 产物、Runner 原始文件和 Auditor 审计共同构成证据。",
+        },
+        "bundle": {
+            "filename": bundle_path.name,
+            "size_bytes": len(bundle_bytes),
+            "sha256": _sha256(bundle_bytes),
+            "artifact_count": len(manifest.get("files", [])) + 1,
+            "member_set_ok": member_set_ok,
+            "manifest_copy_ok": manifest_copy_ok,
+            "artifact_hashes_ok": not artifact_hash_errors,
+            "artifact_hash_errors": artifact_hash_errors,
+            "runner_artifact_hashes_ok": not runner_hash_errors,
+            "runner_artifact_hash_errors": runner_hash_errors,
+        },
+        "source": {
+            "matrix": "7-entry authoritative Matrix trace (6 Agent roles + human approval)",
+            "minio": "shared/tasks/LABOPS-AT-004-EVAL-DRIFT/",
+            "artifact": "read-only LABOPS-AT-004 evidence bundle",
+            "runner": "control-plane original Runner and gateway artifacts",
+        },
+    }
+
+
+def build_at004_state(evidence_root: str | Path | None) -> dict:
+    """Build an allowlisted story view of AT-004 local validation evidence.
+
+    Local validation is deliberately not represented as an AgentTeams run.  The
+    source_mode field is the trust boundary consumed by the dashboard.
+    """
+    if evidence_root is None:
+        return {"ready": False}
+    root = Path(evidence_root)
+    if (root / "LABOPS-AT-004-EVAL-DRIFT-evidence-bundle.zip").is_file():
+        return _build_at004_agentteams_state(root)
+    summary = _read_json(root / "local_validation_summary.json", {})
+    evidence_doc = _read_json(root / "evidence" / "collected_evidence.json", {})
+    hypotheses_doc = _read_json(root / "hypotheses.json", {})
+    capability = _read_json(root / "runtime_capability_check.json", {})
+    if not summary or not evidence_doc or not hypotheses_doc or not capability:
+        return {"ready": False}
+    if summary.get("task_id") != "LABOPS-AT-004-EVAL-DRIFT":
+        return {"ready": False, "error": "unexpected AT-004 task_id"}
+
+    trace = TraceLog(root / "trace.jsonl")
+    try:
+        trace_records = trace.read()
+        trace_ok, trace_message = trace.verify_chain()
+    except (json.JSONDecodeError, OSError, ValueError) as exc:
+        trace_records = []
+        trace_ok, trace_message = False, f"trace unreadable: {exc}"
+
+    runs = []
+    all_artifact_hashes_ok = True
+    all_approval_order_ok = True
+    all_protected_hashes_ok = True
+    first_plan: dict = {}
+    first_approval: dict = {}
+    first_verification: dict = {}
+    for run_summary in summary.get("runs", []):
+        run_id = run_summary.get("run_id")
+        if not isinstance(run_id, str) or not run_id.startswith("RUN-LABOPS-AT-004-LOCAL-"):
+            continue
+        run_root = root / "runs" / run_id
+        plan = _read_json(run_root / "experiment_plan.json", {})
+        approval = _read_json(run_root / "approval.json", {})
+        run_result = _read_json(run_root / "run_result.json", {})
+        verification = _read_json(run_root / "verification.json", {})
+        manifest = _read_json(run_root / "artifact_manifest.json", {})
+        if not first_plan:
+            first_plan, first_approval, first_verification = plan, approval, verification
+
+        manifest_ok = bool(manifest) and manifest.get("run_id") == run_id
+        for name, metadata in manifest.get("artifacts", {}).items():
+            path = run_root / name
+            try:
+                manifest_ok = manifest_ok and _sha256(path.read_bytes()) == metadata.get("sha256")
+            except OSError:
+                manifest_ok = False
+        all_artifact_hashes_ok = all_artifact_hashes_ok and manifest_ok
+
+        approval_order_ok = bool(
+            approval.get("decision") == "APPROVED"
+            and approval.get("approved_at")
+            and run_result.get("start_time")
+            and approval["approved_at"] <= run_result["start_time"]
+        )
+        all_approval_order_ok = all_approval_order_ok and approval_order_ok
+        protected = run_result.get("protected_hashes", {})
+        protected_ok = all(
+            protected.get(key) is True
+            for key in (
+                "checkpoint_unchanged",
+                "validation_data_unchanged",
+                "metric_unchanged",
+                "evaluation_protocol_unchanged",
+                "model_unchanged",
+                "preprocessing_unchanged",
+            )
+        )
+        all_protected_hashes_ok = all_protected_hashes_ok and protected_ok
+        runs.append({
+            "run_id": run_id,
+            "status": run_result.get("status"),
+            "decision": verification.get("decision"),
+            "baseline_accuracy": run_result.get("metrics", {}).get("baseline_accuracy"),
+            "candidate_accuracy": run_result.get("metrics", {}).get("candidate_accuracy"),
+            "baseline_values": run_result.get("metrics", {}).get("baseline_accuracy_values", []),
+            "candidate_values": run_result.get("metrics", {}).get("candidate_accuracy_values", []),
+            "network": run_result.get("network"),
+            "sandbox_only": run_result.get("sandbox_only") is True,
+            "changed_paths": run_result.get("changed_paths", []),
+            "approval_before_execution": approval_order_ok,
+            "protected_hashes_ok": protected_ok,
+            "artifact_hashes_ok": manifest_ok,
+        })
+
+    changes = first_plan.get("changes", [])
+    budget = first_plan.get("budget", {})
+    forbidden = set(first_plan.get("forbidden_changes", []))
+    plan_checks = {
+        "single_variable": len(changes) == 1 and changes[0] == {
+            "file": "eval_config.json",
+            "field": "evaluation.preprocessing_profile",
+            "before": "train_augmented",
+            "after": "eval_standard",
+        },
+        "limited_budget": budget.get("max_runtime_seconds", 10**9) <= 30 and budget.get("device") == "cpu" and budget.get("network") is False,
+        "protected_inputs_forbidden": {"metric.py", "validation_data.pt", "checkpoint", "evaluation_protocol.yaml", "original_workspace"}.issubset(forbidden),
+        "rollback_defined": bool(first_plan.get("rollback")),
+    }
+    evidence = evidence_doc.get("evidence", [])
+    hypotheses = hypotheses_doc.get("hypotheses", [])
+    top_id = hypotheses_doc.get("top_hypothesis_id")
+    top = next((item for item in hypotheses if item.get("hypothesis_id") == top_id), {})
+    return {
+        "ready": bool(runs),
+        "source_mode": "LOCAL_VALIDATION",
+        "source_label": "AT-004 三次离线本地验证（非 AgentTeams 运行）",
+        "task_id": summary.get("task_id"),
+        "incident_id": summary.get("incident_id"),
+        "status": summary.get("status"),
+        "resolution_status": summary.get("resolution_status"),
+        "runner_image": summary.get("runner_image"),
+        "evidence": evidence,
+        "evidence_count": len(evidence),
+        "hypotheses": hypotheses,
+        "top_hypothesis": top,
+        "plan": first_plan,
+        "plan_checks": plan_checks,
+        "approval": {
+            "decision": first_approval.get("decision"),
+            "decided_by": first_approval.get("decided_by"),
+            "before_execution": all_approval_order_ok,
+        },
+        "verification": {
+            "decision": first_verification.get("decision"),
+            "resolution_status": first_verification.get("resolution_status"),
+            "checks_all_pass": bool(first_verification.get("checks")) and all(first_verification.get("checks", {}).values()),
+        },
+        "capability": {
+            "status": capability.get("status"),
+            "checks": capability.get("checks", {}),
+            "runtime": capability.get("runtime", {}),
+            "all_pass": bool(capability.get("checks")) and all(capability.get("checks", {}).values()),
+        },
+        "runs": runs,
+        "integrity": {
+            "artifact_hashes_ok": all_artifact_hashes_ok,
+            "protected_hashes_ok": all_protected_hashes_ok,
+            "approval_order_ok": all_approval_order_ok,
+            "trace_ok": trace_ok,
+        },
+        "trace": {
+            "ok": trace_ok,
+            "message": trace_message,
+            "entries": len(trace_records),
+        },
+        "agentteams": {
+            "six_roles_run": False,
+            "handoffs": [],
+            "note": "真实六角色运行尚未开始；本状态不得作为 Matrix/MinIO 交接证据。",
+        },
+    }
+
+
 def build_checkpoint_demo_state(artifacts_root: str | Path | None) -> dict:
     """Return an allowlisted summary of the two checkpoint demo incidents."""
     if artifacts_root is None:
@@ -439,6 +818,7 @@ def build_dashboard_state(
     checkpoint_workspace: str | Path | None = None,
     agentteams_v2_workspace: str | Path | None = None,
     agentteams_v3_workspace: str | Path | None = None,
+    at004_workspace: str | Path | None = None,
 ) -> dict:
     """Build the allowlisted dashboard payload from generated demo artifacts."""
     workspace = Path(workspace)
@@ -555,6 +935,7 @@ def build_dashboard_state(
         "checkpoint_demo": build_checkpoint_demo_state(checkpoint_workspace),
         "agentteams_v2": build_agentteams_v2_state(agentteams_v2_workspace),
         "agentteams_v3": build_agentteams_v3_state(agentteams_v3_workspace),
+        "main_demo": build_at004_state(at004_workspace),
         "trace": {
             "ok": trace_ok,
             "message": trace_message,
@@ -600,11 +981,13 @@ def make_handler(
     checkpoint_workspace: str | Path | None = None,
     agentteams_v2_workspace: str | Path | None = None,
     agentteams_v3_workspace: str | Path | None = None,
+    at004_workspace: str | Path | None = None,
 ):
     workspace = Path(workspace).resolve()
     checkpoint_workspace = Path(checkpoint_workspace).resolve() if checkpoint_workspace else None
     agentteams_v2_workspace = Path(agentteams_v2_workspace).resolve() if agentteams_v2_workspace else None
     agentteams_v3_workspace = Path(agentteams_v3_workspace).resolve() if agentteams_v3_workspace else None
+    at004_workspace = Path(at004_workspace).resolve() if at004_workspace else None
     dashboard_html = Path(__file__).with_name("dashboard.html")
 
     class DashboardHandler(BaseHTTPRequestHandler):
@@ -638,9 +1021,9 @@ def make_handler(
                     return
                 self._send(200, "text/html; charset=utf-8", body)
             elif path == "/api/status":
-                self._json(200, build_dashboard_state(workspace, checkpoint_workspace, agentteams_v2_workspace, agentteams_v3_workspace))
+                self._json(200, build_dashboard_state(workspace, checkpoint_workspace, agentteams_v2_workspace, agentteams_v3_workspace, at004_workspace))
             elif path == "/healthz":
-                state = build_dashboard_state(workspace, checkpoint_workspace, agentteams_v2_workspace, agentteams_v3_workspace)
+                state = build_dashboard_state(workspace, checkpoint_workspace, agentteams_v2_workspace, agentteams_v3_workspace, at004_workspace)
                 self._json(200 if state["ready"] else 503, {"ok": state["ready"], "service": "labops-guard"})
             else:
                 self._json(404, {"ok": False, "error": "not found"})
@@ -667,9 +1050,10 @@ def serve(
     checkpoint_workspace: str | Path | None = None,
     agentteams_v2_workspace: str | Path | None = None,
     agentteams_v3_workspace: str | Path | None = None,
+    at004_workspace: str | Path | None = None,
 ) -> None:
     """Serve the dashboard until interrupted."""
-    server = ThreadingHTTPServer((host, port), make_handler(workspace, checkpoint_workspace, agentteams_v2_workspace, agentteams_v3_workspace))
+    server = ThreadingHTTPServer((host, port), make_handler(workspace, checkpoint_workspace, agentteams_v2_workspace, agentteams_v3_workspace, at004_workspace))
     print(f"LabOps Guard dashboard: http://{host}:{port}")
     print(f"Workspace: {Path(workspace).resolve()}")
     try:

@@ -1,0 +1,12 @@
+schema_version: "1.0"
+metric: accuracy
+minimum_accuracy: 0.97
+maximum_repeat_spread: 0.001
+checkpoint_policy: immutable
+validation_data_policy: immutable
+metric_policy: immutable
+allowed_preprocessing_profiles:
+  - eval_standard
+  - train_augmented
+historical_profile: eval_standard
+

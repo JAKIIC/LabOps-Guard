@@ -13,11 +13,25 @@ from labops.planner import check_plan_policy
 
 
 RUNNER_IMAGE = "labops/pytorch-cpu-runner:0.1.0"
+AT004_RUNNER_IMAGE = "labops/pytorch-cpu-runner:0.2.0"
 RUNNER_LABELS = {
     "io.labops.runner.image": RUNNER_IMAGE,
     "io.labops.runner.python": "3.11.15",
     "io.labops.runner.torch": "2.5.1+cpu",
     "io.labops.runner.network-runtime": "none",
+}
+AT004_RUNNER_LABELS = {
+    "io.labops.runner.image": AT004_RUNNER_IMAGE,
+    "io.labops.runner.python": "3.11.15",
+    "io.labops.runner.torch": "2.5.1+cpu",
+    "io.labops.runner.network-runtime": "none",
+}
+RUNNER_LABELS_BY_IMAGE = {RUNNER_IMAGE: RUNNER_LABELS, AT004_RUNNER_IMAGE: AT004_RUNNER_LABELS}
+COMMAND_PROJECT_FILES = {
+    "evaluate_checkpoint": ("evaluate.py", "metric.py", "model.py"),
+    "evaluate_preprocessing_profile": (
+        "evaluate.py", "metric.py", "model.py", "preprocessing.py", "evaluation_protocol.yaml",
+    ),
 }
 
 
@@ -46,10 +60,14 @@ def _run(command: list[str], timeout: int = 60) -> subprocess.CompletedProcess:
     return subprocess.run(command, capture_output=True, text=True, timeout=timeout, check=False)
 
 
-def runtime_capability_check(plan: dict, demo_source: str | Path, baseline_run: str | Path, image: str = RUNNER_IMAGE) -> dict:
+def runtime_capability_check(plan: dict, demo_source: str | Path, baseline_run: str | Path, image: str | None = None) -> dict:
     validate_document(plan, "plan.schema.json")
     demo_source = Path(demo_source).resolve()
     baseline_run = Path(baseline_run).resolve()
+    image = image or plan.get("runtime", {}).get("image") or RUNNER_IMAGE
+    expected_labels = RUNNER_LABELS_BY_IMAGE.get(image, {})
+    command_name = plan.get("command")
+    project_files = COMMAND_PROJECT_FILES.get(command_name, ())
     config_path = baseline_run / "eval_config.json"
     config = json.loads(config_path.read_text(encoding="utf-8")) if config_path.is_file() else {}
     policy = check_plan_policy(plan)
@@ -63,24 +81,53 @@ def runtime_capability_check(plan: dict, demo_source: str | Path, baseline_run: 
     runtime = json.loads(probe.stdout) if probe and probe.returncode == 0 and probe.stdout.strip() else {}
     budget = plan.get("budget", {})
     change = plan.get("changes", [{}])[0]
+    if command_name == "evaluate_checkpoint":
+        checkpoint_ok = all(
+            (baseline_run / "checkpoints" / name).is_file()
+            and _inside(baseline_run / "checkpoints" / name, baseline_run)
+            for name in ("last.pt", "best.pt")
+        )
+        config_ok = config.get("checkpoint") == "checkpoints/last.pt" and config.get("metric") == "accuracy"
+        change_ok = change.get("file") == "eval_config.json" and change.get("field") == "checkpoint"
+    elif command_name == "evaluate_preprocessing_profile":
+        checkpoint_path = (baseline_run / str(config.get("checkpoint", ""))).resolve()
+        data_path = (baseline_run / str(config.get("validation_data", ""))).resolve()
+        checkpoint_ok = (
+            checkpoint_path.is_file() and data_path.is_file()
+            and _inside(checkpoint_path, baseline_run) and _inside(data_path, baseline_run)
+        )
+        evaluation = config.get("evaluation", {})
+        config_ok = (
+            config.get("metric") == "accuracy"
+            and evaluation.get("preprocessing_profile") == "train_augmented"
+            and isinstance(evaluation.get("augmentation_seed"), int)
+            and float(evaluation.get("noise_std", 0)) > 0
+        )
+        change_ok = (
+            change.get("file") == "eval_config.json"
+            and change.get("field") == "evaluation.preprocessing_profile"
+        )
+    else:
+        checkpoint_ok = config_ok = change_ok = False
     checks = {
-        "runner_image": inspect.returncode == 0 and all(labels.get(key) == value for key, value in RUNNER_LABELS.items()),
-        "torch": runtime.get("torch") == RUNNER_LABELS["io.labops.runner.torch"] and runtime.get("cuda") is False,
-        "checkpoint": all((baseline_run / "checkpoints" / name).is_file() and _inside(baseline_run / "checkpoints" / name, baseline_run) for name in ("last.pt", "best.pt")),
-        "config": config.get("checkpoint") == "checkpoints/last.pt" and config.get("metric") == "accuracy",
-        "paths": all((demo_source / name).is_file() and _inside(demo_source / name, demo_source) for name in ("evaluate.py", "metric.py", "model.py")),
+        "runner_image": bool(expected_labels) and inspect.returncode == 0 and all(labels.get(key) == value for key, value in expected_labels.items()),
+        "torch": runtime.get("torch") == expected_labels.get("io.labops.runner.torch") and runtime.get("cuda") is False,
+        "checkpoint": checkpoint_ok,
+        "config": config_ok,
+        "paths": bool(project_files) and all((demo_source / name).is_file() and _inside(demo_source / name, demo_source) for name in project_files),
         "resource_budget": budget.get("device") == "cpu" and budget.get("network") is False and 0 < int(budget.get("max_runtime_seconds", 0)) <= 30 and int(plan.get("success_criteria", {}).get("repeats", 0)) == 3,
-        "command_allowlist": plan.get("command") == "evaluate_checkpoint",
-        "plan_policy": policy.get("decision") == "AUTO_APPROVED" and change.get("file") == "eval_config.json" and change.get("field") == "checkpoint",
+        "command_allowlist": command_name in COMMAND_PROJECT_FILES,
+        "plan_policy": policy.get("decision") == "AUTO_APPROVED" and change_ok,
     }
     return {"status": "PASS" if all(checks.values()) else "FAIL", "checks": checks, "runtime": runtime, "image": image, "image_labels": {key: labels.get(key) for key in RUNNER_LABELS}}
 
 
-def execute_runner_plan(plan: dict, demo_source: str | Path, baseline_run: str | Path, output_dir: str | Path, image: str = RUNNER_IMAGE) -> dict:
+def execute_runner_plan(plan: dict, demo_source: str | Path, baseline_run: str | Path, output_dir: str | Path, image: str | None = None) -> dict:
     demo_source = Path(demo_source).resolve()
     baseline_run = Path(baseline_run).resolve()
     output_dir = Path(output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
+    image = image or plan.get("runtime", {}).get("image") or RUNNER_IMAGE
     capability = runtime_capability_check(plan, demo_source, baseline_run, image)
     (output_dir / "host_capability_check.json").write_text(json.dumps(capability, ensure_ascii=False, indent=2), encoding="utf-8")
     if capability["status"] != "PASS":
@@ -92,7 +139,10 @@ def execute_runner_plan(plan: dict, demo_source: str | Path, baseline_run: str |
     project_copy = inputs / "project"
     run_copy = inputs / "run"
     project_copy.mkdir(parents=True)
-    for name in ("evaluate.py", "metric.py", "model.py"):
+    project_files = COMMAND_PROJECT_FILES.get(plan.get("command"), ())
+    if not project_files:
+        raise RuntimeError("Runner command is not allowlisted")
+    for name in project_files:
         shutil.copy2(demo_source / name, project_copy / name)
     shutil.copytree(baseline_run, run_copy)
     plan_path = inputs / "experiment_plan.json"

@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "data_seed": 20260804,
+  "current_accuracy_values": [
+    0.71875,
+    0.71875,
+    0.71875
+  ],
+  "historical_accuracy_values": [
+    0.9781249761581421,
+    0.9781249761581421,
+    0.9781249761581421
+  ],
+  "current_profile": "train_augmented",
+  "historical_profile": "eval_standard",
+  "hashes": {
+    "checkpoint": "a8a4ca3b7ea7005dc1544b435f739dd1ed24d0c56679e1606574309972e11776",
+    "validation_data": "fa01bcbbaa18d987aeaf12729a16feb21cec2266bb6ffb35c46e561c559fb75c",
+    "metric": "57570ffeef0cd8e7518147992700e888c76abd52d87f77eefe9a4fe0a5073652",
+    "evaluation_protocol": "238fa9637abe7626daf79cf56eea9c4019d65df33c4eec24a8ef783906d844dc"
+  }
+}

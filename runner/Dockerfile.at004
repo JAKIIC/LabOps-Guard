@@ -1,0 +1,15 @@
+FROM labops/pytorch-cpu-runner:0.1.0
+
+LABEL org.opencontainers.image.title="LabOps PyTorch CPU Runner" \
+      org.opencontainers.image.version="0.2.0" \
+      io.labops.runner.image="labops/pytorch-cpu-runner:0.2.0" \
+      io.labops.runner.python="3.11.15" \
+      io.labops.runner.torch="2.5.1+cpu" \
+      io.labops.runner.network-runtime="none"
+
+WORKDIR /runner
+COPY --chown=runner:runner runner.py /runner/runner.py
+
+USER runner
+ENTRYPOINT ["python", "-B", "/runner/runner.py"]
+CMD ["--plan", "/input/experiment_plan.json", "--project", "/input/project", "--run", "/input/run", "--output", "/output"]

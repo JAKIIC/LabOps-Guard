@@ -5,14 +5,18 @@ from __future__ import annotations
 import json
 import subprocess
 import tempfile
+import threading
 import unittest
+import urllib.error
+import urllib.request
 from pathlib import Path
 from unittest import mock
+from http.server import ThreadingHTTPServer
 
 from labops.at003 import build_plan
 from labops.checkpoint_incident import collect_checkpoint_evidence, diagnose_checkpoint, diagnose_policy_violation
 from labops.runner import RUNNER_IMAGE, runtime_capability_check
-from labops.runner_gateway import MAX_BODY, RUN_ID
+from labops.runner_gateway import MAX_BODY, RUN_ID, RUN_ID_AT004, TASK_CONTRACTS, make_handler
 
 
 def repo_root() -> Path:
@@ -71,18 +75,44 @@ class TestRunnerContracts(unittest.TestCase):
         for name in ("run_result.json", "metrics.json", "stdout.log", "stderr.log", "artifact_manifest.json"):
             self.assertIn(name, source)
         self.assertIn("COMMAND_ALLOWLIST", source)
-        self.assertIn("validation_data_unchanged", source)
+        self.assertIn('hashes["validation_data"]', source)
+        self.assertIn('protected[f"{name}_unchanged"]', source)
 
-    def test_gateway_is_fixed_to_at003_and_requires_approval(self):
+    def test_gateway_has_two_fixed_task_contracts_and_requires_approval(self):
         source = (repo_root() / "labops" / "runner_gateway.py").read_text(encoding="utf-8")
         self.assertEqual(MAX_BODY, 64 * 1024)
         self.assertIsNotNone(RUN_ID.fullmatch("RUN-LABOPS-AT-003-AGENTTEAMS-001"))
+        self.assertIsNotNone(RUN_ID_AT004.fullmatch("RUN-LABOPS-AT-004-AGENTTEAMS-001"))
         self.assertIsNone(RUN_ID.fullmatch("RUN-ARBITRARY-001"))
+        self.assertEqual(set(TASK_CONTRACTS), {"LABOPS-AT-003", "LABOPS-AT-004-EVAL-DRIFT"})
         self.assertIn('approval.get("decision") == "APPROVED"', source)
         self.assertIn("run_id already exists; evidence is append-only", source)
         self.assertIn('default="127.0.0.1"', source)
-        self.assertIn('plan.get("task_id") == "LABOPS-AT-003"', source)
+        self.assertIn('TASK_CONTRACTS.get(task_id)', source)
         self.assertNotIn("shell=True", source)
+
+    def test_gateway_rejects_non_object_plan_with_structured_400(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(root, root / "runs"))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            payload = json.dumps({"experiment_plan": "not-an-object", "approval": {}}).encode("utf-8")
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{server.server_port}/v1/run",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            try:
+                with self.assertRaises(urllib.error.HTTPError) as caught:
+                    urllib.request.urlopen(request, timeout=2)
+                self.assertEqual(caught.exception.code, 400)
+                response = json.loads(caught.exception.read())
+                self.assertEqual(response, {"ok": False, "error": "structured experiment_plan and approval required"})
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
 
 
 class TestIncidentIdentityRegression(unittest.TestCase):
