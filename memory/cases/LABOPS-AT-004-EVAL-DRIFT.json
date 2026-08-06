@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "memory_version": "0.1.0",
+  "published_at": "2026-08-06T04:00:00Z",
+  "publisher_role": "Incident Commander",
+  "task_id": "LABOPS-AT-004-EVAL-DRIFT",
+  "incident_id": "DEMO-EVAL-DRIFT-004",
+  "title": "Stable evaluation regression caused by preprocessing-profile drift",
+  "final_state": "RESOLVED",
+  "tags": ["evaluation-drift", "preprocessing", "offline-runner", "single-variable", "agentteams"],
+  "failure_signature": {
+    "observed": "Repeated accuracy stabilized at 0.71875 while the registered historical baseline was about 0.978125.",
+    "invariants": ["checkpoint hash unchanged", "validation-data hash unchanged", "metric hash unchanged", "zero repeat spread"],
+    "distinguishing_fact": "Current preprocessing profile was train_augmented; registered historical profile was eval_standard."
+  },
+  "diagnosis": {
+    "top_hypothesis": "H-AT004-PREPROCESSING-DRIFT",
+    "confidence": 0.92,
+    "evidence_ids": ["E-AT004-004", "E-AT004-005", "E-AT004-006"],
+    "alternatives_rejected": ["checkpoint mismatch", "validation-data change", "random instability"]
+  },
+  "resolution": {
+    "approved_change": "sandbox/eval_config.json:evaluation.preprocessing_profile train_augmented -> eval_standard",
+    "variables_changed": 1,
+    "runtime": "labops/pytorch-cpu-runner:0.2.0",
+    "network": "none",
+    "repeats": 3,
+    "rollback": "Discard the fresh sandbox and retain the original workspace unchanged."
+  },
+  "outcome": {
+    "baseline_accuracy": 0.71875,
+    "candidate_accuracy": 0.9781249761581421,
+    "improvement": 0.2593749761581421,
+    "reproducible": true,
+    "verification": "independent_recomputation",
+    "decision": "PASS"
+  },
+  "safety": {
+    "human_approval_before_execution": true,
+    "sandbox_only": true,
+    "original_workspace_modified": false,
+    "protected_hashes_unchanged": true,
+    "trace_chain": "CHAIN_OK/ACCEPTED"
+  },
+  "evidence": {
+    "source_bundle": "demo/output-agentteams-at004/LABOPS-AT-004-EVAL-DRIFT-evidence-bundle.zip",
+    "source_bundle_sha256": "4092b43f39df52db3847caa28ca01e4321129a1c17ec7ca5efd2029ab1fb77cd",
+    "artifact_count": 27,
+    "authoritative_trace_entries": 7
+  },
+  "reuse_guidance": [
+    "Match the failure signature only after collecting fresh evidence for the new incident.",
+    "Prefer a one-variable preprocessing-profile experiment when checkpoint, data, metric, and repeat stability rule out alternatives.",
+    "Require a fresh sandbox, offline runner, explicit approval, protected hashes, and independent recomputation."
+  ],
+  "limitations": ["One deterministic CPU demo fixture; not evidence of production scale, distributed execution, or universal root-cause accuracy."]
+}

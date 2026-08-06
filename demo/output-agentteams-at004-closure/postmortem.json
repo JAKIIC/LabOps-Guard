@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "postmortem_id": "POSTMORTEM-DEMO-EVAL-DRIFT-004-V2",
+  "task_id": "LABOPS-AT-004-EVAL-DRIFT",
+  "incident_id": "DEMO-EVAL-DRIFT-004",
+  "status": "RESOLVED",
+  "summary": "A fixed evaluation fell from about 97.81% to 71.88% because its preprocessing profile drifted from eval_standard to train_augmented.",
+  "detection": {"baseline_accuracy": 0.71875, "historical_accuracy": 0.978125, "repeats": 3, "spread": 0.0},
+  "root_cause": {"hypothesis_id": "H-AT004-PREPROCESSING-DRIFT", "confidence": 0.92, "cause": "evaluation preprocessing configuration drift"},
+  "repair": {"single_variable": true, "path": "sandbox/eval_config.json:evaluation.preprocessing_profile", "before": "train_augmented", "after": "eval_standard"},
+  "verification": {"candidate_accuracy": 0.9781249761581421, "repeats": 3, "decision": "PASS", "resolution_status": "RESOLVED", "method": "independent_recomputation"},
+  "controls": {"approval_before_execution": true, "network": "none", "sandbox_only": true, "original_workspace_modified": false, "protected_hashes_unchanged": true, "trace": "CHAIN_OK/ACCEPTED"},
+  "what_worked": ["evidence-ID-bound RCA", "one-variable plan", "human approval gate", "dedicated offline CPU runner", "independent metric recomputation"],
+  "follow_up": ["reuse this signature only as diagnostic context", "collect fresh evidence for every new incident", "keep original evidence bundles immutable"]
+}

@@ -1,35 +1,21 @@
 # AgentTeams integration mapping
 
-`LABOPS-AT-001` maps the local LabOps Guard pipeline to five distinct AgentTeams identities.
-AgentTeams owns orchestration, assignment, handoff messages, and shared task state. The
-LabOps CLI and Skills own deterministic evidence operations and policy enforcement.
+AgentTeams 负责六角色编排、Matrix 任务交接和 MinIO 共享状态；LabOps Guard 的 Skill、
+Schema、Policy、Gateway、Runner 和 Auditor 负责确定性执行与验证。当前通用角色定义位于
+`agentteams/agent_identities_v2.json`，不绑定 checkpoint 或单一 Demo。
 
-| Pipeline stage | Agent | Skill | Required handoff artifact |
+| 阶段 | Agent | Skill | 结构化产物 |
 |---|---|---|---|
-| Receive and route | LabOps Manager | `pack-lab-evidence` at completion | task/state contract |
-| Snapshot and evidence | Evidence Collector | `collect-lab-evidence` | registry + evidence JSON |
-| Evidence-bound diagnosis | RCA Analyst | `diagnose-lab-incident` | hypothesis JSON |
-| Approval and action | Controlled Executor | `control-lab-action` | approval + action JSON |
-| Independent verification | Verification Auditor | `verify-lab-result` | verification + trace result |
+| Receive / route / close | Incident Commander | `pack-lab-evidence`, `publish-case-memory` | task、state、bundle、case memory |
+| Evidence | Evidence Collector | `collect-lab-evidence` | registry、evidence、immutable hashes |
+| RCA | RCA Analyst | `diagnose-lab-incident` | evidence-ID-bound hypotheses |
+| Plan | Experiment Planner | `plan-lab-experiment` | one-variable ExperimentPlan |
+| Execute | Safe Executor | `control-lab-action` | approval、run、changed paths、raw outputs |
+| Verify | Verification Auditor | `verify-lab-result` | independent decision、trace audit、rollback |
 
-## Context handoff contract
+每次 handoff 必须包含 `task_id`、`incident_id`、当前/下一状态、输入输出相对路径、哈希、
+时间、状态、生产者和未解决缺口。自然语言结论不代替文件证据；Manager 不执行或自证；
+Executor 不宣布闭环；只有 Auditor 能裁决 `RESOLVED` 或 `ROLLED_BACK`。
 
-Every AgentTeams handoff must include:
-
-- `task_id`, `incident_id`, current state, and proposed next state;
-- input artifact paths and SHA-256 where available;
-- output artifact paths and validation status;
-- policy class and human decision when an action is involved;
-- unresolved evidence gaps and an explicit `blocked_reason` when work cannot continue.
-
-Natural-language conclusions never replace the structured artifacts. The Manager may route
-work but may not execute or self-verify it. The Verifier must derive its decision from action
-records and postconditions rather than from the Executor's summary.
-
-## Demo sequence
-
-1. Post `agentteams/prompts/manager_task.md` in the Manager room.
-2. Observe at least four cross-role assignments and record their Matrix event links.
-3. Confirm final state is `DEMO_PASSED_NOT_RESOLVED`, not `CLOSED`.
-4. Preserve the final response, screenshots, generated artifacts, and trace verification for
-   the competition evidence package.
+AT-004 的真实顺序和六次交接位于正式证据包 `handoff_manifest.json`。人工批准作为独立
+门禁事件记录，不计入 Agent 数量。

@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "memory_version": "0.1.0",
+  "published_at": "2026-08-06T04:00:00Z",
+  "publisher_role": "Incident Commander",
+  "task_id": "LABOPS-AT-004-EVAL-DRIFT",
+  "incident_id": "DEMO-EVAL-DRIFT-004",
+  "title": "Stable evaluation regression caused by preprocessing-profile drift",
+  "final_state": "RESOLVED",
+  "failure_signature": "0.71875 x3 versus historical ~0.978125 with unchanged checkpoint, data, and metric hashes",
+  "top_hypothesis": "H-AT004-PREPROCESSING-DRIFT",
+  "approved_change": "sandbox eval_config preprocessing profile: train_augmented -> eval_standard",
+  "result": "0.9781249761581421 x3; PASS / RESOLVED",
+  "source_bundle": "../output-agentteams-at004/LABOPS-AT-004-EVAL-DRIFT-evidence-bundle.zip",
+  "source_bundle_sha256": "4092b43f39df52db3847caa28ca01e4321129a1c17ec7ca5efd2029ab1fb77cd"
+}

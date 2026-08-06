@@ -32,6 +32,19 @@ Package existing evidence without changing its meaning. Read `references/io-sche
 - Packaging proves integrity and completeness of included evidence; it does not prove the
   underlying experiment issue is resolved.
 
+## Version, reuse, and lifecycle
+
+- Skill version: `0.2.0`; I/O schema version: `1.0`.
+- Reuse it with repository-specific artifact allowlists. The bundle format is independent of
+  the demo incident and must not assume checkpoint or evaluation-drift filenames.
+- Input lifecycle: verified terminal or reviewable non-terminal state. Output lifecycle:
+  `PACKAGED` or `BLOCKED`; packaging never changes the incident decision.
+- In a multi-agent run, the Incident Commander invokes this skill only after receiving the
+  Verification Auditor's raw decision and trace result. Preserve producer identity for every
+  included artifact.
+- On missing, disallowed, out-of-workspace, or hash-invalid content, emit an `errors` array
+  using `references/io-schema.json`, produce no final bundle, and retain the source workspace.
+
 ## Output requirement
 
 Return the evidence bundle, bundle hash, manifest, missing optional artifacts, trace status,

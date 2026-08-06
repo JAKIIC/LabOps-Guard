@@ -21,12 +21,30 @@ Convert one evidence-backed hypothesis into one bounded experiment plan. Never e
 6. Validate the output against `references/io-schema.json` and the project `schemas/plan.schema.json`.
 7. Hand the validated plan to the controlled executor. Do not bypass approval or verification.
 
-## Checkpoint Regression Guardrails
+## Supported bounded patterns
 
-- Allow only `eval_config.json: checkpoint`, from `checkpoints/last.pt` to `checkpoints/best.pt`.
-- Require offline CPU execution, three repeats, accuracy at least `0.88`, and improvement at least `0.15`.
-- Forbid changes to `metric.py`, datasets, labels, target thresholds, and checkpoint contents.
-- Use a fresh sandbox and restore its snapshot on any policy or verification failure.
+- Checkpoint repair: allow only `eval_config.json: checkpoint`, from the evidenced current
+  checkpoint to the evidenced reference checkpoint.
+- Evaluation-profile repair: allow only the evidenced preprocessing field, from the observed
+  drifted value to the registered historical value.
+- Other repositories may define another one-variable pattern, but it must be expressed in the
+  assignment and policy allowlist, cite evidence, remain reversible, and pass the same schema.
+- Require offline CPU execution, finite runtime and repeat budgets, measurable thresholds, and
+  a fresh sandbox. Forbid changes to metric implementations such as `metric.py`, datasets,
+  labels, checkpoints, evaluation
+  protocols, target thresholds, and the original workspace unless the policy explicitly marks
+  a different protected set.
+
+## Version, reuse, and lifecycle
+
+- Skill version: `0.2.0`; I/O schema version: `1.0`.
+- Input lifecycle: `DIAGNOSIS_READY` -> `PLANNING`. Output lifecycle: `PLAN_READY`, `REJECTED`,
+  or `BLOCKED`; planning never implies approval or execution.
+- In a multi-agent run, consume one RCA hypothesis routed by the Incident Commander and hand a
+  schema-valid plan to the Safe Executor through the Manager and approval gate.
+- On missing evidence, unsupported change patterns, invalid budgets, absent rollback, or schema
+  failure, return the structured error object defined in `references/io-schema.json`. Do not
+  convert a rejected plan into natural-language execution advice.
 
 ## Output
 

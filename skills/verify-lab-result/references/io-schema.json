@@ -1,4 +1,6 @@
 {
+  "schema_version": "1.0",
+  "skill_version": "0.2.0",
   "input": {
     "required": ["task_id", "incident_id", "workspace", "action_result", "expected_postcondition", "trace"],
     "independence": "derive from raw artifacts, not executor prose"

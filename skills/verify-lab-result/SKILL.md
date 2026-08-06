@@ -36,6 +36,20 @@ Verify independently from raw action records. Read `references/io-schema.json` f
 - Refuse postconditions outside the workspace.
 - Never convert `PARTIAL`, `NOT_VERIFIED`, dry-run, or simulated status into closure.
 
+## Version, reuse, and lifecycle
+
+- Skill version: `0.2.0`; I/O schema version: `1.0`.
+- Reuse it by supplying project-specific postconditions and protected-file manifests; the
+  independence, trace, and hash requirements remain unchanged.
+- Input lifecycle: `VERIFYING`. Output lifecycle: `RESOLVED`, `ROLLED_BACK`, `BLOCKED`, or the
+  explicitly non-production `DEMO_PASSED_NOT_RESOLVED` compatibility state.
+- In a multi-agent run, consume Planner and Executor raw artifacts independently, then hand the
+  signed-off decision to the Incident Commander. Do not reuse the Executor's claimed metric as
+  verification evidence.
+- On missing artifacts, absent postconditions, path escape, hash mismatch, trace failure, or
+  inconclusive recomputation, emit an `errors` array using `references/io-schema.json` and fail
+  closed.
+
 ## Output requirement
 
 Return verification checks, trace result, incident state, `underlying_issue_resolved`, and the

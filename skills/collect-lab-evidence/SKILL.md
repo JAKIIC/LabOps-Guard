@@ -38,6 +38,20 @@ Produce evidence, not a diagnosis. Read `references/io-schema.json` before accep
 - Never install, download, train, or change the snapshot.
 - If evidence is absent or invalid, return `BLOCKED` with the exact gap.
 
+## Version, reuse, and lifecycle
+
+- Skill version: `0.2.0`; I/O schema version: `1.0`.
+- Reuse this skill in another repository by supplying its own incident contract, allowlist,
+  verification record, and writable evidence workspace. Demo paths and incident IDs are not
+  part of the contract.
+- Input lifecycle: `ASSIGNED` -> `COLLECTING`. Output lifecycle: `EVIDENCE_READY` or
+  `BLOCKED`; this skill never advances an incident to diagnosis on its own.
+- In a multi-agent run, consume only the Incident Commander's schema-valid assignment and
+  hand structured artifacts to the RCA Analyst through the Manager. Chat prose is context,
+  not execution evidence.
+- On any schema, path, hash, or safety failure, emit an `errors` array using the codes in
+  `references/io-schema.json`, preserve collected artifacts, and stop safely.
+
 ## Output requirement
 
 Return a structured handoff containing task/incident IDs, registry status, counts, output

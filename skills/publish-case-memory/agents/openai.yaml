@@ -1,0 +1,4 @@
+interface:
+  display_name: "Publish Case Memory"
+  short_description: "Turn verified closures into searchable incident memory"
+  default_prompt: "Use $publish-case-memory to publish a verified incident closure without altering its source evidence."

@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "bundle_type": "incident_closure_v2",
+  "files": [
+    {
+      "path": "postmortem.json",
+      "sha256": "a5b796d2345a23704872e306c5b0d01f62a0e2bae17e57c72eea706d0183abed",
+      "size": 1436
+    },
+    {
+      "path": "case_memory.json",
+      "sha256": "a7fee697b07c075e36cccaf353201e066f764b054b2c63fdf0382a6ffb6ade2e",
+      "size": 843
+    },
+    {
+      "path": "postmortem.md",
+      "sha256": "02eada0c9082632b8d4318f784b081e62ce5236777296a6f0e992be2fea64fef",
+      "size": 1109
+    }
+  ]
+}

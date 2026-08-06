@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "skill_version": "0.1.0",
+  "input": {
+    "required": ["task_id", "incident_id", "terminal_verification", "trace_result", "source_bundle", "source_bundle_sha256", "closure_workspace"],
+    "preconditions": ["invoked_by_incident_commander", "terminal_verification_exists", "trace_chain_ok", "source_bundle_hash_matches"]
+  },
+  "output": {
+    "required": ["postmortem_json", "case_memory_json", "postmortem_md", "closure_bundle", "closure_bundle_sha256", "memory_index_record", "handoff_state"],
+    "allowed_handoff_states": ["MEMORY_PUBLISHED", "BLOCKED"]
+  },
+  "errors": ["NOT_TERMINAL", "VERIFICATION_MISSING", "TRACE_INVALID", "SOURCE_HASH_MISMATCH", "PATH_REFUSED", "DISALLOWED_CONTENT"]
+}

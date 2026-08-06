@@ -32,6 +32,21 @@ Treat approval as a gate, never as a descriptive field. Read `references/io-sche
   policy downgrades.
 - Preserve stdout/stderr truncation, redaction, timeout, dry-run, and simulation markers.
 
+## Version, reuse, and lifecycle
+
+- Skill version: `0.2.0`; I/O schema version: `1.0`.
+- Reuse it with any runner that accepts a validated structured plan and returns immutable
+  manifests; bind repository-specific command and path allowlists outside the skill.
+- Input lifecycle: `PLAN_READY` or `AWAITING_APPROVAL`. Output lifecycle:
+  `AWAITING_APPROVAL`, `VERIFYING`, `REJECTED`, or `BLOCKED`; only an independent auditor may
+  close the incident.
+- In a multi-agent run, consume the Planner artifact and human decision routed by the Incident
+  Commander, then hand raw runner outputs to the Verification Auditor. Never substitute an
+  Executor summary for files, hashes, timestamps, and status.
+- On policy, approval, capability, path, timeout, or runtime failure, emit an `errors` array
+  using `references/io-schema.json`, preserve the sandbox for audit, and do not retry with a
+  broader policy.
+
 ## Output requirement
 
 Return the policy class, approval ID/status, dry-run result, execution result, simulation flag,
