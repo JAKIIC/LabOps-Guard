@@ -1,5 +1,5 @@
 param(
-    [string]$Version = 'v0.2.0-rc1',
+    [string]$Version = 'v0.2.0-rc2',
     [string]$PythonPath
 )
 
@@ -47,6 +47,8 @@ try {
     Copy-Item -LiteralPath 'demo\output-agentteams-at004\LABOPS-AT-004-EVAL-DRIFT-evidence-bundle.zip' -Destination (Join-Path $releaseRoot 'evidence\LABOPS-AT-004-EVAL-DRIFT-evidence-bundle.zip')
     Copy-Item -LiteralPath 'demo\output-agentteams-at004\evidence_manifest.json' -Destination (Join-Path $releaseRoot 'evidence\LABOPS-AT-004-evidence-manifest.json')
     Copy-Item -LiteralPath 'demo\output-agentteams-at004\handoff_manifest.json' -Destination (Join-Path $releaseRoot 'evidence\LABOPS-AT-004-handoff-manifest.json')
+    Copy-Item -LiteralPath 'demo\output-agentteams-at004-closure\LABOPS-AT-004-closure-v2.zip' -Destination (Join-Path $releaseRoot 'evidence\LABOPS-AT-004-closure-v2.zip')
+    Copy-Item -LiteralPath 'memory\cases\LABOPS-AT-004-EVAL-DRIFT.json' -Destination (Join-Path $releaseRoot 'evidence\LABOPS-AT-004-case-memory.json')
     Copy-Item -LiteralPath 'RELEASE_NOTES.md' -Destination (Join-Path $releaseRoot 'RELEASE_NOTES.md')
 
     $commit = (git rev-parse HEAD).Trim()
@@ -63,6 +65,9 @@ try {
         generated_at = (Get-Date).ToUniversalTime().ToString('o')
         experiment_network = 'none'
         contains_credentials = $false
+        main_demo = 'LABOPS-AT-004-EVAL-DRIFT'
+        main_runner = 'labops/pytorch-cpu-runner:0.2.0'
+        fallback_runner = 'labops/pytorch-cpu-runner:0.1.0'
         at002_state = 'BLOCKED'
         at003_state = 'PASS / RESOLVED'
         at004_state = 'PASS / RESOLVED'

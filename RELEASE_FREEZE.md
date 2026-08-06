@@ -1,32 +1,29 @@
-# v0.2.0 Release Freeze
+# Phase 5 release freeze
 
-冻结日期：2026-08-04
-冻结目标：初赛提交前保持核心闭环稳定，只优化可复现性、文档与展示。
+冻结日期：2026-08-06
+目标：保持 AT-004 真实闭环不变，只完成工程化、文档、开源治理和发布前审计。
 
-## 冻结范围
+## Frozen
 
-- 六角色 Agent Identity 与职责边界；
-- AgentTeams v2 状态机；
-- Incident、Evidence、Hypothesis、Plan、Approval、Run、Verification Schema；
-- Planner 单变量、有限预算、禁止修改评测与原始工作区策略；
-- Safe Executor、Runner Gateway、`labops/pytorch-cpu-runner:0.1.0`；
-- Verification Auditor、Trace/hash chain 与证据包格式；
-- LABOPS-AT-002、LABOPS-AT-003 正式证据；
-- 仪表盘服务端数据模型。
+- 六角色 Agent Identity 与核心状态机；
+- Incident、Evidence、Hypothesis、Plan、Approval、Run、Verification 合同；
+- 单变量、有限预算、人工审批、保护文件、回滚、工作区隔离与禁网策略；
+- AT-004 主 Runner `0.2.0`、AT-003 备用 Runner `0.1.0` 和 Gateway 白名单；
+- AT-002/003/004 原始证据、Trace、Verification 与 Dashboard 服务端校验模型。
 
-## 冻结后允许修改
+## Allowed
 
-- P0/P1 缺陷；
-- 启动、验证、离线复现与故障排查脚本；
-- 文档、PPT、视频与仪表盘展示文字；
-- 敏感信息清理、许可证与提交材料。
+- 缺陷修复、测试、离线复现、敏感信息清理；
+- Skill 版本/复用说明、案例记忆、可观测性文档；
+- README、PPT、视频、比赛映射和开源治理文件；
+- 不覆盖原证据的独立派生 closure 包。
 
-## 冻结后禁止修改
+## Forbidden
 
-- 新增 Agent、状态或执行框架；
-- 降低审批、哈希、回滚、无网络或工作区隔离要求；
-- 覆盖 AT-002/AT-003 证据；
-- 为展示效果伪造角色执行、指标、Trace 或 `RESOLVED`；
-- 在主分支增加 RAG、向量数据库、自动调参或新前端栈。
+- 新增 Agent 或核心状态；
+- 降低审批、哈希、回滚、禁网或工作区隔离；
+- 伪造角色执行、指标、Trace、实时状态或 `RESOLVED`；
+- 覆盖正式证据、重写发布历史、推送远端或创建正式 Tag（用户确认前）。
 
-正式 `v0.2.0-rc1` 标签只能在工作区干净、全量测试通过、离线 Release 校验通过后创建。
+候选 `v0.2.0-rc2` 只有在工作区干净、全量测试、证据、敏感信息、PPT 和 Release
+manifest 均通过且用户确认许可证/远端/发布时间后才能成为正式 Release。

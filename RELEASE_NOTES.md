@@ -1,27 +1,35 @@
-# LabOps Guard v0.2.0-rc1
+# LabOps Guard v0.2.0-rc2 draft
 
-这是面向 GOAI Agent Infra 初赛展示与离线复现的首个 Release Candidate。
+这是面向 GOAI Agent Infra 初赛的本地发布候选草案；尚未创建公开 Release 或 Tag。
 
-## 已验证能力
+## 验证结果
 
-- 六角色 AgentTeams 真实协作和结构化交接；
-- 人工审批后的专用 PyTorch CPU Runner；
-- 无网络、非 root、只读根文件系统和资源限制；
-- AT-002：依赖缺失时安全 `BLOCKED`；
-- AT-003：`70.00% → 98.12%`，Auditor 复核后 `PASS / RESOLVED`；
-- 非法 `metric.py` 篡改：`POLICY_VIOLATION / ROLLED_BACK`；
-- ZIP、artifact、Runner manifest 与 Trace 哈希重验；
-- AT-002 与 AT-003 在只读仪表盘中分开展示。
+- 89 项全量单元测试通过；
+- AT-002、AT-003、AT-004 三条正式证据包及其审计哈希链独立复核通过；
+- 官方模板 18 页 PPT 通过无溢出与母版一致性检查，团队介绍页保持空白。
 
-## 离线包内容
+## 主演示
 
-- `labops-guard-source.zip`：冻结提交导出的源码；
-- `labops-pytorch-runner-0.1.0.tar`：固定 Runner 镜像；
-- `labops-guard-dashboard-local.tar`：可离线加载的只读仪表盘镜像；
-- `demo-fixture/LABOPS-AT-003-baseline-fixture.zip`：确定性 checkpoint fixture；
-- `evidence/`：AT-002、AT-003 正式证据包和 manifest；
-- `release_manifest.json` 与 `checksums.sha256`。
+- AT-004 六角色 AgentTeams 真实协作：评测预处理漂移 `71.88% × 3 → 97.81% × 3`；
+- 单变量沙箱修复、人工审批、Runner `0.2.0` 断网执行和 Auditor 独立重算；
+- 27-entry 原始证据包与 7-entry Trace 通过多层 SHA-256 校验；
+- Incident Commander 发布独立 postmortem、案例记忆和 closure v2 包，原证据不变。
+
+## 保留安全案例
+
+- AT-002：运行依赖缺失时安全 `BLOCKED`；
+- AT-003：checkpoint 修复 `PASS / RESOLVED`，Runner `0.1.0` 仅为备用；
+- 非法 metric 修改：`POLICY_VIOLATION / ROLLED_BACK`。
+
+## 工程化
+
+- 六个角色 Skill 加入版本、跨项目复用、生命周期、多 Agent 交接和结构化错误；
+- 删除无引用模板 Skill，新增 Incident Commander 的 `publish-case-memory` Skill；
+- 新增五类证据可观测模型和未来 OpenTelemetry 适配边界；
+- 补齐开源治理、Python 包元数据与最小 CI；
+- 统一 README、状态、比赛材料和官方模板 PPT 的 AT-004 口径。
 
 ## 事实边界
 
-Verification Auditor 不在 Worker 中重新运行 PyTorch。它独立复核隔离 Runner 的原始输出、三次指标、审批时序、文件完整性、执行范围、manifest 与 Trace。该版本不宣称支持任意模型、GPU、生产级多租户调度或任意外部数据集。
+本候选仍是单机 CPU 演示，不包含生产级身份、调度、GPU、外部数据集、OTel 后端、MCP
+Server 或 RAG。许可证、远端仓库、公开权限和正式 Tag 仍需用户确认。

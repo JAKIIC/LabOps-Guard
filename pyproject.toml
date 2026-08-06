@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "labops-guard"
+version = "0.2.0"
+description = "Evidence-backed multi-agent governance for AI experiment incidents"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{name = "LabOps Guard contributors"}]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+]
+
+[project.scripts]
+labops = "labops.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["labops*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
