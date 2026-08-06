@@ -1,62 +1,55 @@
-# GOAI Agent Infra 赛事要求映射
+# GOAI Agent Infra requirement mapping
 
-核对日期：2026-08-04
-官方依据：<https://www.goaihz.com/tracks?track=infra>
+核对日期：2026-08-06
+官方入口：<https://www.goaihz.com/tracks?track=infra>
 
 ## 初赛交付
 
-| 官方要求 | LabOps Guard 对应内容 | 可验证证据 | 状态 |
-|---|---|---|---|
-| 500 字以内作品简介 | `docs/competition-submission-draft.md` | 字数检查 | 已起草 |
-| 方案 PPT/PDF | 14 页文字结构 | 同上 | 已起草，待视觉定稿 |
-| 可执行代码包（可选） | 离线 Release Candidate | `release/v0.2.0-rc1/` 与 SHA-256 | 生成后验收 |
+| 要求 | LabOps Guard 交付 | 当前状态 |
+|---|---|---|
+| 500 字以内作品简介 | `docs/competition-submission-draft.md` | 已统一 AT-004 口径并自动计数 |
+| 方案 PPT/PDF | 官方模板 18 页，团队介绍页留空 | 生成后进行逐页渲染与溢出检查 |
+| 可执行代码包 | 源码、固定 Runner、三案例证据、manifest/checksum | 仅本地预备，待用户确认 Release |
 
 ## 技术要求
 
-| 官方要求 | 实现 | 证据/入口 |
+| 要求 | 实现 | 可验证证据 |
 |---|---|---|
-| 不少于 3 个不同职能 Agent | 6 个职责隔离角色 | `agentteams/agent_identities_v2.json` |
-| 以 AgentTeams 为协同基点 | Manager + 5 Worker，Matrix 交接、MinIO 共享产物 | `handoff_manifest.json`、`agentteams_trace.jsonl` |
-| 任务输入与拆解 | Commander 将事件拆成 Evidence、RCA、Plan、Execute、Verify | `agentteams/tasks/LABOPS-AT-003.json` |
-| 上下文传递 | 只传递 schema 化 artifact ID、输入输出路径与状态 | AT-003 证据包 |
-| 工具调用 | Safe Executor 调用本机 Gateway，Gateway 启动隔离 Runner | `gateway_request.json`、Runner 五文件 |
-| 结果验证 | Verification Auditor 独立复核 Runner 原始证据 | `verification.json` |
-| 审批与回滚 | 执行前人工批准；非法篡改阻断并回滚 | `approval.json`、AT-002 非法案例 rollback artifact |
-| 执行证据沉淀 | Matrix、MinIO、Artifact、Metrics、Log、Trace、ZIP | 两个正式证据包 |
-| 经验沉淀 | 能力检查前置、单变量策略、异常案例与限制固化为 Skill/策略/文档 | `skills/`、`KNOWN_LIMITATIONS.md` |
-| Skill 必选 | Evidence、RCA、Plan、Execute、Verify、Pack 六类 Skill | `skills/*/SKILL.md` 与 I/O schema |
-| 记忆/RAG/共享状态/轨迹至少 2 项 | 不使用 RAG；实现共享状态与轨迹可观测 | Matrix + MinIO、两类 Trace hash chain |
+| 至少 3 个不同职能 Agent | 6 个职责隔离角色，不新增第七 Agent | `agentteams/agent_identities_v2.json` |
+| 以 AgentTeams 为协同基点 | Manager + 5 Worker，Matrix 交接、MinIO 共享产物 | AT-004 `handoff_manifest.json` 和 Trace |
+| 任务输入与拆解 | Incident Commander 拆成 Evidence、RCA、Plan、Execute、Verify | AT-004 task contract |
+| 上下文传递 | 只传 Schema 化 ID、相对路径、哈希、时间和状态 | 原始证据 ZIP |
+| 工具调用 | Safe Executor 向白名单 Gateway 提交已批准计划，宿主启动断网 Runner | Gateway request/response、Runner 五文件 |
+| 结果验证 | Auditor 从 raw stdout、manifest、哈希与审批时序独立复核 | `verification.json` |
+| 审批与回滚 | 执行前人工批准；非法 metric 修改被拒绝并回滚 | AT-004 approval、AT-002 rollback |
+| 可观测与证据 | Trace、Log、Metrics、Artifact、Approval 五类信号 | `docs/observability.md` |
+| 经验沉淀 | Skill 版本化 + AT-004 postmortem + 可搜索 case memory | `skills/CHANGELOG.md`、`memory/cases/` |
+| Skill 工程 | 六个角色 Skill + Commander 发布记忆能力，均有 I/O Schema | `skills/*/SKILL.md` |
+| 共享状态/轨迹 | Matrix + MinIO 共享状态、两类哈希链与 Dashboard 投影 | 三个独立证据包 |
 
-## 无 MCP 时的等价工具契约
+## 工具契约与迁移边界
 
-当前 Runner Gateway 是协议适配层，不宣称已实现 MCP Server。
+Runner Gateway 当前是本地 HTTP 适配层，不宣称已经实现 MCP Server：
 
-| 契约项 | 当前实现 | 边界/迁移方式 |
+| 契约 | 当前实现 | 生产迁移 |
 |---|---|---|
-| 协议与入口 | HTTP `POST /v1/run`，JSON body | 可直接映射为 MCP tool invocation |
-| 输入 Schema | `experiment_plan` + `approval`，最大 64 KiB | Plan 先经 JSON Schema 与 policy 校验 |
-| 返回结构 | 状态、task/run/approval ID、Runner 五文件 | MCP 适配层保持字段不变 |
-| 权限范围 | 固定 AT-003、incident、Runner image、run-id 格式 | 生产环境应使用服务身份和细粒度授权 |
-| 鉴权 | localhost/宿主网络边界 + 人工审批字段 + 固定白名单 | 当前无密码学服务身份；生产迁移必须增加 mTLS/OIDC |
-| 失败处理 | 400/403/409/413/422/500；能力不足时拒绝执行 | 不把失败降级成成功 |
-| 幂等/防覆盖 | 已存在 `run_id` 返回 409，正式证据 append-only | 生产可换为持久化幂等键 |
-| 并发 | 单进程锁；繁忙返回 409 | 生产迁移到队列/调度器 |
-| 审计 | 保存 request、response、Runner manifest、Trace | MCP 适配不改变证据模型 |
-| 降级 | Gateway/Runner 不可用时进入 BLOCKED | 证据回放仅用于展示，不冒充新执行 |
+| 输入 | 结构化 ExperimentPlan + Approval，固定大小上限 | 保持 Schema，映射 MCP tool invocation |
+| 权限 | 固定任务、事件、镜像、命令、路径和 run-id 白名单 | 工作负载身份、细粒度授权、mTLS/OIDC |
+| 失败 | 结构化 4xx/5xx；能力不足保持 BLOCKED | 队列、重试策略与持久化幂等键 |
+| 审计 | request、response、Runner manifest、Trace | 未来 OTel adapter 只读导出，不改证据 |
 
-## 评分维度对应
+## 评分维度答卷
 
 | 权重 | 答卷重点 |
 |---:|---|
-| 场景价值与行业复制 25% | AI 实验异常响应的通用风险；适配训练、评测、数据与部署流水线 |
-| 多 Agent 协同 25% | 职责隔离、结构化 handoff、异常分支、审批和最终裁决权 |
-| Skill 工程与生态复用 25% | 六类 Skill 的输入输出、调用条件、失败处理、安全边界与版本化 |
-| 工程运行与安全审计 20% | 离线 Runner、三案例、Trace、Metrics、哈希、回滚和可迁移包 |
-| 开放/开源贡献 5% | 标准 Schema、Runner 契约、可替换 Gateway、示例与复现文档 |
+| 场景价值与行业复制 25% | 解决 AI 实验“修复是否可信”，可迁移到训练、评测、数据和发布流水线 |
+| 多 Agent 协同 25% | 六角色职责隔离、结构化 handoff、审批、失败分支和独立裁决 |
+| Skill 工程与生态复用 25% | 版本、I/O、生命周期、失败处理、安全边界和跨项目参数化 |
+| 工程运行与安全审计 20% | 断网 Runner、真实指标、保护哈希、回滚、证据 ZIP 与 Dashboard |
+| 开放/开源贡献 5% | Schema、Skill、Runner 契约、案例记忆、文档与最小 CI |
 
-## 当前不做
+## 明确不宣称
 
-- 不为凑技术数量增加 MCP、RAG、PolarDB、Nacos 或新 Agent；
-- 不声称 Worker 内 Auditor 重新运行了 PyTorch；
-- 不把 AT-003 的成功写回 AT-002；
-- 不把证据回放表述为新的实时执行。
+不把 checkpoint 备用案例当主演示，不把 Worker Auditor 描述为 PyTorch 二次运行，不把
+回放描述为实时执行，不把未来 OTel/MCP/生产身份写成已完成，也不以 RAG、新数据库或新
+Agent 堆叠技术名词。

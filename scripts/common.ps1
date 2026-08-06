@@ -15,9 +15,7 @@ function Get-LabOpsPython([string]$Preferred) {
     }
     $command = Get-Command python -ErrorAction SilentlyContinue
     if ($command) { return $command.Source }
-    $polar = "D:\APP\Anaconda\envs\polar\python.exe"
-    if (Test-Path -LiteralPath $polar -PathType Leaf) { return $polar }
-    throw "Python not found. Pass -PythonPath with a Python 3.9+ executable."
+    throw "Python not found. Add Python 3.9+ to PATH or pass -PythonPath explicitly."
 }
 
 function Assert-LabOpsChildPath([string]$Path, [string]$Boundary) {

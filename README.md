@@ -1,264 +1,107 @@
-# LabOps Guard — P0 Vertical Slice
+# LabOps Guard
 
-Local-first controlled experiment operations for AI/algorithm lab reproducibility.
-Implements the full chain: **snapshot registry/hash → evidence → hypothesis (with
-mandatory evidence_id) → approval gate → controlled action → verification → append-only
-JSONL trace (hash chain)**.
+LabOps Guard 是面向 AI 实验与评测事故的可信多智能体治理系统。它把一次异常处理拆成
+六个职责隔离角色，并用结构化证据、人工审批、受限执行、独立复核和哈希链保证：
 
-**Principles:** 无证据不诊断，无审批不执行，无验证不闭环
-(no evidence → no diagnosis; no approval → no execution; no verification → no closure).
+**无证据不诊断，无审批不执行，无验证不闭环。**
 
-Standard-library **Python only** — no third-party dependencies, no installs, no network.
-Includes a local read-only visual dashboard and a hardened Docker one-click demo.
-Includes AgentTeams identity, handoff, state-machine, and reusable Skill contracts.
+## 已验证的主演示
 
----
+`LABOPS-AT-004-EVAL-DRIFT` 是当前主线。固定模型评测从历史约 `97.81%` 稳定回退到
+`71.88% × 3`。系统采集 10 条带哈希事实，排除 checkpoint、验证数据、metric 和随机
+波动后，将预处理配置漂移列为最高置信度假设。人工批准后，Safe Executor 仅在新建的
+断网 CPU 沙箱中把 `evaluation.preprocessing_profile` 从 `train_augmented` 恢复为
+`eval_standard`。三次复算达到 `97.81% × 3`，六组保护文件哈希不变；Verification
+Auditor 独立重算并给出 `PASS / RESOLVED`。
 
-## Architecture (REAL vs SIMULATED)
+- 六个 Agent 真实参与，角色顺序和交接均有 Matrix 事件与 artifact 记录；
+- 执行镜像为 `labops/pytorch-cpu-runner:0.2.0`，实验期 `network=none`；
+- 权威 Trace 为 7 entries，最终审计 `CHAIN_OK / ACCEPTED`；
+- 原始证据 ZIP 共 27 entries，SHA-256 为
+  `4092b43f39df52db3847caa28ca01e4321129a1c17ec7ca5efd2029ab1fb77cd`；
+- AT-002 依赖缺失安全阻塞、AT-003 checkpoint 修复和非法 metric 篡改案例均独立保留。
 
-| Component | Module | Nature | Notes |
-|-----------|--------|--------|-------|
-| Snapshot Registry | `labops/registry.py` | **REAL** | SHA-256 of allowed files + cross-check vs verification JSON |
-| Evidence Collector | `labops/evidence.py` | **REAL** | Loads audit evidence_index + evidence_gaps; never reads excluded data |
-| Diagnosis Engine | `labops/diagnosis.py` | **REAL** (rule-based) | Every hypothesis requires ≥1 evidence_id; no evidence → UNKNOWN/BLOCKED |
-| Approval Gate | `labops/approval.py` | **REAL** | read_only_auto / manual_approval / forbidden; approve/reject/timeout first-class |
-| Action Executor | `labops/action.py` | **REAL benign + SIMULATED risky** | dry-run default; allowlist; workspace boundary; timeout; truncate+redact |
-| Verification Closer | `labops/verify.py` | **REAL** | Only PASSED closes; FAILED/PARTIAL/NOT_VERIFIED keeps BLOCKED |
-| Trace Log | `labops/trace.py` | **REAL** | append-only JSONL with SHA-256 chain |
-| Demo Harness | `labops/demo.py` | **REAL chain + SIMULATED risk actions** | polar-baseline 10 real gaps |
+## 六角色闭环
 
-**SIMULATED note:** risky actions (`pip install`, download, train) are **recorded as
-intent only** — never actually executed. LabOps Guard does **not** claim to fix the Polar
-root cause or resolve missing evidence; it only surfaces gaps and enforces the guard loop.
-
----
-
-## Layout
-
-```
-labops-guard/
-├── labops/            # package (CLI + modules)
-│   ├── cli.py         # CLI entry
-│   ├── __main__.py    # python -m labops
-│   ├── registry.py
-│   ├── evidence.py
-│   ├── diagnosis.py
-│   ├── approval.py
-│   ├── action.py
-│   ├── verify.py
-│   ├── trace.py
-│   ├── demo.py
-│   ├── web.py        # local read-only JSON API/server
-│   └── dashboard.html
-├── docs/planning/     # 6 approved planning specs (copies)
-├── agentteams/         # identities, state machine, task contract, Manager prompt
-├── skills/             # 5 reusable LabOps Guard Skill packages
-├── tests/             # standard-library unittest
-├── demo/              # demo runbook script + generated outputs
-├── Dockerfile
-├── compose.yaml
-├── docker-start.ps1
-├── README.md
-└── SELF_CHECK.md
-```
-
----
-
-## Commands
-
-### 新主 Demo：checkpoint regression
-
-CPU PyTorch 环境使用本机已有的 `d2l`，不下载数据、不访问网络。可直接双击
-`demo-checkpoint.cmd`，或运行：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\demo-checkpoint.ps1
-```
-
-脚本依次完成：三次稳定基线 → 合法 checkpoint 修复 → 非法 metric 篡改拦截与回滚。
-期望结果：`DEMO-RCA-001 = RESOLVED/PASS`，`DEMO-RCA-002 = ROLLED_BACK/POLICY_VIOLATION`。
-
-也可以单独运行统一事故入口：
-
-```powershell
-D:\APP\Anaconda\envs\d2l\python.exe -m labops run-incident `
-  --incident demos\checkpoint-regression\incident.json
-```
-
-> Self-contained: the demo uses bundled fixtures in `demo/fixtures/` (13 verified
-> snapshot files + verification + 5 audit files). **No MinIO paths needed.**
-> Defaults are repo-relative; override via `LABOPS_FIXTURES` / `LABOPS_OUTPUT`.
-
-### Linux / macOS (python3)
-
-```bash
-# full test suite (no bytecode cache)
-python3 -B -m unittest discover -s tests -p "test_*.py" -v
-
-# full demo (uses demo/fixtures, writes demo/output)
-bash demo/run_demo.sh
-
-# or run the chain manually against bundled fixtures
-python3 -B -m labops demo \
-  --workspace demo/output \
-  --snapshot demo/fixtures/project_snapshot_lite \
-  --audit-dir demo/fixtures/audit \
-  --verification demo/fixtures/snapshot_verification.json \
-  --allowed-list demo/allowed_files.json
-
-python3 -B -m labops trace --workspace demo/output --verify
-```
-
-### Windows / PowerShell (python)
-
-From the staged project root `E:\AICompetition\LabOpsWorkspace\labops-guard`:
-
-```powershell
-# full test suite (no bytecode cache)
-python -B -m unittest discover -s tests -p "test_*.py" -v
-
-# full demo (uses demo\fixtures, writes demo\output)
-powershell -ExecutionPolicy Bypass -File .\demo\run_demo.ps1
-
-# or run the chain manually against bundled fixtures
-python -B -m labops demo `
-  --workspace demo\output `
-  --snapshot demo\fixtures\project_snapshot_lite `
-  --audit-dir demo\fixtures\audit `
-  --verification demo\fixtures\snapshot_verification.json `
-  --allowed-list demo\allowed_files.json
-
-python -B -m labops trace --workspace demo\output --verify
-```
-
-### 使用 Conda `polar` 环境（推荐）
-
-```powershell
-conda activate polar
-python -B -m unittest discover -s tests -p "test_*.py" -v
-powershell -ExecutionPolicy Bypass -File .\demo\run_demo.ps1
-python -B -m labops web --workspace demo\output --host 127.0.0.1 --port 8787
-```
-
-然后打开 <http://127.0.0.1:8787>。页面和 `/api/status` 均为只读，
-只读取 LabOps Guard 生成的白名单 JSON 文件，不提供任意文件访问。
-
-### Docker Desktop 一键启动
-
-确保 Docker Desktop 左下角显示 Engine running，然后在项目根目录执行：
-
-可以直接双击 `docker-start.cmd`，或在 PowerShell 中执行：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\docker-start.ps1
-```
-
-首次启动需要拉取 `python:3.11-slim` 基础镜像。构建完成后打开
-<http://127.0.0.1:8787>。停止服务：
-
-可以双击 `docker-stop.cmd`，或执行：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\docker-stop.ps1
-```
-
-脚本检测到本地已有 `labops-guard:local` 时会直接启动；代码更新后需要重建时使用：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\docker-start.ps1 -Rebuild
-```
-
-若 Docker Hub 暂时不可达、但旧版 `labops-guard:local` 已在本机，可只刷新仪表盘代码：
-
-```powershell
-docker build --pull=false -f Dockerfile.dashboard-refresh -t labops-guard:local .
-docker compose up -d --no-build --force-recreate
-```
-
-容器以非 root 用户运行，只监听本机 `127.0.0.1:8787`，根文件系统只读，
-Compose 默认将 `demo/output-agentteams`、`artifacts` 和
-`demo/output-agentteams-at002` 以只读方式挂载。仪表盘直接读取 AgentTeams
-归档，并在服务端独立校验 ZIP、包内 artifact 和 trace 哈希链，而不是伪造或重放前端数据。该目录只包含
-白名单产物，不挂载竞赛私有数据，也不需要外部 API；单独运行镜像时仍使用内置演示。
-
-## AgentTeams 协作任务
-
-首个真实协作任务为 `LABOPS-AT-001`，包含 5 个不同职责 Agent 和 5 个 Skill：
-
-| Agent | Skill | 职责边界 |
+| 角色 | 主要 Skill | 权限边界 |
 |---|---|---|
-| LabOps Manager | `pack-lab-evidence` | 只编排、维护状态和汇总，不执行或自证 |
-| Evidence Collector | `collect-lab-evidence` | 只读白名单快照并生成证据 |
-| RCA Analyst | `diagnose-lab-incident` | 只基于 evidence_id 生成受限假设 |
-| Controlled Executor | `control-lab-action` | 分类、dry-run、等待审批和受控执行 |
-| Verification Auditor | `verify-lab-result` | 从原始产物独立验证，决定能否闭环 |
+| Incident Commander | `pack-lab-evidence`, `publish-case-memory` | 只编排、验收交接、发布状态与案例记忆，不执行或自证 |
+| Evidence Collector | `collect-lab-evidence` | 只读取白名单证据，不诊断、不修改实验 |
+| RCA Analyst | `diagnose-lab-incident` | 只基于 `evidence_id` 生成可证伪假设 |
+| Experiment Planner | `plan-lab-experiment` | 只生成单变量、有限预算、可回滚计划 |
+| Safe Executor | `control-lab-action` | 只消费已批准计划并调用受限 Runner，不宣布成功 |
+| Verification Auditor | `verify-lab-result` | 从原始产物独立重算，独占闭环与回滚裁决权 |
 
-在 AgentTeams Manager 房间发送
-`agentteams/prompts/manager_task.md` 的内容。Manager 必须按
-`agentteams/tasks/LABOPS-AT-001.json` 和 `agentteams/state_machine.json`
-进行至少四次跨角色交接；任何路径或工具缺失均返回 `BLOCKED`，不得伪造结果。
+```text
+Incident → Evidence → Hypothesis → Plan → Human Approval → Sandbox Run → Verification
+               Matrix handoffs + MinIO artifacts + Runner evidence + hash-chained trace
+```
 
-Agent Identity 和框架映射详见 `agentteams/agent_identities.json` 与
-`docs/agentteams_mapping.md`。
+AgentTeams 负责角色编排和上下文交接；LabOps Guard 的 Schema、Policy、Gateway、Runner
+与 Auditor 负责确定性验证和安全门。自然语言回复不是执行证据。
 
-### LABOPS-AT-002 六角色实跑
+## 安全不变量
 
-checkpoint 线路的 Manager 任务为 `agentteams/prompts/checkpoint_demo_task.md`。
-2026-08-03 的真实运行已固化为 `demo/output-agentteams-at002` 证据包：六角色和
-六次 handoff 均真实发生；非法 `metric.py` 路径得到
-`POLICY_VIOLATION / ROLLED_BACK`。合法路径因 Worker 环境缺少 PyTorch，只能得到
-`INCONCLUSIVE / DEMO_PASSED_NOT_RESOLVED`，总状态为 `BLOCKED`。详细的演示口径和证据定位见
-`docs/LABOPS-AT-002-DEMO.md`。
+- Planner 每个计划只允许一个被证据支持的变量变化，并定义预算、成功条件与回滚；
+- 人工批准时间必须早于 Runner 启动；禁止动作不能因人工批准而降级放行；
+- Agent Worker 不安装 PyTorch、不持有 Docker socket；Runner 非 root、只读根文件系统、
+  限制 CPU/内存/PID 且实验期断网；
+- metric、数据、checkpoint、评测协议和原始工作区受保护；
+- Executor 的结论不能作为验证证据；只有 Auditor 的独立复核才能进入 `RESOLVED`；
+- 证据不足、运行依赖缺失或链路异常都必须显式 `BLOCKED`。
 
-### LABOPS-AT-003 专用 PyTorch Runner
+## 快速验证
 
-AT-003 保留同一六角色治理链，但 Safe Executor 不再在 Worker 中运行或安装
-PyTorch。它只提交经过人工审批的结构化 ExperimentPlan；本机控制面用
-`labops/pytorch-cpu-runner:0.1.0` 在无网络、非 root、只读且限额的容器内运行。
-三次本地验证及真实 AgentTeams 运行均得到 `70.00% → 98.12%`，且 `metric.py`、
-验证数据和原始工作区未修改。Verification Auditor 独立复核通过后，最终状态才是
-`PASS / RESOLVED`。证据和演示口径见 `docs/LABOPS-AT-003-DEMO.md`。
-
-### v0.2.0-rc1 离线交付
-
-核心冻结边界见 `RELEASE_FREEZE.md`。在工作区干净、Docker Desktop 已启动且两份
-正式证据存在时生成 Release：
+要求 Python 3.9+；完整 Runner 复现另需 Docker Desktop 和已构建或离线加载的固定镜像。
 
 ```powershell
-.\scripts\check_environment.ps1 -PythonPath D:\APP\Anaconda\envs\polar\python.exe
-.\scripts\verify_evidence.ps1 -PythonPath D:\APP\Anaconda\envs\polar\python.exe
-.\scripts\build_release.ps1 -Version v0.2.0-rc1 -PythonPath D:\APP\Anaconda\envs\polar\python.exe
+python -B -m pytest -q
+python -B scripts/verify_evidence.py
+python -B -m labops.case_memory search "evaluation drift"
 ```
 
-产物写入被 Git 忽略的 `release/v0.2.0-rc1/`，包含源码 ZIP、固定 Runner/仪表盘
-镜像、确定性 fixture、AT-002/AT-003 证据、manifest 和 SHA-256 清单。离线部署、
-安全边界和赛事对应关系分别见 `docs/deployment.md`、`docs/security-model.md` 和
-`docs/competition-mapping.md`。
+启动只读仪表盘：
 
-> `-B` avoids writing `__pycache__`; backtick `` ` `` is the PowerShell line
-> continuation. All commands run from the project root; no absolute/MinIO paths.
-
----
-
-## Tests
-
-```bash
-python3 -m unittest discover -s tests -p "test_*.py" -v
+```powershell
+docker compose up -d --build
 ```
 
-Covers: no-evidence diagnosis refusal, approval rejection/timeout, forbidden action,
-out-of-boundary path, simulated action, verification failure, trace hash-chain integrity
-(+ tamper detection), the full polar-baseline demo, the offline Runner contract,
-incident identity isolation, and independent AT-003 evidence-package revalidation.
+仪表盘只投影已归档证据，服务端会重新验证 ZIP member set、artifact manifest、Runner
+manifest 和 Trace，不提供任意文件访问，也不改变事故状态。
 
----
+## 证据与复现入口
 
-## Safety & Constraints
+| 案例 | 角色 | 结果 | 入口 |
+|---|---:|---|---|
+| AT-004 评测预处理漂移（主） | 6 | `PASS / RESOLVED` | `docs/LABOPS-AT-004-DEMO.md` |
+| AT-003 checkpoint 修复（备） | 6 | `PASS / RESOLVED` | `docs/LABOPS-AT-003-DEMO.md` |
+| AT-002 Worker 缺依赖 | 6 | `BLOCKED` | `docs/LABOPS-AT-002-DEMO.md` |
+| 非法修改 metric | 安全分支 | `POLICY_VIOLATION / ROLLED_BACK` | AT-002 证据包 |
 
-- **No installs, no network, no training** — enforced; risky ops SIMULATED.
-- **Excluded data never read** (train/test CSV, private labels, keys, checkpoints).
-- **Default dry-run**; command allowlist; workspace boundary; timeout; output truncation
-  + redaction.
-- **No fabricated faults**; no claim of fixing Polar root cause; no model-optimization
-  suggestions.
-- This slice does **not** write to `/host-share` — it is staged there by the Manager.
+AT-004 的复盘、可搜索案例记忆和独立 closure v2 包位于
+`demo/output-agentteams-at004-closure/` 与 `memory/cases/`。原证据包从不被覆盖。
+
+## 项目结构
+
+```text
+agentteams/   六角色 Identity、状态机、任务与 Manager 提示
+skills/       可复用 Skill、I/O Schema 与版本记录
+labops/       CLI、Policy、Gateway、Runner 协议、Dashboard 与案例记忆
+runner/       固定 PyTorch CPU Runner 镜像与入口
+demos/        确定性评测漂移及 checkpoint fixture
+demo/         三个 AgentTeams 案例的正式证据与 closure 包
+memory/       本地轻量案例索引
+docs/         安全、可观测、部署、赛事映射和演示说明
+submission/   初赛清单、讲解稿和最终 PPT
+tests/        合约、策略、Runner、证据与 Web 回归测试
+```
+
+## 当前事实边界
+
+这是单机、确定性 CPU 演示，不是生产级多租户调度器。Runner 镜像构建可能访问官方
+Python/PyTorch 仓库，但实验容器运行时禁止联网。当前没有部署 OTel Collector、MCP
+Server、mTLS/OIDC 服务身份、GPU 调度、外部数据集或 RAG；相关迁移边界见
+`KNOWN_LIMITATIONS.md`、`docs/observability.md` 与 `docs/competition-mapping.md`。
+
+发布前仍需用户确认 Apache-2.0 许可证、远端仓库地址和 Release/Tag 时机。当前提交仅在
+本地分组固化，不会自动推送。

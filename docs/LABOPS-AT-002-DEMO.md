@@ -8,7 +8,7 @@
 
 1. AgentTeams Element 和 Manager 房间可用。
 2. Docker Desktop 正在运行。
-3. 项目目录为 `E:\AICompetition\LabOpsWorkspace\labops-guard`。
+3. 已在仓库根目录打开终端。
 4. 仪表盘地址为 `http://127.0.0.1:8787/`。
 
 ## 讲解顺序

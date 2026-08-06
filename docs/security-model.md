@@ -1,50 +1,45 @@
-# Security Model
+# Security model
 
-## 信任边界
+## Trust boundary
 
 ```text
-Human approver
-  → AgentTeams decision plane (Manager + Workers)
-  → localhost allowlisted Gateway
-  → network-disabled PyTorch Runner
-  → immutable evidence + independent Auditor
+Human approval
+  → AgentTeams decision plane (Incident Commander + five Workers)
+  → allowlisted local Gateway
+  → network-disabled PyTorch CPU Runner
+  → immutable evidence + independent Verification Auditor
 ```
 
-- Agent Worker 不持有 Docker socket，不安装 PyTorch，不获得宿主机任意执行能力；
-- Gateway 不是 Agent，只接受固定任务、事件、镜像和 run-id 结构；
-- Runner 只接受 `evaluate_checkpoint`，输入只读，输出目录唯一可写；
-- Auditor 不能复用 Executor 的成功声明作为证明；
-- 只有 Auditor 验证通过才允许 Manager 收口为 `RESOLVED`。
+- Worker 不持有 Docker socket、宿主凭据或 PyTorch，也不能向 Runner 镜像写入密钥；
+- Gateway 不是 Agent，只接受固定 Schema、任务、事件、镜像、命令、路径和 run-id；
+- Runner 输入只读、输出目录唯一可写，非 root、只读根文件系统、drop capabilities、
+  `no-new-privileges`、CPU/内存/PID 限额和 `network=none`；
+- Auditor 不接受 Executor 的成功声明作为证明；只有独立验证才能闭环。
 
-## 执行控制
+## Plan and approval controls
 
-- 人工批准必须早于执行；
-- 单变量 checkpoint 变更；
-- CPU、30 秒计划预算、3 次复算；
-- `--network none`、非 root、只读根文件系统；
-- drop all capabilities、no-new-privileges、CPU/内存/PID 限制；
-- 禁止修改 `metric.py`、数据、目标指标和原始工作区；
-- 重复 run ID 返回 409，避免覆盖既有证据。
+- 每个计划只允许一个被证据支持且可回滚的变量变化；
+- AT-004 只允许沙箱评测预处理字段从已观察值恢复到历史登记值；
+- AT-003 checkpoint 修改仅作为独立备用合同；
+- metric、数据、checkpoint 内容、评测协议、目标阈值和原始工作区均受保护；
+- 人工批准必须早于执行；禁止动作不能通过审批降级放行；重复 run ID 拒绝覆盖。
 
-## 凭据
+## Evidence integrity
 
-- Runner 镜像不写入 API Key、Token、密码或用户凭据；
-- ExperimentPlan 不接受凭据字段；
-- Release 构建前扫描 Git 跟踪文本文件；
-- 环境检查只报告可疑环境变量名是否存在，不输出值；
-- `.env`、私钥和证书文件默认不进入 Git/Release。
+- Runner 五文件由 `artifact_manifest.json` 记录哈希与大小；
+- 外层 evidence manifest 校验 ZIP member set 和每个 allowlisted artifact；
+- Trace 使用前向 SHA-256 链，首次失败和中间链原样保留；
+- Dashboard 是只读投影，会重新校验证据但不改变事故状态；
+- closure v2 和 case memory 使用独立包，绝不改写原始 AgentTeams 证据。
 
-## 证据完整性
+## Credential and privacy controls
 
-- Runner 五文件由 `artifact_manifest.json` 记录哈希和大小；
-- 证据包 manifest 记录每个 artifact 与 ZIP 哈希；
-- Trace 使用前向 SHA-256 链；
-- AT-003 的首次 Trace ISSUE 被保留，修正后另行生成最终审计；
-- 哈希只能发现归档后的修改，不能证明源头在进入系统前一定真实，因此仍需独立数据源、权限隔离和人工审批。
+- `.env`、私钥、证书、Token、密码和用户凭据不得进入镜像、计划、证据或 Release；
+- 发布前扫描跟踪与未跟踪文本，不输出环境变量值；
+- Prompt、消息、工具参数和绝对宿主路径默认不进入未来遥测导出。
 
-## 已知限制
+## Residual risk
 
-- Gateway 当前依赖 localhost/宿主网络边界和白名单，没有 mTLS/OIDC 服务身份；
-- Worker Auditor 不安装 PyTorch，不在 Worker 中二次运行模型；
-- 本版本是单机 Demo，不是生产级多租户调度器；
-- 生产迁移需要外部作业调度、持久化幂等键、服务鉴权、密钥管理和集中可观测后端。
+当前 Gateway 依赖单机宿主边界和白名单，没有生产级 mTLS/OIDC、工作负载身份或外部调度；
+SHA-256 只能发现归档后变化，无法自动证明源头可信；Auditor 不在 Worker 中重新运行
+PyTorch。生产迁移仍需独立身份、可信来源、密钥管理、调度与集中可观测后端。

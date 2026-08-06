@@ -1,55 +1,66 @@
-# LabOps Guard Current State
+# LabOps Guard current state
 
-更新时间：2026-08-04
-核验目录：`E:\AICompetition\LabOpsWorkspace\labops-guard`  
-当前主线：专用 PyTorch CPU Runner + 六角色 AgentTeams 可审计闭环
+更新时间：2026-08-06
+权威仓库：本文档所在 Git 仓库
+当前阶段：Phase 5A，AT-004 主演示后的工程化、经验闭环、材料一致性与发布前审计
 
-## 当前结论
+## 已验证主线
 
-- `LABOPS-AT-002` 保持原始证据和 `BLOCKED` 状态不变。它正式证明：Worker 缺少运行依赖时，系统会安全停止，不会伪造 `RESOLVED`。
-- `LABOPS-AT-003` 已完成六角色真实 AgentTeams 运行。合法 checkpoint 变更由专用、无网络的 PyTorch CPU Runner 执行，Verification Auditor 独立复核后得到 `PASS / RESOLVED`。
-- 两个案例在仪表盘中分开展示；AT-003 不覆盖、改写或借用 AT-002 的结论。
+- `LABOPS-AT-004-EVAL-DRIFT` 已完成三次本地离线预演和一次六角色真实 AgentTeams
+  运行，最终 `PASS / RESOLVED`，是唯一主演示。
+- 基线 `71.875% × 3`，候选 `97.8124976% × 3`，两侧 spread 均为 0；只修改新建
+  沙箱中的 `evaluation.preprocessing_profile`。
+- Runner 为 `labops/pytorch-cpu-runner:0.2.0`，Python 3.11.15、PyTorch 2.5.1+cpu、
+  CPU、`network=none`；RuntimeCapabilityCheck 为 `8/8 PASS`。
+- 人工批准早于执行；六组受保护哈希 before==after；原始工作区未修改。
+- Verification Auditor 从 raw stdout、manifest、审批时序、变更路径和哈希独立重算，
+  最终审计为 `CHAIN_OK / ACCEPTED`。
 
-## LABOPS-AT-003 实跑结果
+## 六角色和证据
 
-- 实际顺序：Incident Commander → Evidence Collector → RCA Analyst → Experiment Planner → Safe Executor → Verification Auditor → Incident Commander 打包收口。
-- Planner 只允许把沙箱 `eval_config.json` 的 `checkpoint` 从 `last.pt` 改为 `best.pt`；CPU、30 秒、无网络；禁止改 `metric.py`、验证数据、目标指标和原始工作区；定义了失败回滚。
-- 人工审批 `LABOPS-AT-003-APPROVAL-001` 的时间为 `2026-08-03T12:04:00Z`，早于 Runner 开始时间 `2026-08-03T12:05:29Z`。
-- Safe Executor 不导入 PyTorch，只向本机受限 Gateway 提交结构化 ExperimentPlan 和审批。Gateway 启动 `labops/pytorch-cpu-runner:0.1.0`，容器运行时使用 `--network none`、只读根文件系统、非 root、CPU/内存/PID/超时限制和命令白名单。
-- RuntimeCapabilityCheck 为 `PASS`：镜像、Python/PyTorch、checkpoint、配置、路径、资源预算、命令白名单和计划策略均通过。Runner 为 Python 3.11.15、PyTorch 2.5.1+cpu、CUDA disabled。
-- 三次本地独立运行均稳定：`last.pt = 70.00%`，`best.pt = 98.12%`；`metric.py` 和验证数据前后哈希不变，原始工作区未修改。
-- AgentTeams 实跑同样得到 `70.00% → 98.12%`。Runner 生成 `run_result.json`、`metrics.json`、`stdout.log`、`stderr.log` 和 `artifact_manifest.json`。
-- Verification Auditor 从控制面原始 Runner 文件独立重算指标、文件哈希、审批时序和总 Trace。首次总 Trace 审计发现重复 Matrix event ID，结论保持 ISSUE；Manager 修正后再次独立审计为 `CHAIN_OK / ACCEPTED`。首次 ISSUE 证据仍保留。
-- 最终证据包包含 26 个白名单产物；ZIP、包内 26 个文件和 Runner 原始输出三层哈希均一致。
+实际顺序为 Incident Commander → Evidence Collector → RCA Analyst → Experiment Planner →
+Safe Executor → Verification Auditor。人工审批单独记录，不计作 Agent。权威总链 7 entries，
+首次 canonical hash `ISSUE` 与缺 Manager 的 6-entry 中间证据均保留，最终修正链通过。
 
-## LABOPS-AT-002 保留案例
+原始 AT-004 证据包保持不变：
 
-- 六角色真实运行完成，但合法案例因 Worker 缺少 `torch`，保持 `INCONCLUSIVE / DEMO_PASSED_NOT_RESOLVED`；总状态为 `BLOCKED`。
-- 非法 `metric.py` 篡改案例为 `POLICY_VIOLATION / ROLLED_BACK`，回滚后哈希恢复。
-- AT-002 原始 ZIP、manifest 和 Trace 未被 AT-003 修改。
+- 路径：`demo/output-agentteams-at004/LABOPS-AT-004-EVAL-DRIFT-evidence-bundle.zip`
+- 27 entries，39,328 bytes
+- SHA-256：`4092b43f39df52db3847caa28ca01e4321129a1c17ec7ca5efd2029ab1fb77cd`
 
-## 证据与仪表盘
+新增经验闭环不覆盖原包：
 
-- AT-003 MinIO：`shared/tasks/LABOPS-AT-003/`。
-- AT-003 Runner 原始运行目录：`artifacts/LABOPS-AT-003-agentteams/runs/RUN-LABOPS-AT-003-AGENTTEAMS-001/`。
-- AT-003 证据包：`demo/output-agentteams-at003/artifacts/DEMO-RCA-003/LABOPS-AT-003-evidence-bundle.zip`。
-- AT-002 证据包：`demo/output-agentteams-at002/LABOPS-AT-002-evidence-bundle.zip`。
-- 只读仪表盘：`http://127.0.0.1:8787/`。服务端不信任前端数据，会重新校验 AT-003 的 ZIP、所有 artifact、Runner manifest 和总 Trace，并独立展示 AT-002。
+- `demo/output-agentteams-at004-closure/postmortem.json`
+- `demo/output-agentteams-at004-closure/case_memory.json`
+- `demo/output-agentteams-at004-closure/postmortem.md`
+- `demo/output-agentteams-at004-closure/LABOPS-AT-004-closure-v2.zip`
+- closure v2 SHA-256：`d5ea98a792f1f01080b1ae3fe212a86b45d8b9d5b22c7c9e12891a64fd314c23`
 
-## 环境与测试
+## 保留案例
 
-- `polar`：Python 3.11.15，用于核心、Web、Runner 合约和证据包重验。
-- Runner：Python 3.11.15、CPU PyTorch 2.5.1，实验运行时完全断网。
-- `d2l`：Python 3.9.25、CPU PyTorch 1.12.0，保留本地参考 Demo 回归测试。
+- AT-003 checkpoint 修复保持 `PASS / RESOLVED`，Runner `0.1.0` 仅作为备用复现线。
+- AT-002 保持 `BLOCKED`，证明 Worker 缺少依赖时不会在线安装或伪造结果。
+- AT-002 非法 metric 修改保持 `POLICY_VIOLATION / ROLLED_BACK`，回滚哈希一致。
 
-## 初赛交付状态
+## Phase 5A 进度
 
-- 核心工程已进入 `v0.2.0-rc1` 冻结范围；只接受 P0/P1 缺陷、复现脚本、文档和展示改进。
-- 已增加环境检查、证据重验、离线镜像加载、三次本地 Demo、仪表盘启停、Release 构建和校验脚本。
-- Release 构建会导出源码、Runner 镜像、仪表盘镜像、固定 fixture、两份证据与统一 SHA-256 清单；`release/` 不提交 Git。
-- 赛事要求映射、部署说明、安全模型、493 字作品简介和 14 页 PPT 文字骨架已建立。
-- 待办：生成并验收离线包、创建 `v0.2.0-rc1` 标签、制作 PPT 视觉稿与第一版演示视频。
+- AT-004 核心实现与正式证据已形成独立本地 Git 提交。
+- 六个角色 Skill 已增加版本、跨项目复用、多 Agent 交接、生命周期与结构化错误；无引用
+  `execute-controlled-action` 模板已通过 Git 删除。
+- Incident Commander 新增 `publish-case-memory` 能力；不新增 Agent、不修改核心状态机。
+- 本地案例检索入口：`python -m labops.case_memory search`。
+- `docs/observability.md` 已明确 Trace / Log / Metrics / Artifact / Approval 和未来 OTel 映射；
+  当前没有声称部署 OTel 基础设施。
+- README、赛事材料、PPT、开源治理和 CI 正在统一；远端推送与正式 Tag 仍被冻结。
 
-## 事实边界
+## 最近验证
 
-不修改核心状态机，不增加 Agent，不降低安全策略。角色回复不等于执行证据；Matrix 交接、MinIO/Artifact 原始产物、人工审批时序、受限 Runner、Verification Auditor 独立复核和哈希链共同构成 AT-003 的完成证明。
+- Phase 5A 全量回归：89 tests passed（Windows，本地离线执行）。
+- AT-002、AT-003、AT-004 三条正式证据均重新校验为 PASS。
+- AT-004 closure v2 与案例记忆检索通过；PPT 无溢出且母版一致性检查通过。
+
+## 不变约束
+
+不增加 Agent，不降低审批、哈希、回滚、隔离或禁网要求，不覆盖三条正式证据，不把角色
+提示词或仪表盘回放当作真实执行证据。任何真实后置指标不足的案例必须保持
+`INCONCLUSIVE` 或 `BLOCKED`。

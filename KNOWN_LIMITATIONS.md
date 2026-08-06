@@ -1,33 +1,41 @@
-# Known Limitations
+# Known limitations
 
-## Preserved formal case
+## Scope of evidence
 
-- `LABOPS-AT-002` is intentionally immutable and remains `BLOCKED`: its Worker lacked
-  PyTorch, proving the system stops safely when execution capabilities are absent.
+- AT-004 是确定性、合成、单机 CPU fixture。它证明该事件的闭环和安全边界，不证明任意
+  模型、GPU、外部数据集、分布式任务或生产调度能力。
+- AT-003 是旧 checkpoint 备用案例；AT-002 刻意保持 `BLOCKED`。三者的状态和证据不能
+  相互覆盖或外推。
+- 案例记忆只提供历史上下文。新事故必须重新采集证据、诊断、审批、执行和验证。
 
-## Phase 3
+## Runtime and control plane
 
-- `labops/pytorch-cpu-runner:0.1.0` is a local Docker image. A machine reproducing
-  LABOPS-AT-003 must build or load that exact image before execution.
-- Image construction may access the official Python and PyTorch package registries;
-  experiment containers always run with `--network none` and never install packages.
-- The Runner adapter requires a local Docker daemon. Agent Workers never receive the
-  Docker socket, credentials, API keys or package-install permissions.
-- CPU results are deterministic for the bundled synthetic fixture. Other hardware,
-  PyTorch versions or external datasets are outside the AT-003 evidence claim.
-- The host Gateway is a short-lived localhost control-plane adapter for the demo, not
-  a production multi-tenant service. It accepts only the exact AT-003 task, incident,
-  image and run-id pattern, and still requires the recorded human approval payload.
-- Docker Desktop must expose `host.docker.internal` to Agent Worker containers. A
-  production deployment should replace the localhost adapter with an authenticated,
-  mutually trusted runner service and an external job scheduler.
-- AgentTeams automatic Matrix wake-up was intermittent during AT-003. Already-dispatched
-  tasks were executed through each Worker's own OpenClaw Gateway; the resulting tool
-  calls, artifacts, MinIO objects and Matrix handoffs are preserved. This is an
-  orchestration reliability limitation, not a Runner result substitution.
-- The Worker-side Auditor cannot import PyTorch. It therefore verifies the control-plane
-  Runner's raw repeated metrics, immutable-file hashes, manifest, approval ordering and
-  trace chain; it does not independently execute the model inside the Worker.
-- `agentteams_trace_audit.json` intentionally preserves the first failed total-trace
-  audit (duplicate Matrix event ID). The corrected, authoritative result is
-  `agentteams_trace_audit_final.json` with `CHAIN_OK / ACCEPTED`.
+- `labops/pytorch-cpu-runner:0.2.0` 是主演示的本地 CPU 镜像；构建镜像可能访问官方仓库，
+  但每次实验容器均使用 `network=none`，不会在线安装依赖。
+- Safe Executor 不持有 Docker socket、凭据或 PyTorch；它向短生命周期 Gateway 提交结构化
+  已批准计划，由宿主控制面启动受限 Runner。
+- Gateway 是单机演示适配层，不是生产级多租户服务。它依赖固定白名单和宿主网络边界，
+  还没有 mTLS/OIDC、工作负载身份、外部队列或持久化幂等存储。
+
+## AgentTeams and audit
+
+- Matrix 自动唤醒曾不稳定；需要明确启动 Worker 的情况均保留真实 Gateway/Auditor 产物，
+  不伪造 Matrix event。
+- 首次 Trace canonicalization `ISSUE` 和缺 Incident Commander 的 6-entry 中间链刻意保留；
+  权威链是最终 7-entry `CHAIN_OK / ACCEPTED` 版本。
+- Worker 侧 Auditor 不运行 PyTorch。它从 Runner 原始 stdout、metrics、manifest、审批时序和
+  保护哈希独立重算；执行本身由断网 Runner 证明。
+- SHA-256 能发现归档后的变化，不能证明进入系统前的数据源天然可信。生产环境仍需可信
+  身份、来源签名和独立数据管理。
+
+## Observability and ecosystem
+
+- 当前 Trace、Log、Metrics、Artifact、Approval 为本地文件与 Matrix/MinIO 证据，没有部署
+  OpenTelemetry Collector 或观测后端。`docs/observability.md` 只定义未来适配边界。
+- Runner Gateway 具备结构化工具契约，但不声称已经实现 MCP Server。
+- 当前没有 RAG、向量数据库、自动调参或新 Agent；经验检索是轻量本地 JSON 搜索。
+
+## Release boundary
+
+- Apache-2.0 尚待用户确认；在确认前 LICENSE 为明确占位，不代表已经完成许可证授予。
+- 远端仓库、公开权限、Release 版本和 Tag 时机尚待用户确认；当前只创建本地分组提交。
