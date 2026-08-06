@@ -1,4 +1,4 @@
-# LabOps Guard v0.2.0-rc2 draft
+# LabOps Guard v0.3.0-rc1 draft
 
 这是面向 GOAI Agent Infra 初赛的本地发布候选草案；尚未创建公开 Release 或 Tag。
 
