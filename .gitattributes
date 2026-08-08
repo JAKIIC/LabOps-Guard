@@ -1,0 +1,7 @@
+# The demo snapshot is verified byte-for-byte. Keep its text files on LF so
+# Git checkouts produce identical evidence hashes on Windows and Linux.
+demo/fixtures/project_snapshot_lite/** text eol=lf
+
+# This public manifest is compared byte-for-byte with the immutable copy in
+# the AT-004 evidence ZIP, so it must also survive Windows checkouts unchanged.
+demo/output-agentteams-at004/evidence_manifest.json text eol=lf

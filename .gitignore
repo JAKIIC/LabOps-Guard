@@ -6,7 +6,7 @@ __pycache__/
 *.key
 *.pem
 *.p12
-artifacts/
+/artifacts/
 demo/output/
 .pytest_cache/
 .coverage

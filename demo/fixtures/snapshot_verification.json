@@ -30,9 +30,9 @@
     "baseline/baseline/Codes_DB/POLAR_N64_K32.txt": "a9100dcef8f0f13e993e0995c6a4bfb6bf7aaaa8e42a4c0a224f65bef6220c8d",
     "baseline/baseline/Codes_DB/POLAR_N64_K48.txt": "4de186a9d492c24af5f8f25e88aa3e9815d8b9973b74d4662a0f1e8f1fedcd4f",
     "baseline/baseline/README.md": "d94461962edf6ad5726e488dd33707817f665986853e4253d76db786b506da4b",
-    "baseline/baseline/participant_pipeline_cnn_mlp.ipynb": "dbfa6d27a3c5c6680727bed477957f4810e55153ab52bc051019387b69de85b6",
-    "public_test/README_数据说明.md": "3604f6b05d140d969959f1cb2655f4fb3aef36cf3bb18867e4c80ce796a644fc",
-    "submit_sample/README_提交说明.md": "49a17773f77517406d83ab4c86092cd9ad4590c5f8275c0a49202b778be5a6e5"
+    "baseline/baseline/participant_pipeline_cnn_mlp.ipynb": "db856e0dfb04d4058be8f9ae4586622a6ef9e238911832bdf7f85d59f7c4e86e",
+    "public_test/README_数据说明.md": "32cabe2708c9d5143aadb567071c328ce94fe599aae998ebdf99f0ad05314efa",
+    "submit_sample/README_提交说明.md": "0c29349a08c890faf4178eb2749f639fd63768e9ed10d6900db42f3ef03f8c1d"
   },
   "reported_discrepancies_resolved": {
     "manager_earlier_reported_codes_db_8": "ERROR -> actual=7 (corrected)",

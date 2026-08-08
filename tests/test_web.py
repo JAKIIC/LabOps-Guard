@@ -246,27 +246,16 @@ class TestAgentTeamsV3DashboardState(unittest.TestCase):
 
 
 class TestAT004DashboardState(unittest.TestCase):
-    def test_local_validation_is_honest_and_allowlisted(self):
-        root = repo_root() / "artifacts" / "LABOPS-AT-004-local"
-        state = build_at004_state(root)
+    def test_missing_local_validation_is_not_promoted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = build_at004_state(Path(tmp))
+        self.assertFalse(state["ready"])
 
-        self.assertTrue(state["ready"])
-        self.assertEqual(state["source_mode"], "LOCAL_VALIDATION")
-        self.assertFalse(state["agentteams"]["six_roles_run"])
-        self.assertEqual(state["evidence_count"], 10)
-        self.assertEqual(state["top_hypothesis"]["hypothesis_id"], "H-AT004-PREPROCESSING-DRIFT")
-        self.assertEqual(len(state["runs"]), 3)
-        self.assertTrue(all(run["baseline_accuracy"] == 0.71875 for run in state["runs"]))
-        self.assertTrue(all(abs(run["candidate_accuracy"] - 0.978125) < 1e-6 for run in state["runs"]))
-        self.assertTrue(all(state["plan_checks"].values()))
-        self.assertTrue(all(state["integrity"].values()))
-        self.assertTrue(state["capability"]["all_pass"])
-
-    def test_main_payload_keeps_local_and_agentteams_provenance_separate(self):
-        root = repo_root() / "artifacts" / "LABOPS-AT-004-local"
+    def test_main_payload_uses_committed_agentteams_provenance(self):
+        root = repo_root() / "demo" / "output-agentteams-at004"
         state = build_dashboard_state(repo_root() / "demo" / "output-agentteams", at004_workspace=root)
-        self.assertEqual(state["main_demo"]["source_mode"], "LOCAL_VALIDATION")
-        self.assertFalse(state["main_demo"]["agentteams"]["six_roles_run"])
+        self.assertEqual(state["main_demo"]["source_mode"], "AGENTTEAMS_RUN")
+        self.assertTrue(state["main_demo"]["agentteams"]["six_roles_run"])
 
     def test_real_agentteams_bundle_is_revalidated_and_becomes_main_demo(self):
         root = repo_root() / "demo" / "output-agentteams-at004"

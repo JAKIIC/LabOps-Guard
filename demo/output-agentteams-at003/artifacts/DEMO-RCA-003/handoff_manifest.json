@@ -1,0 +1,17 @@
+{
+  "task_id": "LABOPS-AT-003",
+  "incident_id": "DEMO-RCA-003",
+  "run_id": "RUN-LABOPS-AT-003-AGENTTEAMS-001",
+  "plan_id": "PLAN-LABOPS-AT-003-001",
+  "approval_id": "LABOPS-AT-003-APPROVAL-001",
+  "final_status": "RESOLVED_PENDING_EVIDENCE_PACKAGING",
+  "agentteams_trace": "artifacts/DEMO-RCA-003/agentteams_trace.jsonl (10 entries, chain ok, audited CHAIN_OK)",
+  "handoffs": [
+    {"handoff":1,"role":"evidence-collector","event":"evidence_collected","status":"VALID","input":"incident-at003/baseline/Runner contract (read-only)","output":"artifacts/LABOPS-AT-003/evidence/ (5 items, incident=DEMO-RCA-003)","source_event_time":"2026-08-03T11:45:00Z","completed":"2026-08-03T11:54:00Z","event_id":"$SRVqum8aTdBOioUeKLQFWsu-r0zHXblxXF2yUmw4B9A"},
+    {"handoff":2,"role":"rca-analyst","event":"hypotheses_produced","status":"VALID","input":"evidence_index.json (read-only)","output":"artifacts/DEMO-RCA-003/hypotheses.json (3, top=H-DEMO-001)","source_event_time":"2026-08-03T11:54:00Z","completed":"2026-08-03T11:57:00Z","event_id":"$uPX5_Js6FyACbBUIyLk-ClT7TXGEVVzZ-QkapEOSFhw"},
+    {"handoff":3,"role":"experiment-planner(researcher)","event":"plan_produced (v1 NEEDS_CORRECTION -> v2 VALID)","status":"VALID","input":"hypotheses.json + official planner.py","output":"artifacts/DEMO-RCA-003/plan.json (forbidden includes original_workspace, policy=AUTO_APPROVED)","source_event_time":"2026-08-03T11:57:00Z","completed":"2026-08-03T12:03:00Z","event_ids":["$Bar75RhN978-kCPrhX2ltKIkMqE82mq3gi7qg0hzUBU","$BvKStxwLzTLL_3LOyJv1kVmGNW82-HVcDqtPAB-Fbek","$pPlwjYOkJMxCU-pY9xHOVyMcA-OGCTvwJ7My3ypiJBs"]},
+    {"handoff":4,"role":"safe-executor(controlled-executor)","event":"runner_executed","status":"EXECUTION_COMPLETED","input":"POST experiment_plan+approval to control plane","output":"runs/RUN-LABOPS-AT-003-AGENTTEAMS-001/ 5 raw files (status=completed, network=none, metric e2c1f8a1.., validation c01087bd..)","source_event_time":"2026-08-03T12:04:00Z","completed":"2026-08-03T12:06:00Z","event_id":"$XM-0mHHKfAxDTwP_kLSUDv-_f-IaX5dvV97LsOK5NXo","approval":"LABOPS-AT-003-APPROVAL-001 (approved_at 12:04:00Z < run start 12:05:29Z)"},
+    {"handoff":5,"role":"verification-auditor","event":"verification_completed + trace re-audit","status":"PASS / CHAIN_OK","input":"control-plane raw 5 files + plan/approval + agentteams_trace","output":"verification.json (PASS/RESOLVED) + agentteams_trace_audit_final.json (CHAIN_OK)","source_event_time":"2026-08-03T12:08:30Z","completed":"2026-08-03T12:15:30Z","event_id":"$_V5ospqVXggwAON6cIeEtnIsAEoD_dLjz6hc_8GDnGo"},
+    {"handoff":6,"role":"manager","event":"manager_acceptance + packaging","status":"ACCEPTED","input":"independent recompute of metrics/hashes/capability/approval-timing + final trace audit","output":"handoff_manifest.json + evidence_bundle_manifest.json + LABOPS-AT-003-evidence-bundle.zip","source_event_time":"2026-08-03T12:10:00Z","completed":"2026-08-03T12:16:00Z","event_id":"$Ks-ZfJvJoq1SYVLB-u-fwoCgtIS1vYvDsN1cLHUWfYc"}
+  ]
+}

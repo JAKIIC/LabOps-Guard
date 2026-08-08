@@ -118,10 +118,29 @@ class TestRunnerContracts(unittest.TestCase):
 class TestIncidentIdentityRegression(unittest.TestCase):
     def test_legal_and_unsafe_cases_have_distinct_incident_and_hypotheses(self):
         demo = repo_root() / "demos" / "checkpoint-regression"
-        baseline = repo_root() / "artifacts" / "DEMO-RCA-001" / "baseline" / "run-01"
         with tempfile.TemporaryDirectory() as tmp:
-            valid = collect_checkpoint_evidence(demo, baseline, Path(tmp) / "valid", "DEMO-RCA-003")
-            unsafe = collect_checkpoint_evidence(demo, baseline, Path(tmp) / "unsafe", "DEMO-RCA-002")
+            root = Path(tmp)
+            baseline = root / "baseline"
+            baseline.mkdir()
+            (baseline / "eval_config.json").write_text(
+                json.dumps({"checkpoint": "checkpoints/last.pt", "metric": "accuracy"}),
+                encoding="utf-8",
+            )
+            (baseline / "training_log.json").write_text(
+                json.dumps({
+                    "best_checkpoint": "checkpoints/best.pt",
+                    "best_accuracy": 0.98125,
+                    "best_state_sha256": "best-state",
+                    "last_state_sha256": "last-state",
+                }),
+                encoding="utf-8",
+            )
+            (baseline / "baseline_metrics.json").write_text(
+                json.dumps({"configured_accuracy": 0.70, "best_accuracy": 0.98125}),
+                encoding="utf-8",
+            )
+            valid = collect_checkpoint_evidence(demo, baseline, root / "valid", "DEMO-RCA-003")
+            unsafe = collect_checkpoint_evidence(demo, baseline, root / "unsafe", "DEMO-RCA-002")
             valid_hypotheses = diagnose_checkpoint(valid)
             unsafe_hypotheses = diagnose_policy_violation(unsafe)
         self.assertEqual(valid["incident_id"], "DEMO-RCA-003")

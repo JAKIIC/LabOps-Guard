@@ -1,0 +1,33 @@
+{
+  "audit_id": "AUDIT-AGENTTEAMS-TRACE-FINAL-LABOPS-AT-003-001",
+  "task_id": "LABOPS-AT-003",
+  "incident_id": "DEMO-RCA-003",
+  "run_id": "RUN-LABOPS-AT-003-AGENTTEAMS-001",
+  "audited_by": "verification-auditor",
+  "audited_at": "2026-08-03T12:15:30Z",
+  "trace_path": "artifacts/DEMO-RCA-003/agentteams_trace.jsonl",
+  "trace_modified": false,
+  "re_audit_of": "AUDIT-AGENTTEAMS-TRACE-LABOPS-AT-003-001",
+  "prior_issue_resolved": true,
+  "entries": 10,
+  "decision": "CHAIN_OK",
+  "chain_ok": true,
+  "final_agentteams_status": "ACCEPTED",
+  "roles_covered": ["manager", "evidence-collector", "rca-analyst", "researcher", "human-user", "safe-executor", "verification-auditor"],
+  "six_agent_roles_covered": true,
+  "human_approval_present": true,
+  "timeline_monotonic": true,
+  "checks": {
+    "entries_eq_10": {"passed": true, "detail": "10 entries (>0)"},
+    "hash_chain": {"passed": true, "detail": "prev_hash linkage intact and all 10 hashes independently recomputed; chain ok"},
+    "event_id_all_unique": {"passed": true, "detail": "no duplicate event_ids"},
+    "seq9_event_id": {"passed": true, "detail": "seq=9 manager_acceptance event_id=$Ks-ZfJvJoq1SYVLB-u-fwoCgtIS1vYvDsN1cLHUWfYc exactly as specified"},
+    "top_level_fields": {"passed": true, "detail": "seq/ts/event/event_id/prev_hash/hash/status/task_id/run_id/source_event_time/actor present on all records"},
+    "task_id_consistent": {"passed": true, "detail": "all records task_id=LABOPS-AT-003, run_id=RUN-LABOPS-AT-003-AGENTTEAMS-001"},
+    "event_ordering": {"passed": true, "detail": "seq strictly sequential 0..9, no gaps or duplicates"},
+    "timeline_monotonic": {"passed": true, "detail": "source_event_time strictly non-decreasing 11:45 -> 12:10Z"},
+    "role_coverage": {"passed": true, "detail": "all six roles + human-user approval present"},
+    "final_status": {"passed": true, "detail": "seq=9 manager/manager_acceptance status=ACCEPTED"}
+  },
+  "reason": "Re-audit after Manager corrected the previously-flagged duplicate event_id. Fresh pull from MinIO: 10 entries; full hash chain verifies (all hashes recomputed); event_id now all unique with seq=9 exactly $Ks-ZfJvJoq1SYVLB-u-fwoCgtIS1vYvDsN1cLHUWfYc; top-level fields present; task_id/run_id consistent; six roles + human approval covered; seq 0..9 sequential; source_event_time strictly monotonic; final status ACCEPTED. All checks pass -> CHAIN_OK / ACCEPTED. Trace was read-only (not modified)."
+}
