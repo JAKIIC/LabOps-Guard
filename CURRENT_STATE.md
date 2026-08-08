@@ -57,11 +57,13 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
 
 ## 最近验证
 
-- Phase 5A 全量回归：89 tests passed（Windows，本地离线执行）。
+- Phase 5A 全量回归为 89 tests；仓库卫生契约加入后当前全量为 90 tests。
 - 提交 `cff32ba0d16860fa42806d5353cca54337fd7a0a` 的 GitHub Actions 已通过：Windows/Linux
   × Python 3.9/3.12 四组均为 success，包含单元/契约、证据完整性和敏感模式扫描。
 - AT-002、AT-003、AT-004 三条正式证据均重新校验为 PASS。
 - AT-004 closure v2 与案例记忆检索通过；PPT 无溢出且母版一致性检查通过。
+- 公开仓库卫生审计已归档两份早期文档、移除四个无引用旧提交二进制，并补充 `demo/`
+  与 `demos/` 的用途说明。Polar 13 文件 fixture 的再分发许可尚未确认，正式 Release 保持冻结。
 
 ## 不变约束
 

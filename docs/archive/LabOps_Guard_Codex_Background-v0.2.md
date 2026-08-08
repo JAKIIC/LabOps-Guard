@@ -1,3 +1,6 @@
+> Historical internal implementation brief for v0.2. The current release uses AT-004 as its main
+> demonstration. Do not use this file as the active plan or release specification.
+
 # LabOps Guard 项目背景与实施规范
 
 > 文档版本：v0.2.0  
@@ -61,4 +64,3 @@
 3. 新六角色 AgentTeams 流程录制完成。
 4. README、PPT、视频和提交材料冻结。
 5. 仅在上述条件满足后开展 Polar 扩展案例。
-

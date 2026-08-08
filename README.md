@@ -5,6 +5,11 @@ LabOps Guard 是面向 AI 实验与评测事故的可信多智能体治理系统
 
 **无证据不诊断，无审批不执行，无验证不闭环。**
 
+一个模型昨天的评测准确率是 97.8%，今天降到 71.9%。值班工程师需要判断问题来自模型、
+数据、评测代码还是配置。LabOps Guard 让六个权限隔离的 Agent 收集证据、提出可证伪假设、
+申请最小修改，并在断网沙箱中执行获批方案。独立 Auditor 检查原始运行产物和保护文件哈希，
+通过后才允许关闭事故。
+
 ## 已验证的主演示
 
 `LABOPS-AT-004-EVAL-DRIFT` 是当前主线。固定模型评测从历史约 `97.81%` 稳定回退到
@@ -12,7 +17,8 @@ LabOps Guard 是面向 AI 实验与评测事故的可信多智能体治理系统
 波动后，将预处理配置漂移列为最高置信度假设。人工批准后，Safe Executor 仅在新建的
 断网 CPU 沙箱中把 `evaluation.preprocessing_profile` 从 `train_augmented` 恢复为
 `eval_standard`。三次复算达到 `97.81% × 3`，六组保护文件哈希不变；Verification
-Auditor 独立重算并给出 `PASS / RESOLVED`。
+Auditor 不采信 Executor 的成功声明，而是根据 Runner 原始输出、metrics、artifact
+manifest、保护文件哈希、审批时序和 Trace 重算验收结论，最终给出 `PASS / RESOLVED`。
 
 - 六个 Agent 真实参与，角色顺序和交接均有 Matrix 事件与 artifact 记录；
 - 执行镜像为 `labops/pytorch-cpu-runner:0.2.0`，实验期 `network=none`；

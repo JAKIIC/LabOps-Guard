@@ -64,6 +64,18 @@ class TestPhase5Contracts(unittest.TestCase):
         self.assertIn("LABOPS-AT-004-closure-v2.zip", text)
         self.assertIn("main_demo = 'LABOPS-AT-004-EVAL-DRIFT'", text)
 
+    def test_public_repository_hygiene_boundaries_are_explicit(self):
+        self.assertFalse((ROOT / "SELF_CHECK.md").exists())
+        self.assertFalse((ROOT / "LabOps_Guard_Codex_Background.md").exists())
+        self.assertFalse((ROOT / "submission" / "archive").exists())
+        self.assertTrue((ROOT / "docs" / "archive" / "SELF_CHECK-P0.md").is_file())
+        self.assertTrue((ROOT / "docs" / "archive" / "LabOps_Guard_Codex_Background-v0.2.md").is_file())
+        self.assertTrue((ROOT / "demo" / "README.md").is_file())
+        self.assertTrue((ROOT / "demos" / "README.md").is_file())
+        audit = (ROOT / "docs" / "public-repository-hygiene-audit.md").read_text(encoding="utf-8")
+        self.assertIn("REDISTRIBUTION_PERMISSION_UNVERIFIED", audit)
+        self.assertIn("This pass leaves the bytes and their historical hashes unchanged", audit)
+
 
 if __name__ == "__main__":
     unittest.main()

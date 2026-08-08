@@ -41,3 +41,6 @@
   其 tar/离线包在公开前仍需镜像级 SBOM、许可证和 NOTICE 复核。
 - 公开仓库、首次推送、远端 CI、README/License 展示和公开证据隐私检查均已完成；
   `v0.3.0-rc1` Tag 和 GitHub Release 仍等待发布时间确认与 Runner 镜像再分发复核。
+- 早期 Polar 兼容路径使用 `demo/fixtures/project_snapshot_lite/` 的 13 文件快照。仓库和其
+  引用的数据集元数据都没有提供明确的再分发许可证。项目方取得书面许可或用自有 fixture
+  完成兼容迁移前，不创建正式源码 Release。

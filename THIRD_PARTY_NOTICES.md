@@ -22,5 +22,15 @@ The competition PowerPoint template is an externally supplied submission asset a
 as LabOps Guard source code. OpenTelemetry names appear only as documentation for a future adapter;
 no OpenTelemetry SDK or Collector is bundled.
 
+## Legacy Polar fixture
+
+`demo/fixtures/project_snapshot_lite/` contains a 13-file snapshot from an early Polar-code audit.
+The files include competition documentation, parity-check tables, a baseline script and a notebook.
+The snapshot contains no license grant, and the referenced `aprofeta/ecc-dataset` metadata does not
+declare a license. LabOps Guard does not present these files as Apache-2.0 source. Their public
+redistribution status remains unresolved, so a formal release must not proceed until the project
+owner obtains permission or replaces/removes the snapshot without invalidating retained evidence.
+See `docs/public-repository-hygiene-audit.md` for the active references and decision record.
+
 This notice records the direct dependency review performed for the source release. It is informational
 and does not replace the complete license text or notices of any distributed dependency.

@@ -1,3 +1,6 @@
+> Historical development record from the P0 vertical slice. It does not describe the current
+> AT-004 release candidate, test count or six-role AgentTeams workflow.
+
 # SELF_CHECK.md — LabOps Guard P0 Vertical Slice
 
 Self-check for task **LABOPS-P0-IMPL-001** (incl. REV-1 + REV-2). Completed in

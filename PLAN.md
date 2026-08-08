@@ -26,3 +26,13 @@
 
 首次推送不创建 Tag/Release，不重写远端历史，也不把镜像 tar、视频或离线包放进普通 Git
 历史。
+
+## Phase 5C — public repository hygiene
+
+- [x] 归档 P0 self-check 与 v0.2 Codex 内部背景文档；
+- [x] 移除无引用的旧 PPT/预览二进制，保留当前 v0.3 草案；
+- [x] 为 `demo/` 和 `demos/` 增加证据归档与可复现场景边界说明；
+- [x] 收紧 README 首屏场景和 Verification Auditor 的事实表述；
+- [x] 完成公开仓库卫生与 Polar fixture 来源审计；
+- [ ] 取得 Polar fixture 再分发许可，或以自有合成 fixture 替换并迁移兼容测试；
+- [ ] 完成最终 PPT/PDF、团队介绍、视频和 Runner 镜像级 SBOM/NOTICE 复核。
