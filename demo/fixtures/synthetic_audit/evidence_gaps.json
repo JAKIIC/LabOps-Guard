@@ -1,0 +1,17 @@
+{
+  "task_id": "LABOPS-SYNTHETIC-AUDIT-001",
+  "audit_type": "self_authored_compatibility_gaps",
+  "fixture": "project_snapshot_synthetic",
+  "gaps": [
+    {"id": "GAP-001", "category": "environment", "title": "Python patch version is not pinned"},
+    {"id": "GAP-002", "category": "data", "title": "Training data is outside the compatibility fixture"},
+    {"id": "GAP-003", "category": "data", "title": "Held-out test input is absent"},
+    {"id": "GAP-004", "category": "artifact", "title": "Model binary is absent"},
+    {"id": "GAP-005", "category": "artifact", "title": "Baseline run manifest is absent"},
+    {"id": "GAP-006", "category": "environment", "title": "Hardware fingerprint is absent"},
+    {"id": "GAP-007", "category": "runtime", "title": "Reference accuracy is not independently verifiable as a production result"},
+    {"id": "GAP-008", "category": "config", "title": "Deployment orchestration is outside fixture scope"},
+    {"id": "GAP-009", "category": "data", "title": "Private test labels are absent by design"},
+    {"id": "GAP-010", "category": "environment", "title": "GPU reproducibility is outside fixture scope"}
+  ]
+}

@@ -968,10 +968,10 @@ def run_bundled_demo(workspace: str | Path, project_root: str | Path) -> int:
     fixtures = project_root / "demo" / "fixtures"
     return run_demo(
         workspace=workspace,
-        snapshot_dir=fixtures / "project_snapshot_lite",
-        audit_dir=fixtures / "audit",
-        verification_json=fixtures / "snapshot_verification.json",
-        allowed_list=project_root / "demo" / "allowed_files.json",
+        snapshot_dir=fixtures / "project_snapshot_synthetic",
+        audit_dir=fixtures / "synthetic_audit",
+        verification_json=fixtures / "synthetic_snapshot_verification.json",
+        allowed_list=project_root / "demo" / "synthetic_allowed_files.json",
         trace=TraceLog(workspace / "trace.jsonl"),
     )
 

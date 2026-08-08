@@ -63,6 +63,9 @@ class TestPhase5Contracts(unittest.TestCase):
         text = (ROOT / "scripts" / "build_release.ps1").read_text(encoding="utf-8")
         self.assertIn("LABOPS-AT-004-closure-v2.zip", text)
         self.assertIn("main_demo = 'LABOPS-AT-004-EVAL-DRIFT'", text)
+        self.assertIn("python_package_version = $packageVersion", text)
+        pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        self.assertRegex(pyproject, re.compile(r'^version = "0\.3\.0rc1"$', re.MULTILINE))
 
     def test_public_repository_hygiene_boundaries_are_explicit(self):
         self.assertFalse((ROOT / "SELF_CHECK.md").exists())
@@ -72,9 +75,13 @@ class TestPhase5Contracts(unittest.TestCase):
         self.assertTrue((ROOT / "docs" / "archive" / "LabOps_Guard_Codex_Background-v0.2.md").is_file())
         self.assertTrue((ROOT / "demo" / "README.md").is_file())
         self.assertTrue((ROOT / "demos" / "README.md").is_file())
+        self.assertFalse((ROOT / "demo" / "fixtures" / "project_snapshot_lite").exists())
+        synthetic = ROOT / "demo" / "fixtures" / "project_snapshot_synthetic"
+        self.assertTrue(synthetic.is_dir())
+        self.assertIn("Apache-2.0", (synthetic / "README.md").read_text(encoding="utf-8"))
         audit = (ROOT / "docs" / "public-repository-hygiene-audit.md").read_text(encoding="utf-8")
-        self.assertIn("REDISTRIBUTION_PERMISSION_UNVERIFIED", audit)
-        self.assertIn("This pass leaves the bytes and their historical hashes unchanged", audit)
+        self.assertIn("SELF_AUTHORED_SYNTHETIC_FIXTURE", audit)
+        self.assertIn("removed the old snapshot bytes from the current main tree", audit)
 
 
 if __name__ == "__main__":

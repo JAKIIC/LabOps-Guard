@@ -61,7 +61,7 @@ AgentTeams 负责角色编排和上下文交接；LabOps Guard 的 Schema、Poli
 要求 Python 3.9+；完整 Runner 复现另需 Docker Desktop 和已构建或离线加载的固定镜像。
 
 ```powershell
-python -B -m pytest -q
+python -B -m unittest discover -s tests -p "test_*.py" -v
 python -B scripts/verify_evidence.py
 python -B -m labops.case_memory search "evaluation drift"
 ```
@@ -109,6 +109,7 @@ Python/PyTorch 仓库，但实验容器运行时禁止联网。当前没有部�
 Server、mTLS/OIDC 服务身份、GPU 调度、外部数据集或 RAG；相关迁移边界见
 `KNOWN_LIMITATIONS.md`、`docs/observability.md` 与 `docs/competition-mapping.md`。
 
-源码采用 Apache-2.0，公开仓库为 `https://github.com/JAKIIC/LabOps-Guard`；`main` 已通过
+源码采用 Apache-2.0，公开仓库为 `https://github.com/JAKIIC/LabOps-Guard`；候选 Git Tag
+`v0.3.0-rc1` 对应 Python 包版本 `0.3.0rc1`。`main` 已通过
 Windows/Linux、Python 3.9/3.12 的 GitHub Actions。正式 Release/Tag 仍需确认发布时间，
 Runner 镜像 tar 在公开分发前仍需完成镜像级 SBOM、许可证和 NOTICE 复核。

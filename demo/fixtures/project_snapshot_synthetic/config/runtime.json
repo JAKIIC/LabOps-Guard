@@ -1,0 +1,6 @@
+{
+  "python": ">=3.9",
+  "device": "cpu",
+  "network": false,
+  "max_runtime_seconds": 5
+}

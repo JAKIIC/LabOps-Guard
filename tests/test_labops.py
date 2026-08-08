@@ -8,7 +8,7 @@ Covers the 8 required scenarios:
   5. simulated action
   6. verification failure
   7. trace hash chain
-  8. Polar demo end-to-end
+  8. synthetic compatibility demo end-to-end
 """
 
 from __future__ import annotations
@@ -40,19 +40,19 @@ def fixtures_dir() -> Path:
 
 
 def fixture_snapshot() -> Path:
-    return fixtures_dir() / "project_snapshot_lite"
+    return fixtures_dir() / "project_snapshot_synthetic"
 
 
 def fixture_audit() -> Path:
-    return fixtures_dir() / "audit"
+    return fixtures_dir() / "synthetic_audit"
 
 
 def fixture_verification() -> Path:
-    return fixtures_dir() / "snapshot_verification.json"
+    return fixtures_dir() / "synthetic_snapshot_verification.json"
 
 
 def fixture_allowed_list() -> Path:
-    return repo_root() / "demo" / "allowed_files.json"
+    return repo_root() / "demo" / "synthetic_allowed_files.json"
 
 
 class Base(unittest.TestCase):
@@ -292,8 +292,8 @@ class TestTraceHashChain(Base):
         self.assertFalse(ok)
 
 
-class TestPolarDemo(Base):
-    def test_polar_demo_end_to_end(self):
+class TestSyntheticCompatibilityDemo(Base):
+    def test_synthetic_demo_end_to_end(self):
         snapshot = fixture_snapshot()
         audit = fixture_audit()
         verif = fixture_verification()
@@ -324,7 +324,7 @@ class TestPolarDemo(Base):
 
 
 class TestPortability(Base):
-    """REV-2: no /root hardcoding; fixture 13/13 VERIFIED; 0 excluded files."""
+    """No host-root hardcoding; synthetic fixture 13/13 VERIFIED; 0 excluded files."""
 
     def _walk_source_files(self):
         root = repo_root()

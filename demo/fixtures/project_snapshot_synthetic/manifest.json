@@ -1,0 +1,21 @@
+{
+  "fixture_id": "LABOPS-SYNTHETIC-COMPAT-001",
+  "license": "Apache-2.0",
+  "generated_by": "LabOps Guard contributors",
+  "contains_third_party_bytes": false,
+  "snapshot_files": [
+    {"path": "LICENSE"},
+    {"path": "README.md"},
+    {"path": "baseline_stub.py"},
+    {"path": "requirements.txt"},
+    {"path": "manifest.json"},
+    {"path": "artifacts/expected_metrics.json"},
+    {"path": "codes/DEMO_N8_K4.txt"},
+    {"path": "codes/DEMO_N16_K8.txt"},
+    {"path": "config/experiment.json"},
+    {"path": "config/runtime.json"},
+    {"path": "docs/input-format.md"},
+    {"path": "docs/output-format.md"},
+    {"path": "samples/public_features.csv"}
+  ]
+}

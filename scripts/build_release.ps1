@@ -9,6 +9,13 @@ $root = Split-Path -Parent $PSScriptRoot
 $python = Get-LabOpsPython $PythonPath
 $docker = Get-LabOpsDocker
 if ($Version -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+-(?:rc[0-9]+|preliminary)$') { throw "Invalid release version" }
+$versionMatch = Select-String -LiteralPath (Join-Path $root 'pyproject.toml') -Pattern '^version\s*=\s*"([^"]+)"\s*$'
+if ($versionMatch.Count -ne 1) { throw "Unable to read one package version from pyproject.toml" }
+$packageVersion = $versionMatch.Matches[0].Groups[1].Value
+$expectedPackageVersion = $Version.TrimStart('v') -replace '-rc', 'rc'
+if ($packageVersion -ne $expectedPackageVersion) {
+    throw "Version mismatch: tag $Version requires Python package $expectedPackageVersion, found $packageVersion"
+}
 $releaseRoot = Join-Path $root "release\$Version"
 if (Test-Path -LiteralPath $releaseRoot) { throw "Release directory already exists; refusing overwrite: $releaseRoot" }
 
@@ -56,6 +63,7 @@ try {
     $imageIdAt004 = (& $docker image inspect 'labops/pytorch-cpu-runner:0.2.0' --format '{{.Id}}').Trim()
     $manifest = [ordered]@{
         version = $Version
+        python_package_version = $packageVersion
         git_commit = $commit
         runner_images = @(
             [ordered]@{ task = 'LABOPS-AT-003'; image = 'labops/pytorch-cpu-runner:0.1.0'; image_id = $imageIdAt003 },

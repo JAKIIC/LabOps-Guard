@@ -1,15 +1,15 @@
 {
   "task_id": "LABOPS-AT-001",
   "incident_id": "POLAR-RCA-DEMO-001",
-  "title": "AgentTeams evidence-to-verification vertical slice",
-  "goal": "Use distinct AgentTeams roles to reproduce the existing safe Polar evidence workflow and return a verifiable evidence bundle.",
+  "title": "AgentTeams synthetic compatibility vertical slice",
+  "goal": "Use distinct AgentTeams roles to reproduce the safe evidence workflow with a self-authored synthetic fixture and return a verifiable evidence bundle.",
   "project": "labops-guard",
   "workspace": "demo/output-agentteams",
   "inputs": {
-    "snapshot": "demo/fixtures/project_snapshot_lite",
-    "allowed_list": "demo/allowed_files.json",
-    "audit_dir": "demo/fixtures/audit",
-    "verification": "demo/fixtures/snapshot_verification.json"
+    "snapshot": "demo/fixtures/project_snapshot_synthetic",
+    "allowed_list": "demo/synthetic_allowed_files.json",
+    "audit_dir": "demo/fixtures/synthetic_audit",
+    "verification": "demo/fixtures/synthetic_snapshot_verification.json"
   },
   "assigned_agents": ["labops-manager", "evidence-collector", "rca-analyst", "controlled-executor", "verification-auditor"],
   "required_skills": ["collect-lab-evidence", "diagnose-lab-incident", "control-lab-action", "verify-lab-result", "pack-lab-evidence"],

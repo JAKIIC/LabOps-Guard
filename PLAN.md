@@ -34,5 +34,6 @@
 - [x] 为 `demo/` 和 `demos/` 增加证据归档与可复现场景边界说明；
 - [x] 收紧 README 首屏场景和 Verification Auditor 的事实表述；
 - [x] 完成公开仓库卫生与 Polar fixture 来源审计；
-- [ ] 取得 Polar fixture 再分发许可，或以自有合成 fixture 替换并迁移兼容测试；
+- [x] 删除当前 `main` 中许可不明的 Polar fixture 字节，以自有 Apache-2.0 synthetic fixture
+  迁移兼容测试和仪表盘回退；历史证据与哈希保持不变；
 - [ ] 完成最终 PPT/PDF、团队介绍、视频和 Runner 镜像级 SBOM/NOTICE 复核。

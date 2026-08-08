@@ -3,6 +3,9 @@
 这是面向 GOAI Agent Infra 初赛的发布候选草案；源码采用 Apache License 2.0。尚未创建
 GitHub Release 或 `v0.3.0-rc1` Tag。
 
+Git Tag 使用 `v0.3.0-rc1`，`pyproject.toml` 使用符合 PEP 440 的 `0.3.0rc1`。源码包使用
+项目自建的 synthetic compatibility fixture，不包含早期 Polar 快照文件。
+
 ## 验证结果
 
 - 90 项全量单元与契约测试通过；

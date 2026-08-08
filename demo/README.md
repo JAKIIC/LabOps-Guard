@@ -8,9 +8,12 @@ runs. The dashboard reads these files in read-only mode.
   dependency-blocking cases.
 - `output-agentteams-at004-closure/` contains the derived postmortem and case-memory package. It does
   not replace the original AT-004 evidence.
-- `fixtures/` and `output-agentteams/` support the legacy Polar/AT-001 compatibility path.
+- `fixtures/project_snapshot_synthetic/` supports the active AT-001 compatibility tests with
+  project-authored Apache-2.0 inputs.
+- `output-agentteams/` and the legacy audit records retain the original AT-001 event without editing
+  its archived evidence.
 
 Do not edit a signed evidence bundle or regenerate its manifest in place. New runs must use a new
 task, incident and run identifier. Reproducible experiment source lives in [`../demos/`](../demos/).
-The Polar fixture provenance boundary is recorded in
+The fixture migration and provenance boundary are recorded in
 [`../docs/public-repository-hygiene-audit.md`](../docs/public-repository-hygiene-audit.md).

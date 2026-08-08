@@ -54,6 +54,7 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
 - README、赛事材料、PPT、开源治理和 CI 已统一；源码采用 Apache-2.0，公开远端和首次
   SSH 推送已完成。公开仓库：`https://github.com/JAKIIC/LabOps-Guard`。正式 Tag、Release
   与 Runner 镜像再分发仍保持冻结。
+- 候选 Git Tag `v0.3.0-rc1` 对应 Python 包版本 `0.3.0rc1`。
 
 ## 最近验证
 
@@ -63,7 +64,9 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
 - AT-002、AT-003、AT-004 三条正式证据均重新校验为 PASS。
 - AT-004 closure v2 与案例记忆检索通过；PPT 无溢出且母版一致性检查通过。
 - 公开仓库卫生审计已归档两份早期文档、移除四个无引用旧提交二进制，并补充 `demo/`
-  与 `demos/` 的用途说明。Polar 13 文件 fixture 的再分发许可尚未确认，正式 Release 保持冻结。
+  与 `demos/` 的用途说明。
+- 许可不明的 Polar 13 文件快照已从当前 `main` 删除。AT-001 输出和 Git 历史保留原事件与
+  哈希；活动兼容测试和仪表盘回退已迁移到项目自建的 Apache-2.0 synthetic fixture。
 
 ## 不变约束
 

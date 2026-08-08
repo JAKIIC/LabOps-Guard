@@ -1,7 +1,7 @@
 """Evidence collection: load audit evidence (strong/weak/missing) + gaps.
 
-REAL component. Loads evidence_index.json and evidence_gaps.json from the
-Polar audit incidents; records states. Never reads excluded data.
+REAL component. Loads evidence_index.json and evidence_gaps.json from a
+compatibility audit; records states. Never reads excluded data.
 """
 
 from __future__ import annotations

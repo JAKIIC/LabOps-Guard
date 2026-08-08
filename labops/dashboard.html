@@ -24,7 +24,7 @@
   </header>
   <div class="error" id="error"></div>
   <section class="hero">
-    <article class="panel intro"><div class="eyebrow" id="runEyebrow">P0 · Polar Baseline</div><h1>把“猜问题”变成一条有证据、有审批、有验证的实验链路。</h1><p>从快照哈希开始，串联证据、诊断、审批、受控实验与追踪日志。真实实验只在断网沙箱 Runner 中执行，敏感数据始终不读取。</p><div class="principles" id="principles"></div></article>
+    <article class="panel intro"><div class="eyebrow" id="runEyebrow">P0 · Synthetic Compatibility</div><h1>把“猜问题”变成一条有证据、有审批、有验证的实验链路。</h1><p>从快照哈希开始，串联证据、诊断、审批、受控实验与追踪日志。真实实验只在断网沙箱 Runner 中执行，敏感数据始终不读取。</p><div class="principles" id="principles"></div></article>
     <aside class="panel truth"><span class="label">当前事实边界</span><strong id="incidentState">读取中…</strong><p id="truthText">演示通过不等于问题已经解决。</p></aside>
   </section>
   <section class="metrics" id="metrics"></section>
@@ -48,14 +48,14 @@
 const $=s=>document.querySelector(s), esc=v=>String(v??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const badge=v=>`<span class="badge ${esc(v)}">${esc(v)}</span>`;
 const listText=v=>Array.isArray(v)?v.join(' · '):(v??'—');
-const safetyLabels={excluded_data_not_read:'未读取排除数据',no_fabricated_faults:'未虚构故障',no_polar_root_cause_claim:'未声称找到 Polar 根因',no_model_optimization:'未提出模型调优建议',network_required:'无需外部网络',risky_actions_simulated:'旧 P0 高风险路径保持模拟',prohibited_operations_zero:'禁止操作计数为零'};
+const safetyLabels={excluded_data_not_read:'未读取排除数据',no_fabricated_faults:'未虚构故障',no_polar_root_cause_claim:'未声称修复历史 Polar 根因',no_model_optimization:'未提出模型调优建议',network_required:'无需外部网络',risky_actions_simulated:'旧 P0 高风险路径保持模拟',prohibited_operations_zero:'禁止操作计数为零'};
 async function load(){
   $('#error').style.display='none';
   try{
     const r=await fetch('/api/status',{cache:'no-store'}); if(!r.ok) throw new Error(`HTTP ${r.status}`); const d=await r.json();
     if(!d.ready) throw new Error('尚未生成演示输出，请先运行 demo 或使用 --run-demo。');
     const at2=d.agentteams_v2||{ready:false},at3=d.agentteams_v3||{ready:false},at4=d.main_demo||{ready:false};
-    $('#sourceText').textContent=at4.ready?at4.source_label:at3.ready?'LABOPS-AT-003 真实证据包':at2.ready?'LABOPS-AT-002 真实证据包':d.source.label; $('#runEyebrow').textContent=at4.ready?`${at4.task_id} · ${at4.source_mode}`:at3.ready?`${at3.task_id} · OFFLINE RUNNER`:at2.ready?`${at2.task_id} · SIX-ROLE RUN`:d.agentteams.enabled?`${d.agentteams.task_id} · AGENTTEAMS RUN`:'P0 · POLAR BASELINE';
+    $('#sourceText').textContent=at4.ready?at4.source_label:at3.ready?'LABOPS-AT-003 真实证据包':at2.ready?'LABOPS-AT-002 真实证据包':d.source.label; $('#runEyebrow').textContent=at4.ready?`${at4.task_id} · ${at4.source_mode}`:at3.ready?`${at3.task_id} · OFFLINE RUNNER`:at2.ready?`${at2.task_id} · SIX-ROLE RUN`:d.agentteams.enabled?`${d.agentteams.task_id} · AGENTTEAMS RUN`:'P0 · SYNTHETIC COMPATIBILITY';
     $('#principles').innerHTML=d.principles.map(x=>`<span>${esc(x)}</span>`).join('');
     const s=d.summary; $('#incidentState').textContent=at4.ready?`${at4.status} / ${at4.resolution_status}`:at3.ready?at3.final_state:at2.ready?at2.final_state:s.incident_state; $('#incidentState').className=at4.ready||at3.ready?'ok':at2.ready?'warn':s.underlying_issue_resolved?'ok':'warn';
     $('#truthText').textContent=at4.ready?(at4.source_mode==='LOCAL_VALIDATION'?'AT-004 已完成三次真实离线验证；六角色 Matrix/MinIO 运行尚未开始，当前不声称 AgentTeams 已完成。':'AT-004 的六角色、Runner 与 Auditor 证据均已复核。'):at3.ready?'AT-002 保留为依赖缺失时安全 BLOCKED；AT-003 通过离线专用 Runner 达到真实 PASS / RESOLVED。':at2.ready?'AgentTeams 非法路径已阻断并回滚；合法路径因 Worker 缺少 torch 未达到 RESOLVED。':s.underlying_issue_resolved?'真实动作和后置条件均已验证。':'演示链路通过，但底层问题仍未解决，也不会标记 CLOSED。';

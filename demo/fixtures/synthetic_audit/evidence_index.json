@@ -1,0 +1,29 @@
+{
+  "task_id": "LABOPS-SYNTHETIC-AUDIT-001",
+  "audit_type": "self_authored_compatibility_evidence",
+  "fixture": "project_snapshot_synthetic",
+  "evidence": [
+    {"id": "EV-001", "strength": "strong", "claim": "The fixture declares Apache-2.0 licensing.", "refs": ["LICENSE", "README.md"]},
+    {"id": "EV-002", "strength": "strong", "claim": "The manifest identifies LabOps Guard contributors as generator.", "refs": ["manifest.json"]},
+    {"id": "EV-003", "strength": "strong", "claim": "The manifest declares that the fixture contains no third-party bytes.", "refs": ["manifest.json"]},
+    {"id": "EV-004", "strength": "strong", "claim": "The fixture uses only Python standard-library modules.", "refs": ["baseline_stub.py", "requirements.txt"]},
+    {"id": "EV-005", "strength": "strong", "claim": "The runtime target is CPU.", "refs": ["config/runtime.json"]},
+    {"id": "EV-006", "strength": "strong", "claim": "The runtime contract disables network access.", "refs": ["config/runtime.json"]},
+    {"id": "EV-007", "strength": "strong", "claim": "The runtime budget is five seconds.", "refs": ["config/runtime.json"]},
+    {"id": "EV-008", "strength": "strong", "claim": "The experiment uses a fixed seed.", "refs": ["config/experiment.json"]},
+    {"id": "EV-009", "strength": "strong", "claim": "The reference metric is accuracy.", "refs": ["config/experiment.json", "artifacts/expected_metrics.json"]},
+    {"id": "EV-010", "strength": "strong", "claim": "The reference metric covers four synthetic rows.", "refs": ["artifacts/expected_metrics.json", "samples/public_features.csv"]},
+    {"id": "EV-011", "strength": "strong", "claim": "The public sample contains no label column.", "refs": ["samples/public_features.csv", "docs/input-format.md"]},
+    {"id": "EV-012", "strength": "strong", "claim": "The input schema contains an identifier and two integer features.", "refs": ["docs/input-format.md", "samples/public_features.csv"]},
+    {"id": "EV-013", "strength": "strong", "claim": "The output contract contains one accuracy line.", "refs": ["docs/output-format.md", "baseline_stub.py"]},
+    {"id": "EV-014", "strength": "strong", "claim": "Two small code tables exercise nested path registration.", "refs": ["codes/DEMO_N8_K4.txt", "codes/DEMO_N16_K8.txt"]},
+    {"id": "EV-015", "strength": "strong", "claim": "The eight-column table has four rows.", "refs": ["codes/DEMO_N8_K4.txt"]},
+    {"id": "EV-016", "strength": "strong", "claim": "The sixteen-column table has eight rows.", "refs": ["codes/DEMO_N16_K8.txt"]},
+    {"id": "EV-017", "strength": "strong", "claim": "The manifest allowlists thirteen files.", "refs": ["manifest.json"]},
+    {"id": "EV-018", "strength": "strong", "claim": "The fixture contains no model checkpoint.", "refs": ["README.md", "manifest.json"]},
+    {"id": "EV-019", "strength": "strong", "claim": "The fixture contains no credential material.", "refs": ["README.md", "manifest.json"]},
+    {"id": "EV-020", "strength": "strong", "claim": "The fixture contains no private test labels.", "refs": ["README.md", "docs/input-format.md"]},
+    {"id": "EV-021", "strength": "weak", "claim": "The reference metric is a contract value rather than a production benchmark.", "refs": ["README.md", "artifacts/expected_metrics.json"]},
+    {"id": "EV-022", "strength": "missing", "claim": "No production deployment record is included.", "refs": ["manifest.json"]}
+  ]
+}

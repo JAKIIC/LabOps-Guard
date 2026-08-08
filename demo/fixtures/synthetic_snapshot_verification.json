@@ -1,0 +1,27 @@
+{
+  "verification": "VERIFIED",
+  "fixture_id": "LABOPS-SYNTHETIC-COMPAT-001",
+  "fixture_origin": "self_authored",
+  "license": "Apache-2.0",
+  "snapshot_files": 13,
+  "missing_in_actual": [],
+  "extra_vs_manifest": [],
+  "hash_mismatches": [],
+  "excluded_data_not_read": true,
+  "contains_third_party_bytes": false,
+  "all_allowed_file_sha256": {
+    "LICENSE": "dc27177d3a3a76bef9887d765ec1697b98214dd98c86a9bc1e0f6e624998b5ec",
+    "README.md": "f65a6958da6362cf07d4742525faf054197cfd9a5a3cb1166021323d94f620a8",
+    "baseline_stub.py": "27bf08dfffe538e9230163c0d7d08c7fb69794e9fd5bda7b0b4de5b750452f26",
+    "requirements.txt": "87a4b604ac230c57da96838dfefe12b3de39dc1e5ced5916ddd2fa5f28385c02",
+    "manifest.json": "c353f701739084386cb5d5c6646ba8715d40ad2d9048b086e91d57a0d09d7e11",
+    "artifacts/expected_metrics.json": "98ec6203bcdf1d0457d12d79ac0801aa5e29ad6d03eccafff8cf12b8c5a1c9c9",
+    "codes/DEMO_N8_K4.txt": "5f3620800410c582fd5d134440b9af1ecf2eb2b2a829144c947fcd2dec00e9bc",
+    "codes/DEMO_N16_K8.txt": "606c0accec7f5a043a5f56a23d1ed8c2688d5f7f54e80d00ccdf6b32d8d88aa0",
+    "config/experiment.json": "5c3643d47715b73f06c0b747e89c7e3efbacd927aa96cbc29e872595fa2ee36b",
+    "config/runtime.json": "73a8bde53e4a35d21464e8b740299a22e83578021afb0032224b2c87acf69690",
+    "docs/input-format.md": "ea6a96ada631d346ebaa79388fea7b3251917a84138d9a7b3903dbebe0fb6d63",
+    "docs/output-format.md": "ba3f6bd01e90c0ac446465aebf32ebd0d28e17b20b6f2ec439008691cba4c189",
+    "samples/public_features.csv": "66929a493969f4deac6d89dc594ec3d6e87569619cd67e7ea981ad18662c0c34"
+  }
+}

@@ -1,0 +1,15 @@
+[
+  "LICENSE",
+  "README.md",
+  "baseline_stub.py",
+  "requirements.txt",
+  "manifest.json",
+  "artifacts/expected_metrics.json",
+  "codes/DEMO_N8_K4.txt",
+  "codes/DEMO_N16_K8.txt",
+  "config/experiment.json",
+  "config/runtime.json",
+  "docs/input-format.md",
+  "docs/output-format.md",
+  "samples/public_features.csv"
+]

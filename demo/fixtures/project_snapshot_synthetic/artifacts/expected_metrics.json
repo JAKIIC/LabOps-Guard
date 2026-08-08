@@ -1,0 +1,6 @@
+{
+  "metric": "accuracy",
+  "accuracy": 0.75,
+  "sample_count": 4,
+  "status": "synthetic_reference_only"
+}

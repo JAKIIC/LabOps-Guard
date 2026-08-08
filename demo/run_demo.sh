@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # LabOps Guard demo runbook — self-contained, portable (REV-2).
 # Uses repo-relative demo/fixtures by default; overridable via env:
-#   LABOPS_FIXTURES   -> dir containing project_snapshot_lite/, audit/, snapshot_verification.json
+#   LABOPS_FIXTURES   -> dir containing the synthetic compatibility fixture and audit
 #   LABOPS_OUTPUT     -> output workspace dir (default: <repo>/demo/output)
 # Safe: dry-run first, risky SIMULATED, no network/install/train, no excluded-data reads.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FIXTURES="${LABOPS_FIXTURES:-$ROOT/demo/fixtures}"
-SNAPSHOT="$FIXTURES/project_snapshot_lite"
-AUDIT="$FIXTURES/audit"
-VERIF="$FIXTURES/snapshot_verification.json"
-ALLOWED="$ROOT/demo/allowed_files.json"
+SNAPSHOT="$FIXTURES/project_snapshot_synthetic"
+AUDIT="$FIXTURES/synthetic_audit"
+VERIF="$FIXTURES/synthetic_snapshot_verification.json"
+ALLOWED="$ROOT/demo/synthetic_allowed_files.json"
 
 WS="${LABOPS_OUTPUT:-$ROOT/demo/output}"
 rm -rf "$WS"
@@ -19,7 +19,7 @@ mkdir -p "$WS"
 
 cd "$ROOT"
 
-echo "############ LabOps Guard Demo (polar-baseline) ############"
+echo "############ LabOps Guard Demo (synthetic compatibility) ############"
 echo "fixtures=$FIXTURES"
 echo "workspace=$WS"
 echo

@@ -24,8 +24,8 @@
 - 降低审批、哈希、回滚、禁网或工作区隔离；
 - 伪造角色执行、指标、Trace、实时状态或 `RESOLVED`；
 - 覆盖正式证据、重写发布历史，或在 CI 与公开检查完成前创建正式 Tag。
-- 在 Polar fixture 再分发许可未确认、也未完成自有 fixture 迁移时创建源码 Release。
 
 候选 `v0.3.0-rc1` 只有在工作区干净、全量测试、证据、敏感信息、PPT 和 Release
 manifest 均通过且 CI 与公开仓库检查完成后才能成为正式 Release。Apache-2.0、公开仓库
-及首次推送已由项目所有者确认；Tag 与 Release 仍保持冻结。
+及首次推送已由项目所有者确认；自有 synthetic fixture 已解除旧 Polar 字节的源码再分发
+风险。Tag 与 Release 仍保持冻结。

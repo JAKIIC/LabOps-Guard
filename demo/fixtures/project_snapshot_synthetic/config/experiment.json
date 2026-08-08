@@ -1,0 +1,6 @@
+{
+  "experiment_id": "synthetic-binary-demo",
+  "input": "samples/public_features.csv",
+  "metric": "accuracy",
+  "seed": 7
+}

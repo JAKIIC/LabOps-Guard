@@ -74,10 +74,10 @@ class TestSkillPackages(unittest.TestCase):
             workspace = Path(temporary) / "output"
             rc = demo_mod.run_demo(
                 workspace=workspace,
-                snapshot_dir=ROOT / "demo" / "fixtures" / "project_snapshot_lite",
-                audit_dir=ROOT / "demo" / "fixtures" / "audit",
-                verification_json=ROOT / "demo" / "fixtures" / "snapshot_verification.json",
-                allowed_list=ROOT / "demo" / "allowed_files.json",
+                snapshot_dir=ROOT / "demo" / "fixtures" / "project_snapshot_synthetic",
+                audit_dir=ROOT / "demo" / "fixtures" / "synthetic_audit",
+                verification_json=ROOT / "demo" / "fixtures" / "synthetic_snapshot_verification.json",
+                allowed_list=ROOT / "demo" / "synthetic_allowed_files.json",
             )
             self.assertEqual(rc, 0)
             output = workspace / "evidence_bundle.zip"

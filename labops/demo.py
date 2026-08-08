@@ -1,8 +1,8 @@
-"""Polar-baseline demo: full chain on real 10 evidence gaps.
+"""Synthetic compatibility demo: full chain on 10 documented evidence gaps.
 
 REAL for registry/evidence/diagnosis/approval/verification/trace; SIMULATED
 for risky actions (install/download/train). Never reads excluded data. Never
-claims to fix Polar root cause. No fabricated faults.
+claims to fix the historical Polar root cause. No fabricated faults.
 """
 
 from __future__ import annotations
@@ -46,21 +46,15 @@ def run_demo(workspace, snapshot_dir, audit_dir, verification_json=None,
         allowed = _allowed_files_from_manifest(snapshot_dir)
         if not allowed:
             allowed = [
-                "README.md", "baseline.py",
-                "baseline/baseline/README.md",
-                "baseline/baseline/participant_pipeline_cnn_mlp.ipynb",
-                "baseline/baseline/Codes_DB/BCH_N31_K11.txt",
-                "baseline/baseline/Codes_DB/BCH_N31_K16.txt",
-                "baseline/baseline/Codes_DB/BCH_N63_K30.txt",
-                "baseline/baseline/Codes_DB/BCH_N63_K45.txt",
-                "baseline/baseline/Codes_DB/POLAR_N64_K22.txt",
-                "baseline/baseline/Codes_DB/POLAR_N64_K32.txt",
-                "baseline/baseline/Codes_DB/POLAR_N64_K48.txt",
-                "public_test/README_数据说明.md",
-                "submit_sample/README_提交说明.md",
+                "LICENSE", "README.md", "baseline_stub.py", "requirements.txt",
+                "manifest.json", "artifacts/expected_metrics.json",
+                "codes/DEMO_N8_K4.txt", "codes/DEMO_N16_K8.txt",
+                "config/experiment.json", "config/runtime.json",
+                "docs/input-format.md", "docs/output-format.md",
+                "samples/public_features.csv",
             ]
 
-    log("=== LabOps Guard demo: polar-baseline ===")
+    log("=== LabOps Guard demo: synthetic-compatibility ===")
     log(f"allowed files: {len(allowed)}")
 
     # Step 0 registry

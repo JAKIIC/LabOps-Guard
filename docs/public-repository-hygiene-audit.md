@@ -17,26 +17,26 @@ the state machine.
 | AgentTeams V1/V2 JSON | Tests and legacy AT-001 still use V1; current flows use V2 | Defer layout changes until after the competition |
 | `CURRENT_STATE.md`, `PLAN.md`, `RELEASE_FREEZE.md` | Active competition/release controls | Keep at repository root for the release candidate |
 
-## Polar fixture provenance
+## Polar fixture migration
 
-The repository tracks 13 files under `demo/fixtures/project_snapshot_lite/`: competition READMEs,
-seven BCH/POLAR parity-check tables, `baseline.py`, a participant notebook and two format READMEs.
-The files contain no copyright or license notice. The snapshot README points to
-[`aprofeta/ecc-dataset`](https://huggingface.co/datasets/aprofeta/ecc-dataset); its public API metadata
-returned no dataset card or license field during this audit.
+The previous tree tracked 13 files under `demo/fixtures/project_snapshot_lite/`: competition
+documentation, parity-check tables, a baseline script and a notebook. Those files contained no
+license grant, and the referenced
+[`aprofeta/ecc-dataset`](https://huggingface.co/datasets/aprofeta/ecc-dataset) metadata declared no
+license during the audit.
 
-The fixture remains active in:
+Phase 5D removed the old snapshot bytes from the current main tree. Immutable AT-001 output and Git history keep
+the historical event record and hashes without making the old snapshot an active Release input.
+Compatibility code, the dashboard fallback and portability tests now use
+`demo/fixtures/project_snapshot_synthetic/` plus a separate synthetic audit and verification file.
+LabOps Guard contributors wrote the fixture without copying the old baseline, notebook,
+documentation, code tables or data.
 
-- legacy Polar demo and dashboard fallback code;
-- AT-001 compatibility contracts;
-- the 13-file byte-hash portability tests;
-- archived Polar evidence records.
+Status: `SELF_AUTHORED_SYNTHETIC_FIXTURE`.
 
-Status: `REDISTRIBUTION_PERMISSION_UNVERIFIED`.
-
-The Apache-2.0 license for LabOps Guard does not cover this snapshot. The project owner must obtain a
-written redistribution grant or replace/remove the snapshot and update the compatibility tests before
-creating a formal source Release. This pass leaves the bytes and their historical hashes unchanged.
+The active fixture contains 13 allowlisted files, declares Apache-2.0, uses the Python standard
+library and includes no third-party bytes, private labels, model weights or credentials. The source
+Release no longer depends on redistribution permission for the old Polar snapshot.
 
 ## Deferred changes
 
