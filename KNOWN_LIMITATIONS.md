@@ -38,9 +38,12 @@
 ## Release boundary
 
 - LabOps Guard 源码已采用 Apache License 2.0。Runner 镜像包含基础镜像、PyTorch 与系统包，
-  其 tar/离线包在公开前仍需镜像级 SBOM、许可证和 NOTICE 复核。
+  两张本地镜像的 CycloneDX 1.5 SBOM 已完成，共 171 个唯一组件；清单不等于分发授权。
+- 许可证/NOTICE 复核发现四个未关闭门禁：精确基础镜像的再分发条款、Debian copyleft
+  对应源码义务、完整镜像 NOTICE 包、最终重建 digest 对比。因此镜像、镜像 tar、Tag 和
+  GitHub Release 不发布；详见 `docs/compliance/runner-license-review.md`。
 - 公开仓库、首次推送、远端 CI、README/License 展示和公开证据隐私检查均已完成；
-  `v0.3.0-rc1` Tag 和 GitHub Release 仍等待发布时间确认与 Runner 镜像再分发复核。
+  `v0.3.0-rc1` Tag 和 GitHub Release 等待上述四个门禁关闭，不以提交截止时间为由跳过。
 - 当前兼容路径使用项目自建并采用 Apache-2.0 的
   `demo/fixtures/project_snapshot_synthetic/`。早期 Polar 快照字节已从 `main` 删除；Git 历史
   和 AT-001 不可变输出只保留历史事件与哈希，因此不能用于重新分发原快照。

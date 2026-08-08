@@ -1,8 +1,8 @@
 # LabOps Guard current state
 
-更新时间：2026-08-08
+更新时间：2026-08-09
 权威仓库：本文档所在 Git 仓库
-当前阶段：Phase 5B，公开仓库与 CI 已完成，正式 Release/Tag 保持冻结
+当前阶段：Phase 6 初赛材料冻结；正式 Release/Tag 保持冻结
 
 ## 已验证主线
 
@@ -11,7 +11,7 @@
 - 基线 `71.875% × 3`，候选 `97.8124976% × 3`，两侧 spread 均为 0；只修改新建
   沙箱中的 `evaluation.preprocessing_profile`。
 - Runner 为 `labops/pytorch-cpu-runner:0.2.0`，Python 3.11.15、PyTorch 2.5.1+cpu、
-  CPU、`network=none`；RuntimeCapabilityCheck 为 `8/8 PASS`。
+  CPU、`network=none`；宿主策略检查 `8/8 PASS`，容器内能力检查 `10/10 PASS`。
 - 人工批准早于执行；六组受保护哈希 before==after；原始工作区未修改。
 - Verification Auditor 从 raw stdout、manifest、审批时序、变更路径和哈希独立重算，
   最终审计为 `CHAIN_OK / ACCEPTED`。
@@ -55,6 +55,22 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
   SSH 推送已完成。公开仓库：`https://github.com/JAKIIC/LabOps-Guard`。正式 Tag、Release
   与 Runner 镜像再分发仍保持冻结。
 - 候选 Git Tag `v0.3.0-rc1` 对应 Python 包版本 `0.3.0rc1`。
+
+## Phase 6 初赛定稿
+
+- 500 字简介已固定为 429 个非空白字符，并使用精确指标
+  `71.875% × 3 → 97.8124976% × 3`。
+- 官方模板已重排为 18 页完整方案，团队页改为个人参赛者介绍；不公开电话、邮箱或无关
+  简历信息。
+- 新增六角色 Identity 矩阵、7 个 Skill 的集成矩阵，以及 MCP / RAG / OTel 的当前实现与
+  等价边界说明。
+- 两张本地 Runner 镜像已通过断网、只读枚举生成 CycloneDX 1.5 SBOM，共 171 个唯一组件。
+  该清单用于复核，不代表允许分发镜像。
+- Runner 许可证/NOTICE 复核结论为：源码与提交材料可发布；镜像、镜像 tar、Tag 和 GitHub
+  Release 继续冻结，直至基础镜像条款、Debian 源码义务、完整 NOTICE 包和最终 digest 复核
+  全部关闭。
+- 视频脚本与录制检查表已定稿，支持 Dashboard、Docker 或 AgentTeams 临场不可用时的
+  证据回放降级，但不得把回放称为实时执行。
 
 ## 最近验证
 

@@ -112,4 +112,6 @@ Server、mTLS/OIDC 服务身份、GPU 调度、外部数据集或 RAG；相关�
 源码采用 Apache-2.0，公开仓库为 `https://github.com/JAKIIC/LabOps-Guard`；候选 Git Tag
 `v0.3.0-rc1` 对应 Python 包版本 `0.3.0rc1`。`main` 已通过
 Windows/Linux、Python 3.9/3.12 的 GitHub Actions。正式 Release/Tag 仍需确认发布时间，
-Runner 镜像 tar 在公开分发前仍需完成镜像级 SBOM、许可证和 NOTICE 复核。
+Runner 镜像级 SBOM、许可证和 NOTICE 复核已完成：源码与初赛材料可提交，但基础镜像
+再分发条款、Debian 对应源码义务、完整镜像 NOTICE 包和最终 digest 对比尚未关闭。
+因此不分发镜像/tar，也不创建 Tag/Release；详见 `docs/compliance/runner-license-review.md`。

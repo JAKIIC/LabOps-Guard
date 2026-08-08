@@ -1,15 +1,15 @@
 # GOAI Agent Infra requirement mapping
 
-核对日期：2026-08-06
+核对日期：2026-08-09
 官方入口：<https://www.goaihz.com/tracks?track=infra>
 
 ## 初赛交付
 
 | 要求 | LabOps Guard 交付 | 当前状态 |
 |---|---|---|
-| 500 字以内作品简介 | `docs/competition-submission-draft.md` | 已统一 AT-004 口径并自动计数 |
-| 方案 PPT/PDF | 官方模板 18 页，团队介绍页留空 | 生成后进行逐页渲染与溢出检查 |
-| 可执行代码包 | 源码、固定 Runner、三案例证据、manifest/checksum | 仅本地预备，待用户确认 Release |
+| 500 字以内作品简介 | `docs/competition-submission-draft.md` | 429 个非空白字符，统一 AT-004 精确口径 |
+| 方案 PPT/PDF | 官方模板 18 页，含个人参赛者介绍 | 已逐页渲染并进行模板/溢出检查 |
+| 可执行代码包 | 源码、固定 Runner 契约、三案例证据、manifest/checksum | 源码可提交；Runner 镜像不随包分发 |
 
 ## 技术要求
 
@@ -24,7 +24,7 @@
 | 审批与回滚 | 执行前人工批准；非法 metric 修改被拒绝并回滚 | AT-004 approval、AT-002 rollback |
 | 可观测与证据 | Trace、Log、Metrics、Artifact、Approval 五类信号 | `docs/observability.md` |
 | 经验沉淀 | Skill 版本化 + AT-004 postmortem + 可搜索 case memory | `skills/CHANGELOG.md`、`memory/cases/` |
-| Skill 工程 | 六个角色 Skill + Commander 发布记忆能力，均有 I/O Schema | `skills/*/SKILL.md` |
+| Skill 工程 | 7 个 Skill 包；五个主流程 Skill + Commander 的打包/记忆能力 | `docs/skill-integration-matrix.md` |
 | 共享状态/轨迹 | Matrix + MinIO 共享状态、两类哈希链与 Dashboard 投影 | 三个独立证据包 |
 
 ## 工具契约与迁移边界
@@ -53,3 +53,9 @@ Runner Gateway 当前是本地 HTTP 适配层，不宣称已经实现 MCP Server
 不把 checkpoint 备用案例当主演示，不把 Worker Auditor 描述为 PyTorch 二次运行，不把
 回放描述为实时执行，不把未来 OTel/MCP/生产身份写成已完成，也不以 RAG、新数据库或新
 Agent 堆叠技术名词。
+
+## 提交与发布边界
+
+`docs/compliance/runner-sbom.json` 已完成两张本地 Runner 镜像的离线清单；许可证与 NOTICE
+复核结论见 `docs/compliance/`。由于基础镜像再分发条款、Debian 源码义务和完整镜像 NOTICE
+包仍未闭合，本轮只提交源码、文档和证据，不创建 Tag/Release，也不提供镜像 tar。

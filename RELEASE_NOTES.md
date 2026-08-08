@@ -10,11 +10,13 @@ Git Tag 使用 `v0.3.0-rc1`，`pyproject.toml` 使用符合 PEP 440 的 `0.3.0rc
 
 - 90 项全量单元与契约测试通过；
 - AT-002、AT-003、AT-004 三条正式证据包及其审计哈希链独立复核通过；
-- 官方模板 18 页 PPT 通过无溢出与母版一致性检查，团队介绍页保持空白。
+- 官方模板 18 页 PPT 通过无溢出与母版一致性检查；PDF 18 页逐页复核；个人介绍页不含
+  联系方式或无关简历信息。
 
 ## 主演示
 
-- AT-004 六角色 AgentTeams 真实协作：评测预处理漂移 `71.88% × 3 → 97.81% × 3`；
+- AT-004 六角色 AgentTeams 真实协作：评测预处理漂移
+  `71.875% × 3 → 97.8124976% × 3`；
 - 单变量沙箱修复、人工审批、Runner `0.2.0` 断网执行和 Auditor 独立重算；
 - 27-entry 原始证据包与 7-entry Trace 通过多层 SHA-256 校验；
 - Incident Commander 发布独立 postmortem、案例记忆和 closure v2 包，原证据不变。
@@ -27,7 +29,7 @@ Git Tag 使用 `v0.3.0-rc1`，`pyproject.toml` 使用符合 PEP 440 的 `0.3.0rc
 
 ## 工程化
 
-- 六个角色 Skill 加入版本、跨项目复用、生命周期、多 Agent 交接和结构化错误；
+- 7 个 Skill 包加入版本、跨项目复用、生命周期、多 Agent 交接和结构化错误；
 - 删除无引用模板 Skill，新增 Incident Commander 的 `publish-case-memory` Skill；
 - 新增五类证据可观测模型和未来 OpenTelemetry 适配边界；
 - 补齐开源治理、Python 包元数据与最小 CI；
@@ -36,5 +38,6 @@ Git Tag 使用 `v0.3.0-rc1`，`pyproject.toml` 使用符合 PEP 440 的 `0.3.0rc
 ## 事实边界
 
 本候选仍是单机 CPU 演示，不包含生产级身份、调度、GPU、外部数据集、OTel 后端、MCP
-Server 或 RAG。源码许可证与公开仓库已确认；Runner 镜像再分发仍需镜像级 SBOM/NOTICE
-复核。远端 CI 和公开内容检查已通过，正式 Tag 与 Release 仍等待发布时间确认。
+Server 或 RAG。两张本地 Runner 镜像已生成 CycloneDX 1.5 SBOM；许可证/NOTICE 复核发现
+基础镜像条款、Debian 对应源码、完整镜像 NOTICE 和最终 digest 四个未关闭门禁。远端 CI
+和公开内容检查已通过，但正式 Tag、Release 与镜像分发继续冻结。

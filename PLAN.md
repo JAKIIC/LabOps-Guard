@@ -36,4 +36,16 @@
 - [x] 完成公开仓库卫生与 Polar fixture 来源审计；
 - [x] 删除当前 `main` 中许可不明的 Polar fixture 字节，以自有 Apache-2.0 synthetic fixture
   迁移兼容测试和仪表盘回退；历史证据与哈希保持不变；
-- [ ] 完成最终 PPT/PDF、团队介绍、视频和 Runner 镜像级 SBOM/NOTICE 复核。
+- [x] 完成最终 PPT/PDF、个人参赛者介绍、视频脚本和 Runner 镜像级 SBOM/NOTICE 复核；
+  复核发现四个镜像再分发门禁，故不创建 Tag/Release。
+
+## Phase 6 — preliminary submission freeze
+
+- [x] 固化 429 个非空白字符的作品简介与 AT-004 精确指标；
+- [x] 完成 18 页官方模板 PPT、PDF 及逐页渲染检查；
+- [x] 补齐 Agent Identity、Skill、MCP/RAG 等价边界和个人介绍文档；
+- [x] 生成两张 Runner 镜像的离线 CycloneDX 1.5 SBOM；
+- [x] 完成许可证/NOTICE 决策记录与 4 分钟演示脚本；
+- [ ] 录制并人工剪辑演示视频；
+- [ ] 关闭基础镜像条款、Debian 源码、镜像 NOTICE、最终 digest 四个门禁后，再决定
+  是否发布 `v0.3.0-rc1`。

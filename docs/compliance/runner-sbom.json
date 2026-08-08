@@ -1,0 +1,3971 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:505aa136-53f8-43f5-95d6-380b6cf7f007",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-08-08T16:14:40.286672+00:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "build_runner_sbom.py",
+          "version": "1.0"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "name": "LabOps Guard Runner image inventory",
+      "version": "0.3.0-rc1"
+    },
+    "properties": [
+      {
+        "name": "labops:network-access",
+        "value": "disabled"
+      },
+      {
+        "name": "labops:scope",
+        "value": "local images; not a redistribution approval"
+      },
+      {
+        "name": "labops:image-summary",
+        "value": "[{\"image\": \"labops/pytorch-cpu-runner:0.1.0\", \"image_id\": \"sha256:abb8a5fe33e7318ad93e7f82ca3b5f0aeca2b61883492878e33c0a006274b486\", \"created\": \"2026-08-03T11:33:31.088480713Z\", \"python_packages\": 12, \"debian_packages\": 157}, {\"image\": \"labops/pytorch-cpu-runner:0.2.0\", \"image_id\": \"sha256:0fbc3e5f2dd4c9e214423e574d2201bbf9de9f1bb85df2525fe2531bd063ef3f\", \"created\": \"2026-08-04T16:33:58.045693839Z\", \"python_packages\": 12, \"debian_packages\": 157}]"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/adduser@3.152?arch=all",
+      "name": "adduser",
+      "version": "3.152",
+      "purl": "pkg:deb/adduser@3.152?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/apt-transport-https@3.0.3?arch=all",
+      "name": "apt-transport-https",
+      "version": "3.0.3",
+      "purl": "pkg:deb/apt-transport-https@3.0.3?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/apt@3.0.3?arch=amd64",
+      "name": "apt",
+      "version": "3.0.3",
+      "purl": "pkg:deb/apt@3.0.3?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/base-files@13.8+deb13u3?arch=amd64",
+      "name": "base-files",
+      "version": "13.8+deb13u3",
+      "purl": "pkg:deb/base-files@13.8+deb13u3?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/base-passwd@3.6.7?arch=amd64",
+      "name": "base-passwd",
+      "version": "3.6.7",
+      "purl": "pkg:deb/base-passwd@3.6.7?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/bash@5.2.37-2+b7?arch=amd64",
+      "name": "bash",
+      "version": "5.2.37-2+b7",
+      "purl": "pkg:deb/bash@5.2.37-2+b7?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/bsdutils@1:2.41-5?arch=amd64",
+      "name": "bsdutils",
+      "version": "1:2.41-5",
+      "purl": "pkg:deb/bsdutils@1:2.41-5?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/ca-certificates@20250419?arch=all",
+      "name": "ca-certificates",
+      "version": "20250419",
+      "purl": "pkg:deb/ca-certificates@20250419?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/coreutils@9.7-3?arch=amd64",
+      "name": "coreutils",
+      "version": "9.7-3",
+      "purl": "pkg:deb/coreutils@9.7-3?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/curl@8.14.1-2+deb13u4?arch=amd64",
+      "name": "curl",
+      "version": "8.14.1-2+deb13u4",
+      "purl": "pkg:deb/curl@8.14.1-2+deb13u4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/dash@0.5.12-12?arch=amd64",
+      "name": "dash",
+      "version": "0.5.12-12",
+      "purl": "pkg:deb/dash@0.5.12-12?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/debconf@1.5.91?arch=all",
+      "name": "debconf",
+      "version": "1.5.91",
+      "purl": "pkg:deb/debconf@1.5.91?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/debian-archive-keyring@2025.1?arch=all",
+      "name": "debian-archive-keyring",
+      "version": "2025.1",
+      "purl": "pkg:deb/debian-archive-keyring@2025.1?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/debianutils@5.23.2?arch=amd64",
+      "name": "debianutils",
+      "version": "5.23.2",
+      "purl": "pkg:deb/debianutils@5.23.2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/diffutils@1:3.10-4?arch=amd64",
+      "name": "diffutils",
+      "version": "1:3.10-4",
+      "purl": "pkg:deb/diffutils@1:3.10-4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/dirmngr@2.4.7-21+deb13u1+b4?arch=amd64",
+      "name": "dirmngr",
+      "version": "2.4.7-21+deb13u1+b4",
+      "purl": "pkg:deb/dirmngr@2.4.7-21+deb13u1+b4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/dpkg@1.22.21?arch=amd64",
+      "name": "dpkg",
+      "version": "1.22.21",
+      "purl": "pkg:deb/dpkg@1.22.21?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/findutils@4.10.0-3?arch=amd64",
+      "name": "findutils",
+      "version": "4.10.0-3",
+      "purl": "pkg:deb/findutils@4.10.0-3?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/gcc-14-base:amd64@14.2.0-19?arch=amd64",
+      "name": "gcc-14-base:amd64",
+      "version": "14.2.0-19",
+      "purl": "pkg:deb/gcc-14-base:amd64@14.2.0-19?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/git-man@1:2.47.3-0+deb13u1?arch=all",
+      "name": "git-man",
+      "version": "1:2.47.3-0+deb13u1",
+      "purl": "pkg:deb/git-man@1:2.47.3-0+deb13u1?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/git@1:2.47.3-0+deb13u1?arch=amd64",
+      "name": "git",
+      "version": "1:2.47.3-0+deb13u1",
+      "purl": "pkg:deb/git@1:2.47.3-0+deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/gnupg-l10n@2.4.7-21+deb13u1?arch=all",
+      "name": "gnupg-l10n",
+      "version": "2.4.7-21+deb13u1",
+      "purl": "pkg:deb/gnupg-l10n@2.4.7-21+deb13u1?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/gnupg-utils@2.4.7-21+deb13u1+b4?arch=amd64",
+      "name": "gnupg-utils",
+      "version": "2.4.7-21+deb13u1+b4",
+      "purl": "pkg:deb/gnupg-utils@2.4.7-21+deb13u1+b4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/gnupg@2.4.7-21+deb13u1?arch=all",
+      "name": "gnupg",
+      "version": "2.4.7-21+deb13u1",
+      "purl": "pkg:deb/gnupg@2.4.7-21+deb13u1?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/gpg-agent@2.4.7-21+deb13u1+b4?arch=amd64",
+      "name": "gpg-agent",
+      "version": "2.4.7-21+deb13u1+b4",
+      "purl": "pkg:deb/gpg-agent@2.4.7-21+deb13u1+b4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/gpg-wks-client@2.4.7-21+deb13u1+b4?arch=amd64",
+      "name": "gpg-wks-client",
+      "version": "2.4.7-21+deb13u1+b4",
+      "purl": "pkg:deb/gpg-wks-client@2.4.7-21+deb13u1+b4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/gpg@2.4.7-21+deb13u1+b4?arch=amd64",
+      "name": "gpg",
+      "version": "2.4.7-21+deb13u1+b4",
+      "purl": "pkg:deb/gpg@2.4.7-21+deb13u1+b4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/gpgconf@2.4.7-21+deb13u1+b4?arch=amd64",
+      "name": "gpgconf",
+      "version": "2.4.7-21+deb13u1+b4",
+      "purl": "pkg:deb/gpgconf@2.4.7-21+deb13u1+b4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/gpgsm@2.4.7-21+deb13u1+b4?arch=amd64",
+      "name": "gpgsm",
+      "version": "2.4.7-21+deb13u1+b4",
+      "purl": "pkg:deb/gpgsm@2.4.7-21+deb13u1+b4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/gpgv@2.4.7-21+deb13u1+b4?arch=amd64",
+      "name": "gpgv",
+      "version": "2.4.7-21+deb13u1+b4",
+      "purl": "pkg:deb/gpgv@2.4.7-21+deb13u1+b4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/grep@3.11-4?arch=amd64",
+      "name": "grep",
+      "version": "3.11-4",
+      "purl": "pkg:deb/grep@3.11-4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/gzip@1.13-1?arch=amd64",
+      "name": "gzip",
+      "version": "1.13-1",
+      "purl": "pkg:deb/gzip@1.13-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/hostname@3.25?arch=amd64",
+      "name": "hostname",
+      "version": "3.25",
+      "purl": "pkg:deb/hostname@3.25?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/init-system-helpers@1.69~deb13u1?arch=all",
+      "name": "init-system-helpers",
+      "version": "1.69~deb13u1",
+      "purl": "pkg:deb/init-system-helpers@1.69~deb13u1?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/jq@1.7.1-6+deb13u2?arch=amd64",
+      "name": "jq",
+      "version": "1.7.1-6+deb13u2",
+      "purl": "pkg:deb/jq@1.7.1-6+deb13u2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libacl1:amd64@2.3.2-2+b1?arch=amd64",
+      "name": "libacl1:amd64",
+      "version": "2.3.2-2+b1",
+      "purl": "pkg:deb/libacl1:amd64@2.3.2-2+b1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libapt-pkg7.0:amd64@3.0.3?arch=amd64",
+      "name": "libapt-pkg7.0:amd64",
+      "version": "3.0.3",
+      "purl": "pkg:deb/libapt-pkg7.0:amd64@3.0.3?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libassuan9:amd64@3.0.2-2?arch=amd64",
+      "name": "libassuan9:amd64",
+      "version": "3.0.2-2",
+      "purl": "pkg:deb/libassuan9:amd64@3.0.2-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libattr1:amd64@1:2.5.2-3?arch=amd64",
+      "name": "libattr1:amd64",
+      "version": "1:2.5.2-3",
+      "purl": "pkg:deb/libattr1:amd64@1:2.5.2-3?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libaudit-common@1:4.0.2-2?arch=all",
+      "name": "libaudit-common",
+      "version": "1:4.0.2-2",
+      "purl": "pkg:deb/libaudit-common@1:4.0.2-2?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libaudit1:amd64@1:4.0.2-2+b2?arch=amd64",
+      "name": "libaudit1:amd64",
+      "version": "1:4.0.2-2+b2",
+      "purl": "pkg:deb/libaudit1:amd64@1:4.0.2-2+b2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libblkid1:amd64@2.41-5?arch=amd64",
+      "name": "libblkid1:amd64",
+      "version": "2.41-5",
+      "purl": "pkg:deb/libblkid1:amd64@2.41-5?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libbrotli1:amd64@1.1.0-2+b7?arch=amd64",
+      "name": "libbrotli1:amd64",
+      "version": "1.1.0-2+b7",
+      "purl": "pkg:deb/libbrotli1:amd64@1.1.0-2+b7?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libbsd0:amd64@0.12.2-2?arch=amd64",
+      "name": "libbsd0:amd64",
+      "version": "0.12.2-2",
+      "purl": "pkg:deb/libbsd0:amd64@0.12.2-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libbz2-1.0:amd64@1.0.8-6?arch=amd64",
+      "name": "libbz2-1.0:amd64",
+      "version": "1.0.8-6",
+      "purl": "pkg:deb/libbz2-1.0:amd64@1.0.8-6?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libc-bin@2.41-12+deb13u1?arch=amd64",
+      "name": "libc-bin",
+      "version": "2.41-12+deb13u1",
+      "purl": "pkg:deb/libc-bin@2.41-12+deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libc6:amd64@2.41-12+deb13u1?arch=amd64",
+      "name": "libc6:amd64",
+      "version": "2.41-12+deb13u1",
+      "purl": "pkg:deb/libc6:amd64@2.41-12+deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libcap-ng0:amd64@0.8.5-4+b1?arch=amd64",
+      "name": "libcap-ng0:amd64",
+      "version": "0.8.5-4+b1",
+      "purl": "pkg:deb/libcap-ng0:amd64@0.8.5-4+b1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libcap2:amd64@1:2.75-10+b3?arch=amd64",
+      "name": "libcap2:amd64",
+      "version": "1:2.75-10+b3",
+      "purl": "pkg:deb/libcap2:amd64@1:2.75-10+b3?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libcom-err2:amd64@1.47.2-3+b11?arch=amd64",
+      "name": "libcom-err2:amd64",
+      "version": "1.47.2-3+b11",
+      "purl": "pkg:deb/libcom-err2:amd64@1.47.2-3+b11?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libcrypt1:amd64@1:4.4.38-1?arch=amd64",
+      "name": "libcrypt1:amd64",
+      "version": "1:4.4.38-1",
+      "purl": "pkg:deb/libcrypt1:amd64@1:4.4.38-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libcurl3t64-gnutls:amd64@8.14.1-2+deb13u4?arch=amd64",
+      "name": "libcurl3t64-gnutls:amd64",
+      "version": "8.14.1-2+deb13u4",
+      "purl": "pkg:deb/libcurl3t64-gnutls:amd64@8.14.1-2+deb13u4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libcurl4t64:amd64@8.14.1-2+deb13u4?arch=amd64",
+      "name": "libcurl4t64:amd64",
+      "version": "8.14.1-2+deb13u4",
+      "purl": "pkg:deb/libcurl4t64:amd64@8.14.1-2+deb13u4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libdb5.3t64:amd64@5.3.28+dfsg2-9?arch=amd64",
+      "name": "libdb5.3t64:amd64",
+      "version": "5.3.28+dfsg2-9",
+      "purl": "pkg:deb/libdb5.3t64:amd64@5.3.28+dfsg2-9?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libdebconfclient0:amd64@0.280?arch=amd64",
+      "name": "libdebconfclient0:amd64",
+      "version": "0.280",
+      "purl": "pkg:deb/libdebconfclient0:amd64@0.280?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/liberror-perl@0.17030-1?arch=all",
+      "name": "liberror-perl",
+      "version": "0.17030-1",
+      "purl": "pkg:deb/liberror-perl@0.17030-1?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libexpat1:amd64@2.8.2-1~deb13u1?arch=amd64",
+      "name": "libexpat1:amd64",
+      "version": "2.8.2-1~deb13u1",
+      "purl": "pkg:deb/libexpat1:amd64@2.8.2-1~deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libffi8:amd64@3.4.8-2?arch=amd64",
+      "name": "libffi8:amd64",
+      "version": "3.4.8-2",
+      "purl": "pkg:deb/libffi8:amd64@3.4.8-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libgcc-s1:amd64@14.2.0-19?arch=amd64",
+      "name": "libgcc-s1:amd64",
+      "version": "14.2.0-19",
+      "purl": "pkg:deb/libgcc-s1:amd64@14.2.0-19?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libgcrypt20:amd64@1.11.0-7+deb13u1?arch=amd64",
+      "name": "libgcrypt20:amd64",
+      "version": "1.11.0-7+deb13u1",
+      "purl": "pkg:deb/libgcrypt20:amd64@1.11.0-7+deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libgdbm-compat4t64:amd64@1.24-2?arch=amd64",
+      "name": "libgdbm-compat4t64:amd64",
+      "version": "1.24-2",
+      "purl": "pkg:deb/libgdbm-compat4t64:amd64@1.24-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libgdbm6t64:amd64@1.24-2?arch=amd64",
+      "name": "libgdbm6t64:amd64",
+      "version": "1.24-2",
+      "purl": "pkg:deb/libgdbm6t64:amd64@1.24-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libgmp10:amd64@2:6.3.0+dfsg-3?arch=amd64",
+      "name": "libgmp10:amd64",
+      "version": "2:6.3.0+dfsg-3",
+      "purl": "pkg:deb/libgmp10:amd64@2:6.3.0+dfsg-3?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libgnutls30t64:amd64@3.8.9-3+deb13u4?arch=amd64",
+      "name": "libgnutls30t64:amd64",
+      "version": "3.8.9-3+deb13u4",
+      "purl": "pkg:deb/libgnutls30t64:amd64@3.8.9-3+deb13u4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libgpg-error-l10n@1.51-4?arch=all",
+      "name": "libgpg-error-l10n",
+      "version": "1.51-4",
+      "purl": "pkg:deb/libgpg-error-l10n@1.51-4?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libgpg-error0:amd64@1.51-4?arch=amd64",
+      "name": "libgpg-error0:amd64",
+      "version": "1.51-4",
+      "purl": "pkg:deb/libgpg-error0:amd64@1.51-4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libgssapi-krb5-2:amd64@1.21.3-5+deb13u1?arch=amd64",
+      "name": "libgssapi-krb5-2:amd64",
+      "version": "1.21.3-5+deb13u1",
+      "purl": "pkg:deb/libgssapi-krb5-2:amd64@1.21.3-5+deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libhogweed6t64:amd64@3.10.1-1?arch=amd64",
+      "name": "libhogweed6t64:amd64",
+      "version": "3.10.1-1",
+      "purl": "pkg:deb/libhogweed6t64:amd64@3.10.1-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libidn2-0:amd64@2.3.8-2?arch=amd64",
+      "name": "libidn2-0:amd64",
+      "version": "2.3.8-2",
+      "purl": "pkg:deb/libidn2-0:amd64@2.3.8-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libjemalloc2:amd64@5.3.0-3?arch=amd64",
+      "name": "libjemalloc2:amd64",
+      "version": "5.3.0-3",
+      "purl": "pkg:deb/libjemalloc2:amd64@5.3.0-3?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libjq1:amd64@1.7.1-6+deb13u2?arch=amd64",
+      "name": "libjq1:amd64",
+      "version": "1.7.1-6+deb13u2",
+      "purl": "pkg:deb/libjq1:amd64@1.7.1-6+deb13u2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libk5crypto3:amd64@1.21.3-5+deb13u1?arch=amd64",
+      "name": "libk5crypto3:amd64",
+      "version": "1.21.3-5+deb13u1",
+      "purl": "pkg:deb/libk5crypto3:amd64@1.21.3-5+deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libkeyutils1:amd64@1.6.3-6?arch=amd64",
+      "name": "libkeyutils1:amd64",
+      "version": "1.6.3-6",
+      "purl": "pkg:deb/libkeyutils1:amd64@1.6.3-6?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libkrb5-3:amd64@1.21.3-5+deb13u1?arch=amd64",
+      "name": "libkrb5-3:amd64",
+      "version": "1.21.3-5+deb13u1",
+      "purl": "pkg:deb/libkrb5-3:amd64@1.21.3-5+deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libkrb5support0:amd64@1.21.3-5+deb13u1?arch=amd64",
+      "name": "libkrb5support0:amd64",
+      "version": "1.21.3-5+deb13u1",
+      "purl": "pkg:deb/libkrb5support0:amd64@1.21.3-5+deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libksba8:amd64@1.6.7-2+b1?arch=amd64",
+      "name": "libksba8:amd64",
+      "version": "1.6.7-2+b1",
+      "purl": "pkg:deb/libksba8:amd64@1.6.7-2+b1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/liblastlog2-2:amd64@2.41-5?arch=amd64",
+      "name": "liblastlog2-2:amd64",
+      "version": "2.41-5",
+      "purl": "pkg:deb/liblastlog2-2:amd64@2.41-5?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libldap2:amd64@2.6.10+dfsg-1?arch=amd64",
+      "name": "libldap2:amd64",
+      "version": "2.6.10+dfsg-1",
+      "purl": "pkg:deb/libldap2:amd64@2.6.10+dfsg-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/liblz4-1:amd64@1.10.0-4?arch=amd64",
+      "name": "liblz4-1:amd64",
+      "version": "1.10.0-4",
+      "purl": "pkg:deb/liblz4-1:amd64@1.10.0-4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/liblzma5:amd64@5.8.1-1?arch=amd64",
+      "name": "liblzma5:amd64",
+      "version": "5.8.1-1",
+      "purl": "pkg:deb/liblzma5:amd64@5.8.1-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libmd0:amd64@1.1.0-2+b1?arch=amd64",
+      "name": "libmd0:amd64",
+      "version": "1.1.0-2+b1",
+      "purl": "pkg:deb/libmd0:amd64@1.1.0-2+b1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libmount1:amd64@2.41-5?arch=amd64",
+      "name": "libmount1:amd64",
+      "version": "2.41-5",
+      "purl": "pkg:deb/libmount1:amd64@2.41-5?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libncursesw6:amd64@6.5+20250216-2?arch=amd64",
+      "name": "libncursesw6:amd64",
+      "version": "6.5+20250216-2",
+      "purl": "pkg:deb/libncursesw6:amd64@6.5+20250216-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libnettle8t64:amd64@3.10.1-1?arch=amd64",
+      "name": "libnettle8t64:amd64",
+      "version": "3.10.1-1",
+      "purl": "pkg:deb/libnettle8t64:amd64@3.10.1-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libnghttp2-14:amd64@1.64.0-1.1+deb13u1?arch=amd64",
+      "name": "libnghttp2-14:amd64",
+      "version": "1.64.0-1.1+deb13u1",
+      "purl": "pkg:deb/libnghttp2-14:amd64@1.64.0-1.1+deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libnghttp3-9:amd64@1.8.0-1?arch=amd64",
+      "name": "libnghttp3-9:amd64",
+      "version": "1.8.0-1",
+      "purl": "pkg:deb/libnghttp3-9:amd64@1.8.0-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libngtcp2-16:amd64@1.11.0-1+deb13u1?arch=amd64",
+      "name": "libngtcp2-16:amd64",
+      "version": "1.11.0-1+deb13u1",
+      "purl": "pkg:deb/libngtcp2-16:amd64@1.11.0-1+deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libngtcp2-crypto-gnutls8:amd64@1.11.0-1+deb13u1?arch=amd64",
+      "name": "libngtcp2-crypto-gnutls8:amd64",
+      "version": "1.11.0-1+deb13u1",
+      "purl": "pkg:deb/libngtcp2-crypto-gnutls8:amd64@1.11.0-1+deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libnpth0t64:amd64@1.8-3?arch=amd64",
+      "name": "libnpth0t64:amd64",
+      "version": "1.8-3",
+      "purl": "pkg:deb/libnpth0t64:amd64@1.8-3?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libolm-dev:amd64@3.2.16+dfsg-3?arch=amd64",
+      "name": "libolm-dev:amd64",
+      "version": "3.2.16+dfsg-3",
+      "purl": "pkg:deb/libolm-dev:amd64@3.2.16+dfsg-3?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libolm3:amd64@3.2.16+dfsg-3?arch=amd64",
+      "name": "libolm3:amd64",
+      "version": "3.2.16+dfsg-3",
+      "purl": "pkg:deb/libolm3:amd64@3.2.16+dfsg-3?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libonig5:amd64@6.9.9-1+b1?arch=amd64",
+      "name": "libonig5:amd64",
+      "version": "6.9.9-1+b1",
+      "purl": "pkg:deb/libonig5:amd64@6.9.9-1+b1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libp11-kit0:amd64@0.25.5-3?arch=amd64",
+      "name": "libp11-kit0:amd64",
+      "version": "0.25.5-3",
+      "purl": "pkg:deb/libp11-kit0:amd64@0.25.5-3?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libpam-modules-bin@1.7.0-5?arch=amd64",
+      "name": "libpam-modules-bin",
+      "version": "1.7.0-5",
+      "purl": "pkg:deb/libpam-modules-bin@1.7.0-5?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libpam-modules:amd64@1.7.0-5?arch=amd64",
+      "name": "libpam-modules:amd64",
+      "version": "1.7.0-5",
+      "purl": "pkg:deb/libpam-modules:amd64@1.7.0-5?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libpam-runtime@1.7.0-5?arch=all",
+      "name": "libpam-runtime",
+      "version": "1.7.0-5",
+      "purl": "pkg:deb/libpam-runtime@1.7.0-5?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libpam0g:amd64@1.7.0-5?arch=amd64",
+      "name": "libpam0g:amd64",
+      "version": "1.7.0-5",
+      "purl": "pkg:deb/libpam0g:amd64@1.7.0-5?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libpcre2-8-0:amd64@10.46-1~deb13u1?arch=amd64",
+      "name": "libpcre2-8-0:amd64",
+      "version": "10.46-1~deb13u1",
+      "purl": "pkg:deb/libpcre2-8-0:amd64@10.46-1~deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libperl5.40:amd64@5.40.1-6?arch=amd64",
+      "name": "libperl5.40:amd64",
+      "version": "5.40.1-6",
+      "purl": "pkg:deb/libperl5.40:amd64@5.40.1-6?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libpkgconf3:amd64@1.8.1-4?arch=amd64",
+      "name": "libpkgconf3:amd64",
+      "version": "1.8.1-4",
+      "purl": "pkg:deb/libpkgconf3:amd64@1.8.1-4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libpsl5t64:amd64@0.21.2-1.1+b1?arch=amd64",
+      "name": "libpsl5t64:amd64",
+      "version": "0.21.2-1.1+b1",
+      "purl": "pkg:deb/libpsl5t64:amd64@0.21.2-1.1+b1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libpython3-stdlib:amd64@3.13.5-1?arch=amd64",
+      "name": "libpython3-stdlib:amd64",
+      "version": "3.13.5-1",
+      "purl": "pkg:deb/libpython3-stdlib:amd64@3.13.5-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libpython3.13-minimal:amd64@3.13.5-2+deb13u4?arch=amd64",
+      "name": "libpython3.13-minimal:amd64",
+      "version": "3.13.5-2+deb13u4",
+      "purl": "pkg:deb/libpython3.13-minimal:amd64@3.13.5-2+deb13u4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libpython3.13-stdlib:amd64@3.13.5-2+deb13u4?arch=amd64",
+      "name": "libpython3.13-stdlib:amd64",
+      "version": "3.13.5-2+deb13u4",
+      "purl": "pkg:deb/libpython3.13-stdlib:amd64@3.13.5-2+deb13u4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libreadline8t64:amd64@8.2-6?arch=amd64",
+      "name": "libreadline8t64:amd64",
+      "version": "8.2-6",
+      "purl": "pkg:deb/libreadline8t64:amd64@8.2-6?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/librtmp1:amd64@2.4+20151223.gitfa8646d.1-2+b5?arch=amd64",
+      "name": "librtmp1:amd64",
+      "version": "2.4+20151223.gitfa8646d.1-2+b5",
+      "purl": "pkg:deb/librtmp1:amd64@2.4+20151223.gitfa8646d.1-2+b5?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libsasl2-2:amd64@2.1.28+dfsg1-9?arch=amd64",
+      "name": "libsasl2-2:amd64",
+      "version": "2.1.28+dfsg1-9",
+      "purl": "pkg:deb/libsasl2-2:amd64@2.1.28+dfsg1-9?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libsasl2-modules-db:amd64@2.1.28+dfsg1-9?arch=amd64",
+      "name": "libsasl2-modules-db:amd64",
+      "version": "2.1.28+dfsg1-9",
+      "purl": "pkg:deb/libsasl2-modules-db:amd64@2.1.28+dfsg1-9?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libseccomp2:amd64@2.6.0-2?arch=amd64",
+      "name": "libseccomp2:amd64",
+      "version": "2.6.0-2",
+      "purl": "pkg:deb/libseccomp2:amd64@2.6.0-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libselinux1:amd64@3.8.1-1?arch=amd64",
+      "name": "libselinux1:amd64",
+      "version": "3.8.1-1",
+      "purl": "pkg:deb/libselinux1:amd64@3.8.1-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libsemanage-common@3.8.1-1?arch=all",
+      "name": "libsemanage-common",
+      "version": "3.8.1-1",
+      "purl": "pkg:deb/libsemanage-common@3.8.1-1?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libsemanage2:amd64@3.8.1-1?arch=amd64",
+      "name": "libsemanage2:amd64",
+      "version": "3.8.1-1",
+      "purl": "pkg:deb/libsemanage2:amd64@3.8.1-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libsepol2:amd64@3.8.1-1?arch=amd64",
+      "name": "libsepol2:amd64",
+      "version": "3.8.1-1",
+      "purl": "pkg:deb/libsepol2:amd64@3.8.1-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libsmartcols1:amd64@2.41-5?arch=amd64",
+      "name": "libsmartcols1:amd64",
+      "version": "2.41-5",
+      "purl": "pkg:deb/libsmartcols1:amd64@2.41-5?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libsqlite3-0:amd64@3.46.1-7?arch=amd64",
+      "name": "libsqlite3-0:amd64",
+      "version": "3.46.1-7",
+      "purl": "pkg:deb/libsqlite3-0:amd64@3.46.1-7?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libssh2-1t64:amd64@1.11.1-1+deb13u1?arch=amd64",
+      "name": "libssh2-1t64:amd64",
+      "version": "1.11.1-1+deb13u1",
+      "purl": "pkg:deb/libssh2-1t64:amd64@1.11.1-1+deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libssl3t64:amd64@3.5.4-1~deb13u2?arch=amd64",
+      "name": "libssl3t64:amd64",
+      "version": "3.5.4-1~deb13u2",
+      "purl": "pkg:deb/libssl3t64:amd64@3.5.4-1~deb13u2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libstdc++6:amd64@14.2.0-19?arch=amd64",
+      "name": "libstdc++6:amd64",
+      "version": "14.2.0-19",
+      "purl": "pkg:deb/libstdc++6:amd64@14.2.0-19?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libsystemd0:amd64@257.9-1~deb13u1?arch=amd64",
+      "name": "libsystemd0:amd64",
+      "version": "257.9-1~deb13u1",
+      "purl": "pkg:deb/libsystemd0:amd64@257.9-1~deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libtasn1-6:amd64@4.20.0-2+deb13u1?arch=amd64",
+      "name": "libtasn1-6:amd64",
+      "version": "4.20.0-2+deb13u1",
+      "purl": "pkg:deb/libtasn1-6:amd64@4.20.0-2+deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libtinfo6:amd64@6.5+20250216-2?arch=amd64",
+      "name": "libtinfo6:amd64",
+      "version": "6.5+20250216-2",
+      "purl": "pkg:deb/libtinfo6:amd64@6.5+20250216-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libudev1:amd64@257.9-1~deb13u1?arch=amd64",
+      "name": "libudev1:amd64",
+      "version": "257.9-1~deb13u1",
+      "purl": "pkg:deb/libudev1:amd64@257.9-1~deb13u1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libunistring5:amd64@1.3-2?arch=amd64",
+      "name": "libunistring5:amd64",
+      "version": "1.3-2",
+      "purl": "pkg:deb/libunistring5:amd64@1.3-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libuuid1:amd64@2.41-5?arch=amd64",
+      "name": "libuuid1:amd64",
+      "version": "2.41-5",
+      "purl": "pkg:deb/libuuid1:amd64@2.41-5?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libxxhash0:amd64@0.8.3-2?arch=amd64",
+      "name": "libxxhash0:amd64",
+      "version": "0.8.3-2",
+      "purl": "pkg:deb/libxxhash0:amd64@0.8.3-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/libzstd1:amd64@1.5.7+dfsg-1?arch=amd64",
+      "name": "libzstd1:amd64",
+      "version": "1.5.7+dfsg-1",
+      "purl": "pkg:deb/libzstd1:amd64@1.5.7+dfsg-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/login.defs@1:4.17.4-2?arch=all",
+      "name": "login.defs",
+      "version": "1:4.17.4-2",
+      "purl": "pkg:deb/login.defs@1:4.17.4-2?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/login@1:4.16.0-2+really2.41-5?arch=amd64",
+      "name": "login",
+      "version": "1:4.16.0-2+really2.41-5",
+      "purl": "pkg:deb/login@1:4.16.0-2+really2.41-5?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/mawk@1.3.4.20250131-1?arch=amd64",
+      "name": "mawk",
+      "version": "1.3.4.20250131-1",
+      "purl": "pkg:deb/mawk@1.3.4.20250131-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/media-types@13.0.0?arch=all",
+      "name": "media-types",
+      "version": "13.0.0",
+      "purl": "pkg:deb/media-types@13.0.0?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/mount@2.41-5?arch=amd64",
+      "name": "mount",
+      "version": "2.41-5",
+      "purl": "pkg:deb/mount@2.41-5?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/ncurses-base@6.5+20250216-2?arch=all",
+      "name": "ncurses-base",
+      "version": "6.5+20250216-2",
+      "purl": "pkg:deb/ncurses-base@6.5+20250216-2?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/ncurses-bin@6.5+20250216-2?arch=amd64",
+      "name": "ncurses-bin",
+      "version": "6.5+20250216-2",
+      "purl": "pkg:deb/ncurses-bin@6.5+20250216-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/netbase@6.5?arch=all",
+      "name": "netbase",
+      "version": "6.5",
+      "purl": "pkg:deb/netbase@6.5?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/nodejs@22.23.2-1nodesource1?arch=amd64",
+      "name": "nodejs",
+      "version": "22.23.2-1nodesource1",
+      "purl": "pkg:deb/nodejs@22.23.2-1nodesource1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/openssl-provider-legacy@3.5.4-1~deb13u2?arch=amd64",
+      "name": "openssl-provider-legacy",
+      "version": "3.5.4-1~deb13u2",
+      "purl": "pkg:deb/openssl-provider-legacy@3.5.4-1~deb13u2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/openssl@3.5.4-1~deb13u2?arch=amd64",
+      "name": "openssl",
+      "version": "3.5.4-1~deb13u2",
+      "purl": "pkg:deb/openssl@3.5.4-1~deb13u2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/passwd@1:4.17.4-2?arch=amd64",
+      "name": "passwd",
+      "version": "1:4.17.4-2",
+      "purl": "pkg:deb/passwd@1:4.17.4-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/perl-base@5.40.1-6?arch=amd64",
+      "name": "perl-base",
+      "version": "5.40.1-6",
+      "purl": "pkg:deb/perl-base@5.40.1-6?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/perl-modules-5.40@5.40.1-6?arch=all",
+      "name": "perl-modules-5.40",
+      "version": "5.40.1-6",
+      "purl": "pkg:deb/perl-modules-5.40@5.40.1-6?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/perl@5.40.1-6?arch=amd64",
+      "name": "perl",
+      "version": "5.40.1-6",
+      "purl": "pkg:deb/perl@5.40.1-6?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/pinentry-curses@1.3.1-2?arch=amd64",
+      "name": "pinentry-curses",
+      "version": "1.3.1-2",
+      "purl": "pkg:deb/pinentry-curses@1.3.1-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/pkg-config:amd64@1.8.1-4?arch=amd64",
+      "name": "pkg-config:amd64",
+      "version": "1.8.1-4",
+      "purl": "pkg:deb/pkg-config:amd64@1.8.1-4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/pkgconf-bin@1.8.1-4?arch=amd64",
+      "name": "pkgconf-bin",
+      "version": "1.8.1-4",
+      "purl": "pkg:deb/pkgconf-bin@1.8.1-4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/pkgconf:amd64@1.8.1-4?arch=amd64",
+      "name": "pkgconf:amd64",
+      "version": "1.8.1-4",
+      "purl": "pkg:deb/pkgconf:amd64@1.8.1-4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/python3-minimal@3.13.5-1?arch=amd64",
+      "name": "python3-minimal",
+      "version": "3.13.5-1",
+      "purl": "pkg:deb/python3-minimal@3.13.5-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/python3.13-minimal@3.13.5-2+deb13u4?arch=amd64",
+      "name": "python3.13-minimal",
+      "version": "3.13.5-2+deb13u4",
+      "purl": "pkg:deb/python3.13-minimal@3.13.5-2+deb13u4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/python3.13@3.13.5-2+deb13u4?arch=amd64",
+      "name": "python3.13",
+      "version": "3.13.5-2+deb13u4",
+      "purl": "pkg:deb/python3.13@3.13.5-2+deb13u4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/python3@3.13.5-1?arch=amd64",
+      "name": "python3",
+      "version": "3.13.5-1",
+      "purl": "pkg:deb/python3@3.13.5-1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/readline-common@8.2-6?arch=all",
+      "name": "readline-common",
+      "version": "8.2-6",
+      "purl": "pkg:deb/readline-common@8.2-6?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/sed@4.9-2?arch=amd64",
+      "name": "sed",
+      "version": "4.9-2",
+      "purl": "pkg:deb/sed@4.9-2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/sqv@1.3.0-3+b2?arch=amd64",
+      "name": "sqv",
+      "version": "1.3.0-3+b2",
+      "purl": "pkg:deb/sqv@1.3.0-3+b2?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/sysvinit-utils@3.14-4?arch=amd64",
+      "name": "sysvinit-utils",
+      "version": "3.14-4",
+      "purl": "pkg:deb/sysvinit-utils@3.14-4?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/tar@1.35+dfsg-3.1?arch=amd64",
+      "name": "tar",
+      "version": "1.35+dfsg-3.1",
+      "purl": "pkg:deb/tar@1.35+dfsg-3.1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/tzdata@2026b-0+deb13u1?arch=all",
+      "name": "tzdata",
+      "version": "2026b-0+deb13u1",
+      "purl": "pkg:deb/tzdata@2026b-0+deb13u1?arch=all",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/util-linux@2.41-5?arch=amd64",
+      "name": "util-linux",
+      "version": "2.41-5",
+      "purl": "pkg:deb/util-linux@2.41-5?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:deb/zlib1g:amd64@1:1.3.dfsg+really1.3.1-1+b1?arch=amd64",
+      "name": "zlib1g:amd64",
+      "version": "1:1.3.dfsg+really1.3.1-1+b1",
+      "purl": "pkg:deb/zlib1g:amd64@1:1.3.dfsg+really1.3.1-1+b1?arch=amd64",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "os"
+        },
+        {
+          "name": "labops:distro",
+          "value": "debian:13"
+        },
+        {
+          "name": "labops:license-source",
+          "value": "/usr/share/doc/<package>/copyright"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "bom-ref": "pkg:oci/labops/pytorch-cpu-runner@sha256:0fbc3e5f2dd4c9e214423e574d2201bbf9de9f1bb85df2525fe2531bd063ef3f",
+      "name": "labops/pytorch-cpu-runner",
+      "version": "0.2.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0fbc3e5f2dd4c9e214423e574d2201bbf9de9f1bb85df2525fe2531bd063ef3f"
+        }
+      ],
+      "properties": [
+        {
+          "name": "labops:runtime-network",
+          "value": "none"
+        },
+        {
+          "name": "labops:inventory-method",
+          "value": "offline docker run --network none"
+        },
+        {
+          "name": "labops:os",
+          "value": "Debian GNU/Linux 13 (trixie)"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "bom-ref": "pkg:oci/labops/pytorch-cpu-runner@sha256:abb8a5fe33e7318ad93e7f82ca3b5f0aeca2b61883492878e33c0a006274b486",
+      "name": "labops/pytorch-cpu-runner",
+      "version": "0.1.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "abb8a5fe33e7318ad93e7f82ca3b5f0aeca2b61883492878e33c0a006274b486"
+        }
+      ],
+      "properties": [
+        {
+          "name": "labops:runtime-network",
+          "value": "none"
+        },
+        {
+          "name": "labops:inventory-method",
+          "value": "offline docker run --network none"
+        },
+        {
+          "name": "labops:os",
+          "value": "Debian GNU/Linux 13 (trixie)"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/filelock@3.29.0",
+      "name": "filelock",
+      "version": "3.29.0",
+      "purl": "pkg:pypi/filelock@3.29.0",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "python"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/fsspec@2026.4.0",
+      "name": "fsspec",
+      "version": "2026.4.0",
+      "purl": "pkg:pypi/fsspec@2026.4.0",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "python"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/jinja2@3.1.6",
+      "name": "Jinja2",
+      "version": "3.1.6",
+      "purl": "pkg:pypi/jinja2@3.1.6",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "python"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/markupsafe@3.0.3",
+      "name": "MarkupSafe",
+      "version": "3.0.3",
+      "purl": "pkg:pypi/markupsafe@3.0.3",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "python"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/mpmath@1.3.0",
+      "name": "mpmath",
+      "version": "1.3.0",
+      "purl": "pkg:pypi/mpmath@1.3.0",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "python"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/networkx@3.6.1",
+      "name": "networkx",
+      "version": "3.6.1",
+      "purl": "pkg:pypi/networkx@3.6.1",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "python"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pip@24.0",
+      "name": "pip",
+      "version": "24.0",
+      "purl": "pkg:pypi/pip@24.0",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "python"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/setuptools@79.0.1",
+      "name": "setuptools",
+      "version": "79.0.1",
+      "purl": "pkg:pypi/setuptools@79.0.1",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "python"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/sympy@1.13.1",
+      "name": "sympy",
+      "version": "1.13.1",
+      "purl": "pkg:pypi/sympy@1.13.1",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "python"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/torch@2.5.1+cpu",
+      "name": "torch",
+      "version": "2.5.1+cpu",
+      "purl": "pkg:pypi/torch@2.5.1+cpu",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "python"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/typing-extensions@4.15.0",
+      "name": "typing_extensions",
+      "version": "4.15.0",
+      "purl": "pkg:pypi/typing-extensions@4.15.0",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "python"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/wheel@0.45.1",
+      "name": "wheel",
+      "version": "0.45.1",
+      "purl": "pkg:pypi/wheel@0.45.1",
+      "properties": [
+        {
+          "name": "labops:package-layer",
+          "value": "python"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:oci/labops/pytorch-cpu-runner@sha256:abb8a5fe33e7318ad93e7f82ca3b5f0aeca2b61883492878e33c0a006274b486",
+      "dependsOn": [
+        "pkg:deb/adduser@3.152?arch=all",
+        "pkg:deb/apt-transport-https@3.0.3?arch=all",
+        "pkg:deb/apt@3.0.3?arch=amd64",
+        "pkg:deb/base-files@13.8+deb13u3?arch=amd64",
+        "pkg:deb/base-passwd@3.6.7?arch=amd64",
+        "pkg:deb/bash@5.2.37-2+b7?arch=amd64",
+        "pkg:deb/bsdutils@1:2.41-5?arch=amd64",
+        "pkg:deb/ca-certificates@20250419?arch=all",
+        "pkg:deb/coreutils@9.7-3?arch=amd64",
+        "pkg:deb/curl@8.14.1-2+deb13u4?arch=amd64",
+        "pkg:deb/dash@0.5.12-12?arch=amd64",
+        "pkg:deb/debconf@1.5.91?arch=all",
+        "pkg:deb/debian-archive-keyring@2025.1?arch=all",
+        "pkg:deb/debianutils@5.23.2?arch=amd64",
+        "pkg:deb/diffutils@1:3.10-4?arch=amd64",
+        "pkg:deb/dirmngr@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/dpkg@1.22.21?arch=amd64",
+        "pkg:deb/findutils@4.10.0-3?arch=amd64",
+        "pkg:deb/gcc-14-base:amd64@14.2.0-19?arch=amd64",
+        "pkg:deb/git-man@1:2.47.3-0+deb13u1?arch=all",
+        "pkg:deb/git@1:2.47.3-0+deb13u1?arch=amd64",
+        "pkg:deb/gnupg-l10n@2.4.7-21+deb13u1?arch=all",
+        "pkg:deb/gnupg-utils@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/gnupg@2.4.7-21+deb13u1?arch=all",
+        "pkg:deb/gpg-agent@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/gpg-wks-client@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/gpg@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/gpgconf@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/gpgsm@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/gpgv@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/grep@3.11-4?arch=amd64",
+        "pkg:deb/gzip@1.13-1?arch=amd64",
+        "pkg:deb/hostname@3.25?arch=amd64",
+        "pkg:deb/init-system-helpers@1.69~deb13u1?arch=all",
+        "pkg:deb/jq@1.7.1-6+deb13u2?arch=amd64",
+        "pkg:deb/libacl1:amd64@2.3.2-2+b1?arch=amd64",
+        "pkg:deb/libapt-pkg7.0:amd64@3.0.3?arch=amd64",
+        "pkg:deb/libassuan9:amd64@3.0.2-2?arch=amd64",
+        "pkg:deb/libattr1:amd64@1:2.5.2-3?arch=amd64",
+        "pkg:deb/libaudit-common@1:4.0.2-2?arch=all",
+        "pkg:deb/libaudit1:amd64@1:4.0.2-2+b2?arch=amd64",
+        "pkg:deb/libblkid1:amd64@2.41-5?arch=amd64",
+        "pkg:deb/libbrotli1:amd64@1.1.0-2+b7?arch=amd64",
+        "pkg:deb/libbsd0:amd64@0.12.2-2?arch=amd64",
+        "pkg:deb/libbz2-1.0:amd64@1.0.8-6?arch=amd64",
+        "pkg:deb/libc-bin@2.41-12+deb13u1?arch=amd64",
+        "pkg:deb/libc6:amd64@2.41-12+deb13u1?arch=amd64",
+        "pkg:deb/libcap-ng0:amd64@0.8.5-4+b1?arch=amd64",
+        "pkg:deb/libcap2:amd64@1:2.75-10+b3?arch=amd64",
+        "pkg:deb/libcom-err2:amd64@1.47.2-3+b11?arch=amd64",
+        "pkg:deb/libcrypt1:amd64@1:4.4.38-1?arch=amd64",
+        "pkg:deb/libcurl3t64-gnutls:amd64@8.14.1-2+deb13u4?arch=amd64",
+        "pkg:deb/libcurl4t64:amd64@8.14.1-2+deb13u4?arch=amd64",
+        "pkg:deb/libdb5.3t64:amd64@5.3.28+dfsg2-9?arch=amd64",
+        "pkg:deb/libdebconfclient0:amd64@0.280?arch=amd64",
+        "pkg:deb/liberror-perl@0.17030-1?arch=all",
+        "pkg:deb/libexpat1:amd64@2.8.2-1~deb13u1?arch=amd64",
+        "pkg:deb/libffi8:amd64@3.4.8-2?arch=amd64",
+        "pkg:deb/libgcc-s1:amd64@14.2.0-19?arch=amd64",
+        "pkg:deb/libgcrypt20:amd64@1.11.0-7+deb13u1?arch=amd64",
+        "pkg:deb/libgdbm-compat4t64:amd64@1.24-2?arch=amd64",
+        "pkg:deb/libgdbm6t64:amd64@1.24-2?arch=amd64",
+        "pkg:deb/libgmp10:amd64@2:6.3.0+dfsg-3?arch=amd64",
+        "pkg:deb/libgnutls30t64:amd64@3.8.9-3+deb13u4?arch=amd64",
+        "pkg:deb/libgpg-error-l10n@1.51-4?arch=all",
+        "pkg:deb/libgpg-error0:amd64@1.51-4?arch=amd64",
+        "pkg:deb/libgssapi-krb5-2:amd64@1.21.3-5+deb13u1?arch=amd64",
+        "pkg:deb/libhogweed6t64:amd64@3.10.1-1?arch=amd64",
+        "pkg:deb/libidn2-0:amd64@2.3.8-2?arch=amd64",
+        "pkg:deb/libjemalloc2:amd64@5.3.0-3?arch=amd64",
+        "pkg:deb/libjq1:amd64@1.7.1-6+deb13u2?arch=amd64",
+        "pkg:deb/libk5crypto3:amd64@1.21.3-5+deb13u1?arch=amd64",
+        "pkg:deb/libkeyutils1:amd64@1.6.3-6?arch=amd64",
+        "pkg:deb/libkrb5-3:amd64@1.21.3-5+deb13u1?arch=amd64",
+        "pkg:deb/libkrb5support0:amd64@1.21.3-5+deb13u1?arch=amd64",
+        "pkg:deb/libksba8:amd64@1.6.7-2+b1?arch=amd64",
+        "pkg:deb/liblastlog2-2:amd64@2.41-5?arch=amd64",
+        "pkg:deb/libldap2:amd64@2.6.10+dfsg-1?arch=amd64",
+        "pkg:deb/liblz4-1:amd64@1.10.0-4?arch=amd64",
+        "pkg:deb/liblzma5:amd64@5.8.1-1?arch=amd64",
+        "pkg:deb/libmd0:amd64@1.1.0-2+b1?arch=amd64",
+        "pkg:deb/libmount1:amd64@2.41-5?arch=amd64",
+        "pkg:deb/libncursesw6:amd64@6.5+20250216-2?arch=amd64",
+        "pkg:deb/libnettle8t64:amd64@3.10.1-1?arch=amd64",
+        "pkg:deb/libnghttp2-14:amd64@1.64.0-1.1+deb13u1?arch=amd64",
+        "pkg:deb/libnghttp3-9:amd64@1.8.0-1?arch=amd64",
+        "pkg:deb/libngtcp2-16:amd64@1.11.0-1+deb13u1?arch=amd64",
+        "pkg:deb/libngtcp2-crypto-gnutls8:amd64@1.11.0-1+deb13u1?arch=amd64",
+        "pkg:deb/libnpth0t64:amd64@1.8-3?arch=amd64",
+        "pkg:deb/libolm-dev:amd64@3.2.16+dfsg-3?arch=amd64",
+        "pkg:deb/libolm3:amd64@3.2.16+dfsg-3?arch=amd64",
+        "pkg:deb/libonig5:amd64@6.9.9-1+b1?arch=amd64",
+        "pkg:deb/libp11-kit0:amd64@0.25.5-3?arch=amd64",
+        "pkg:deb/libpam-modules-bin@1.7.0-5?arch=amd64",
+        "pkg:deb/libpam-modules:amd64@1.7.0-5?arch=amd64",
+        "pkg:deb/libpam-runtime@1.7.0-5?arch=all",
+        "pkg:deb/libpam0g:amd64@1.7.0-5?arch=amd64",
+        "pkg:deb/libpcre2-8-0:amd64@10.46-1~deb13u1?arch=amd64",
+        "pkg:deb/libperl5.40:amd64@5.40.1-6?arch=amd64",
+        "pkg:deb/libpkgconf3:amd64@1.8.1-4?arch=amd64",
+        "pkg:deb/libpsl5t64:amd64@0.21.2-1.1+b1?arch=amd64",
+        "pkg:deb/libpython3-stdlib:amd64@3.13.5-1?arch=amd64",
+        "pkg:deb/libpython3.13-minimal:amd64@3.13.5-2+deb13u4?arch=amd64",
+        "pkg:deb/libpython3.13-stdlib:amd64@3.13.5-2+deb13u4?arch=amd64",
+        "pkg:deb/libreadline8t64:amd64@8.2-6?arch=amd64",
+        "pkg:deb/librtmp1:amd64@2.4+20151223.gitfa8646d.1-2+b5?arch=amd64",
+        "pkg:deb/libsasl2-2:amd64@2.1.28+dfsg1-9?arch=amd64",
+        "pkg:deb/libsasl2-modules-db:amd64@2.1.28+dfsg1-9?arch=amd64",
+        "pkg:deb/libseccomp2:amd64@2.6.0-2?arch=amd64",
+        "pkg:deb/libselinux1:amd64@3.8.1-1?arch=amd64",
+        "pkg:deb/libsemanage-common@3.8.1-1?arch=all",
+        "pkg:deb/libsemanage2:amd64@3.8.1-1?arch=amd64",
+        "pkg:deb/libsepol2:amd64@3.8.1-1?arch=amd64",
+        "pkg:deb/libsmartcols1:amd64@2.41-5?arch=amd64",
+        "pkg:deb/libsqlite3-0:amd64@3.46.1-7?arch=amd64",
+        "pkg:deb/libssh2-1t64:amd64@1.11.1-1+deb13u1?arch=amd64",
+        "pkg:deb/libssl3t64:amd64@3.5.4-1~deb13u2?arch=amd64",
+        "pkg:deb/libstdc++6:amd64@14.2.0-19?arch=amd64",
+        "pkg:deb/libsystemd0:amd64@257.9-1~deb13u1?arch=amd64",
+        "pkg:deb/libtasn1-6:amd64@4.20.0-2+deb13u1?arch=amd64",
+        "pkg:deb/libtinfo6:amd64@6.5+20250216-2?arch=amd64",
+        "pkg:deb/libudev1:amd64@257.9-1~deb13u1?arch=amd64",
+        "pkg:deb/libunistring5:amd64@1.3-2?arch=amd64",
+        "pkg:deb/libuuid1:amd64@2.41-5?arch=amd64",
+        "pkg:deb/libxxhash0:amd64@0.8.3-2?arch=amd64",
+        "pkg:deb/libzstd1:amd64@1.5.7+dfsg-1?arch=amd64",
+        "pkg:deb/login.defs@1:4.17.4-2?arch=all",
+        "pkg:deb/login@1:4.16.0-2+really2.41-5?arch=amd64",
+        "pkg:deb/mawk@1.3.4.20250131-1?arch=amd64",
+        "pkg:deb/media-types@13.0.0?arch=all",
+        "pkg:deb/mount@2.41-5?arch=amd64",
+        "pkg:deb/ncurses-base@6.5+20250216-2?arch=all",
+        "pkg:deb/ncurses-bin@6.5+20250216-2?arch=amd64",
+        "pkg:deb/netbase@6.5?arch=all",
+        "pkg:deb/nodejs@22.23.2-1nodesource1?arch=amd64",
+        "pkg:deb/openssl-provider-legacy@3.5.4-1~deb13u2?arch=amd64",
+        "pkg:deb/openssl@3.5.4-1~deb13u2?arch=amd64",
+        "pkg:deb/passwd@1:4.17.4-2?arch=amd64",
+        "pkg:deb/perl-base@5.40.1-6?arch=amd64",
+        "pkg:deb/perl-modules-5.40@5.40.1-6?arch=all",
+        "pkg:deb/perl@5.40.1-6?arch=amd64",
+        "pkg:deb/pinentry-curses@1.3.1-2?arch=amd64",
+        "pkg:deb/pkg-config:amd64@1.8.1-4?arch=amd64",
+        "pkg:deb/pkgconf-bin@1.8.1-4?arch=amd64",
+        "pkg:deb/pkgconf:amd64@1.8.1-4?arch=amd64",
+        "pkg:deb/python3-minimal@3.13.5-1?arch=amd64",
+        "pkg:deb/python3.13-minimal@3.13.5-2+deb13u4?arch=amd64",
+        "pkg:deb/python3.13@3.13.5-2+deb13u4?arch=amd64",
+        "pkg:deb/python3@3.13.5-1?arch=amd64",
+        "pkg:deb/readline-common@8.2-6?arch=all",
+        "pkg:deb/sed@4.9-2?arch=amd64",
+        "pkg:deb/sqv@1.3.0-3+b2?arch=amd64",
+        "pkg:deb/sysvinit-utils@3.14-4?arch=amd64",
+        "pkg:deb/tar@1.35+dfsg-3.1?arch=amd64",
+        "pkg:deb/tzdata@2026b-0+deb13u1?arch=all",
+        "pkg:deb/util-linux@2.41-5?arch=amd64",
+        "pkg:deb/zlib1g:amd64@1:1.3.dfsg+really1.3.1-1+b1?arch=amd64",
+        "pkg:pypi/filelock@3.29.0",
+        "pkg:pypi/fsspec@2026.4.0",
+        "pkg:pypi/jinja2@3.1.6",
+        "pkg:pypi/markupsafe@3.0.3",
+        "pkg:pypi/mpmath@1.3.0",
+        "pkg:pypi/networkx@3.6.1",
+        "pkg:pypi/pip@24.0",
+        "pkg:pypi/setuptools@79.0.1",
+        "pkg:pypi/sympy@1.13.1",
+        "pkg:pypi/torch@2.5.1+cpu",
+        "pkg:pypi/typing-extensions@4.15.0",
+        "pkg:pypi/wheel@0.45.1"
+      ]
+    },
+    {
+      "ref": "pkg:oci/labops/pytorch-cpu-runner@sha256:0fbc3e5f2dd4c9e214423e574d2201bbf9de9f1bb85df2525fe2531bd063ef3f",
+      "dependsOn": [
+        "pkg:deb/adduser@3.152?arch=all",
+        "pkg:deb/apt-transport-https@3.0.3?arch=all",
+        "pkg:deb/apt@3.0.3?arch=amd64",
+        "pkg:deb/base-files@13.8+deb13u3?arch=amd64",
+        "pkg:deb/base-passwd@3.6.7?arch=amd64",
+        "pkg:deb/bash@5.2.37-2+b7?arch=amd64",
+        "pkg:deb/bsdutils@1:2.41-5?arch=amd64",
+        "pkg:deb/ca-certificates@20250419?arch=all",
+        "pkg:deb/coreutils@9.7-3?arch=amd64",
+        "pkg:deb/curl@8.14.1-2+deb13u4?arch=amd64",
+        "pkg:deb/dash@0.5.12-12?arch=amd64",
+        "pkg:deb/debconf@1.5.91?arch=all",
+        "pkg:deb/debian-archive-keyring@2025.1?arch=all",
+        "pkg:deb/debianutils@5.23.2?arch=amd64",
+        "pkg:deb/diffutils@1:3.10-4?arch=amd64",
+        "pkg:deb/dirmngr@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/dpkg@1.22.21?arch=amd64",
+        "pkg:deb/findutils@4.10.0-3?arch=amd64",
+        "pkg:deb/gcc-14-base:amd64@14.2.0-19?arch=amd64",
+        "pkg:deb/git-man@1:2.47.3-0+deb13u1?arch=all",
+        "pkg:deb/git@1:2.47.3-0+deb13u1?arch=amd64",
+        "pkg:deb/gnupg-l10n@2.4.7-21+deb13u1?arch=all",
+        "pkg:deb/gnupg-utils@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/gnupg@2.4.7-21+deb13u1?arch=all",
+        "pkg:deb/gpg-agent@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/gpg-wks-client@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/gpg@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/gpgconf@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/gpgsm@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/gpgv@2.4.7-21+deb13u1+b4?arch=amd64",
+        "pkg:deb/grep@3.11-4?arch=amd64",
+        "pkg:deb/gzip@1.13-1?arch=amd64",
+        "pkg:deb/hostname@3.25?arch=amd64",
+        "pkg:deb/init-system-helpers@1.69~deb13u1?arch=all",
+        "pkg:deb/jq@1.7.1-6+deb13u2?arch=amd64",
+        "pkg:deb/libacl1:amd64@2.3.2-2+b1?arch=amd64",
+        "pkg:deb/libapt-pkg7.0:amd64@3.0.3?arch=amd64",
+        "pkg:deb/libassuan9:amd64@3.0.2-2?arch=amd64",
+        "pkg:deb/libattr1:amd64@1:2.5.2-3?arch=amd64",
+        "pkg:deb/libaudit-common@1:4.0.2-2?arch=all",
+        "pkg:deb/libaudit1:amd64@1:4.0.2-2+b2?arch=amd64",
+        "pkg:deb/libblkid1:amd64@2.41-5?arch=amd64",
+        "pkg:deb/libbrotli1:amd64@1.1.0-2+b7?arch=amd64",
+        "pkg:deb/libbsd0:amd64@0.12.2-2?arch=amd64",
+        "pkg:deb/libbz2-1.0:amd64@1.0.8-6?arch=amd64",
+        "pkg:deb/libc-bin@2.41-12+deb13u1?arch=amd64",
+        "pkg:deb/libc6:amd64@2.41-12+deb13u1?arch=amd64",
+        "pkg:deb/libcap-ng0:amd64@0.8.5-4+b1?arch=amd64",
+        "pkg:deb/libcap2:amd64@1:2.75-10+b3?arch=amd64",
+        "pkg:deb/libcom-err2:amd64@1.47.2-3+b11?arch=amd64",
+        "pkg:deb/libcrypt1:amd64@1:4.4.38-1?arch=amd64",
+        "pkg:deb/libcurl3t64-gnutls:amd64@8.14.1-2+deb13u4?arch=amd64",
+        "pkg:deb/libcurl4t64:amd64@8.14.1-2+deb13u4?arch=amd64",
+        "pkg:deb/libdb5.3t64:amd64@5.3.28+dfsg2-9?arch=amd64",
+        "pkg:deb/libdebconfclient0:amd64@0.280?arch=amd64",
+        "pkg:deb/liberror-perl@0.17030-1?arch=all",
+        "pkg:deb/libexpat1:amd64@2.8.2-1~deb13u1?arch=amd64",
+        "pkg:deb/libffi8:amd64@3.4.8-2?arch=amd64",
+        "pkg:deb/libgcc-s1:amd64@14.2.0-19?arch=amd64",
+        "pkg:deb/libgcrypt20:amd64@1.11.0-7+deb13u1?arch=amd64",
+        "pkg:deb/libgdbm-compat4t64:amd64@1.24-2?arch=amd64",
+        "pkg:deb/libgdbm6t64:amd64@1.24-2?arch=amd64",
+        "pkg:deb/libgmp10:amd64@2:6.3.0+dfsg-3?arch=amd64",
+        "pkg:deb/libgnutls30t64:amd64@3.8.9-3+deb13u4?arch=amd64",
+        "pkg:deb/libgpg-error-l10n@1.51-4?arch=all",
+        "pkg:deb/libgpg-error0:amd64@1.51-4?arch=amd64",
+        "pkg:deb/libgssapi-krb5-2:amd64@1.21.3-5+deb13u1?arch=amd64",
+        "pkg:deb/libhogweed6t64:amd64@3.10.1-1?arch=amd64",
+        "pkg:deb/libidn2-0:amd64@2.3.8-2?arch=amd64",
+        "pkg:deb/libjemalloc2:amd64@5.3.0-3?arch=amd64",
+        "pkg:deb/libjq1:amd64@1.7.1-6+deb13u2?arch=amd64",
+        "pkg:deb/libk5crypto3:amd64@1.21.3-5+deb13u1?arch=amd64",
+        "pkg:deb/libkeyutils1:amd64@1.6.3-6?arch=amd64",
+        "pkg:deb/libkrb5-3:amd64@1.21.3-5+deb13u1?arch=amd64",
+        "pkg:deb/libkrb5support0:amd64@1.21.3-5+deb13u1?arch=amd64",
+        "pkg:deb/libksba8:amd64@1.6.7-2+b1?arch=amd64",
+        "pkg:deb/liblastlog2-2:amd64@2.41-5?arch=amd64",
+        "pkg:deb/libldap2:amd64@2.6.10+dfsg-1?arch=amd64",
+        "pkg:deb/liblz4-1:amd64@1.10.0-4?arch=amd64",
+        "pkg:deb/liblzma5:amd64@5.8.1-1?arch=amd64",
+        "pkg:deb/libmd0:amd64@1.1.0-2+b1?arch=amd64",
+        "pkg:deb/libmount1:amd64@2.41-5?arch=amd64",
+        "pkg:deb/libncursesw6:amd64@6.5+20250216-2?arch=amd64",
+        "pkg:deb/libnettle8t64:amd64@3.10.1-1?arch=amd64",
+        "pkg:deb/libnghttp2-14:amd64@1.64.0-1.1+deb13u1?arch=amd64",
+        "pkg:deb/libnghttp3-9:amd64@1.8.0-1?arch=amd64",
+        "pkg:deb/libngtcp2-16:amd64@1.11.0-1+deb13u1?arch=amd64",
+        "pkg:deb/libngtcp2-crypto-gnutls8:amd64@1.11.0-1+deb13u1?arch=amd64",
+        "pkg:deb/libnpth0t64:amd64@1.8-3?arch=amd64",
+        "pkg:deb/libolm-dev:amd64@3.2.16+dfsg-3?arch=amd64",
+        "pkg:deb/libolm3:amd64@3.2.16+dfsg-3?arch=amd64",
+        "pkg:deb/libonig5:amd64@6.9.9-1+b1?arch=amd64",
+        "pkg:deb/libp11-kit0:amd64@0.25.5-3?arch=amd64",
+        "pkg:deb/libpam-modules-bin@1.7.0-5?arch=amd64",
+        "pkg:deb/libpam-modules:amd64@1.7.0-5?arch=amd64",
+        "pkg:deb/libpam-runtime@1.7.0-5?arch=all",
+        "pkg:deb/libpam0g:amd64@1.7.0-5?arch=amd64",
+        "pkg:deb/libpcre2-8-0:amd64@10.46-1~deb13u1?arch=amd64",
+        "pkg:deb/libperl5.40:amd64@5.40.1-6?arch=amd64",
+        "pkg:deb/libpkgconf3:amd64@1.8.1-4?arch=amd64",
+        "pkg:deb/libpsl5t64:amd64@0.21.2-1.1+b1?arch=amd64",
+        "pkg:deb/libpython3-stdlib:amd64@3.13.5-1?arch=amd64",
+        "pkg:deb/libpython3.13-minimal:amd64@3.13.5-2+deb13u4?arch=amd64",
+        "pkg:deb/libpython3.13-stdlib:amd64@3.13.5-2+deb13u4?arch=amd64",
+        "pkg:deb/libreadline8t64:amd64@8.2-6?arch=amd64",
+        "pkg:deb/librtmp1:amd64@2.4+20151223.gitfa8646d.1-2+b5?arch=amd64",
+        "pkg:deb/libsasl2-2:amd64@2.1.28+dfsg1-9?arch=amd64",
+        "pkg:deb/libsasl2-modules-db:amd64@2.1.28+dfsg1-9?arch=amd64",
+        "pkg:deb/libseccomp2:amd64@2.6.0-2?arch=amd64",
+        "pkg:deb/libselinux1:amd64@3.8.1-1?arch=amd64",
+        "pkg:deb/libsemanage-common@3.8.1-1?arch=all",
+        "pkg:deb/libsemanage2:amd64@3.8.1-1?arch=amd64",
+        "pkg:deb/libsepol2:amd64@3.8.1-1?arch=amd64",
+        "pkg:deb/libsmartcols1:amd64@2.41-5?arch=amd64",
+        "pkg:deb/libsqlite3-0:amd64@3.46.1-7?arch=amd64",
+        "pkg:deb/libssh2-1t64:amd64@1.11.1-1+deb13u1?arch=amd64",
+        "pkg:deb/libssl3t64:amd64@3.5.4-1~deb13u2?arch=amd64",
+        "pkg:deb/libstdc++6:amd64@14.2.0-19?arch=amd64",
+        "pkg:deb/libsystemd0:amd64@257.9-1~deb13u1?arch=amd64",
+        "pkg:deb/libtasn1-6:amd64@4.20.0-2+deb13u1?arch=amd64",
+        "pkg:deb/libtinfo6:amd64@6.5+20250216-2?arch=amd64",
+        "pkg:deb/libudev1:amd64@257.9-1~deb13u1?arch=amd64",
+        "pkg:deb/libunistring5:amd64@1.3-2?arch=amd64",
+        "pkg:deb/libuuid1:amd64@2.41-5?arch=amd64",
+        "pkg:deb/libxxhash0:amd64@0.8.3-2?arch=amd64",
+        "pkg:deb/libzstd1:amd64@1.5.7+dfsg-1?arch=amd64",
+        "pkg:deb/login.defs@1:4.17.4-2?arch=all",
+        "pkg:deb/login@1:4.16.0-2+really2.41-5?arch=amd64",
+        "pkg:deb/mawk@1.3.4.20250131-1?arch=amd64",
+        "pkg:deb/media-types@13.0.0?arch=all",
+        "pkg:deb/mount@2.41-5?arch=amd64",
+        "pkg:deb/ncurses-base@6.5+20250216-2?arch=all",
+        "pkg:deb/ncurses-bin@6.5+20250216-2?arch=amd64",
+        "pkg:deb/netbase@6.5?arch=all",
+        "pkg:deb/nodejs@22.23.2-1nodesource1?arch=amd64",
+        "pkg:deb/openssl-provider-legacy@3.5.4-1~deb13u2?arch=amd64",
+        "pkg:deb/openssl@3.5.4-1~deb13u2?arch=amd64",
+        "pkg:deb/passwd@1:4.17.4-2?arch=amd64",
+        "pkg:deb/perl-base@5.40.1-6?arch=amd64",
+        "pkg:deb/perl-modules-5.40@5.40.1-6?arch=all",
+        "pkg:deb/perl@5.40.1-6?arch=amd64",
+        "pkg:deb/pinentry-curses@1.3.1-2?arch=amd64",
+        "pkg:deb/pkg-config:amd64@1.8.1-4?arch=amd64",
+        "pkg:deb/pkgconf-bin@1.8.1-4?arch=amd64",
+        "pkg:deb/pkgconf:amd64@1.8.1-4?arch=amd64",
+        "pkg:deb/python3-minimal@3.13.5-1?arch=amd64",
+        "pkg:deb/python3.13-minimal@3.13.5-2+deb13u4?arch=amd64",
+        "pkg:deb/python3.13@3.13.5-2+deb13u4?arch=amd64",
+        "pkg:deb/python3@3.13.5-1?arch=amd64",
+        "pkg:deb/readline-common@8.2-6?arch=all",
+        "pkg:deb/sed@4.9-2?arch=amd64",
+        "pkg:deb/sqv@1.3.0-3+b2?arch=amd64",
+        "pkg:deb/sysvinit-utils@3.14-4?arch=amd64",
+        "pkg:deb/tar@1.35+dfsg-3.1?arch=amd64",
+        "pkg:deb/tzdata@2026b-0+deb13u1?arch=all",
+        "pkg:deb/util-linux@2.41-5?arch=amd64",
+        "pkg:deb/zlib1g:amd64@1:1.3.dfsg+really1.3.1-1+b1?arch=amd64",
+        "pkg:pypi/filelock@3.29.0",
+        "pkg:pypi/fsspec@2026.4.0",
+        "pkg:pypi/jinja2@3.1.6",
+        "pkg:pypi/markupsafe@3.0.3",
+        "pkg:pypi/mpmath@1.3.0",
+        "pkg:pypi/networkx@3.6.1",
+        "pkg:pypi/pip@24.0",
+        "pkg:pypi/setuptools@79.0.1",
+        "pkg:pypi/sympy@1.13.1",
+        "pkg:pypi/torch@2.5.1+cpu",
+        "pkg:pypi/typing-extensions@4.15.0",
+        "pkg:pypi/wheel@0.45.1"
+      ]
+    }
+  ]
+}
