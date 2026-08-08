@@ -103,5 +103,6 @@ Python/PyTorch 仓库，但实验容器运行时禁止联网。当前没有部�
 Server、mTLS/OIDC 服务身份、GPU 调度、外部数据集或 RAG；相关迁移边界见
 `KNOWN_LIMITATIONS.md`、`docs/observability.md` 与 `docs/competition-mapping.md`。
 
-发布前仍需用户确认 Apache-2.0 许可证、远端仓库地址和 Release/Tag 时机。当前提交仅在
-本地分组固化，不会自动推送。
+源码采用 Apache-2.0，公开仓库为 `https://github.com/JAKIIC/LabOps-Guard`；`main` 已通过
+Windows/Linux、Python 3.9/3.12 的 GitHub Actions。正式 Release/Tag 仍需确认发布时间，
+Runner 镜像 tar 在公开分发前仍需完成镜像级 SBOM、许可证和 NOTICE 复核。

@@ -19,8 +19,8 @@
 
 - [x] 确认 Apache-2.0 并替换 LICENSE 占位；
 - [x] 确认公开远端、公开权限与 SSH 推送授权；
-- [ ] 推送 `main` 并等待 GitHub Actions；
-- [ ] 复核 GitHub README、License 识别和公开内容；
+- [x] 推送 `main` 并等待 GitHub Actions；
+- [x] 复核 GitHub README、License 识别和公开内容；
 - 选择 Release/Tag 版本并生成离线包；
 - 创建 Release/Tag，最后提交比赛材料。
 

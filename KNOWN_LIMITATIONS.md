@@ -39,5 +39,5 @@
 
 - LabOps Guard 源码已采用 Apache License 2.0。Runner 镜像包含基础镜像、PyTorch 与系统包，
   其 tar/离线包在公开前仍需镜像级 SBOM、许可证和 NOTICE 复核。
-- 公开仓库与首次推送已由项目所有者确认；`v0.3.0-rc1` Tag 和 GitHub Release 仍需等待
-  远端 CI、README/License 展示和公开证据隐私检查完成。
+- 公开仓库、首次推送、远端 CI、README/License 展示和公开证据隐私检查均已完成；
+  `v0.3.0-rc1` Tag 和 GitHub Release 仍等待发布时间确认与 Runner 镜像再分发复核。

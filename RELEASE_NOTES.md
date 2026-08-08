@@ -34,4 +34,4 @@ GitHub Release 或 `v0.3.0-rc1` Tag。
 
 本候选仍是单机 CPU 演示，不包含生产级身份、调度、GPU、外部数据集、OTel 后端、MCP
 Server 或 RAG。源码许可证与公开仓库已确认；Runner 镜像再分发仍需镜像级 SBOM/NOTICE
-复核，正式 Tag 与 Release 需等待 CI 和公开内容检查。
+复核。远端 CI 和公开内容检查已通过，正式 Tag 与 Release 仍等待发布时间确认。

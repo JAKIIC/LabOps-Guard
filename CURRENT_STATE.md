@@ -2,7 +2,7 @@
 
 更新时间：2026-08-08
 权威仓库：本文档所在 Git 仓库
-当前阶段：Phase 5B，Apache-2.0 落定后的首次 GitHub 公开与 CI 检查
+当前阶段：Phase 5B，公开仓库与 CI 已完成，正式 Release/Tag 保持冻结
 
 ## 已验证主线
 
@@ -52,11 +52,14 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
 - `docs/observability.md` 已明确 Trace / Log / Metrics / Artifact / Approval 和未来 OTel 映射；
   当前没有声称部署 OTel 基础设施。
 - README、赛事材料、PPT、开源治理和 CI 已统一；源码采用 Apache-2.0，公开远端和首次
-  SSH 推送已由项目所有者确认。正式 Tag、Release 与 Runner 镜像再分发仍保持冻结。
+  SSH 推送已完成。公开仓库：`https://github.com/JAKIIC/LabOps-Guard`。正式 Tag、Release
+  与 Runner 镜像再分发仍保持冻结。
 
 ## 最近验证
 
 - Phase 5A 全量回归：89 tests passed（Windows，本地离线执行）。
+- 提交 `cff32ba0d16860fa42806d5353cca54337fd7a0a` 的 GitHub Actions 已通过：Windows/Linux
+  × Python 3.9/3.12 四组均为 success，包含单元/契约、证据完整性和敏感模式扫描。
 - AT-002、AT-003、AT-004 三条正式证据均重新校验为 PASS。
 - AT-004 closure v2 与案例记忆检索通过；PPT 无溢出且母版一致性检查通过。
 
