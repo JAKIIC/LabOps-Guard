@@ -37,5 +37,7 @@
 
 ## Release boundary
 
-- Apache-2.0 尚待用户确认；在确认前 LICENSE 为明确占位，不代表已经完成许可证授予。
-- 远端仓库、公开权限、Release 版本和 Tag 时机尚待用户确认；当前只创建本地分组提交。
+- LabOps Guard 源码已采用 Apache License 2.0。Runner 镜像包含基础镜像、PyTorch 与系统包，
+  其 tar/离线包在公开前仍需镜像级 SBOM、许可证和 NOTICE 复核。
+- 公开仓库与首次推送已由项目所有者确认；`v0.3.0-rc1` Tag 和 GitHub Release 仍需等待
+  远端 CI、README/License 展示和公开证据隐私检查完成。

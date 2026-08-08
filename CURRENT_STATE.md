@@ -1,8 +1,8 @@
 # LabOps Guard current state
 
-更新时间：2026-08-06
+更新时间：2026-08-08
 权威仓库：本文档所在 Git 仓库
-当前阶段：Phase 5A，AT-004 主演示后的工程化、经验闭环、材料一致性与发布前审计
+当前阶段：Phase 5B，Apache-2.0 落定后的首次 GitHub 公开与 CI 检查
 
 ## 已验证主线
 
@@ -51,7 +51,8 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
 - 本地案例检索入口：`python -m labops.case_memory search`。
 - `docs/observability.md` 已明确 Trace / Log / Metrics / Artifact / Approval 和未来 OTel 映射；
   当前没有声称部署 OTel 基础设施。
-- README、赛事材料、PPT、开源治理和 CI 正在统一；远端推送与正式 Tag 仍被冻结。
+- README、赛事材料、PPT、开源治理和 CI 已统一；源码采用 Apache-2.0，公开远端和首次
+  SSH 推送已由项目所有者确认。正式 Tag、Release 与 Runner 镜像再分发仍保持冻结。
 
 ## 最近验证
 
