@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = ROOT / "docs" / "public-demo" / "index.html"
 BUILDER = ROOT / "scripts" / "build_public_demo.py"
+PAGES_WORKFLOW = ROOT / ".github" / "workflows" / "pages-public-demo.yml"
 
 
 def _tree_digest(root: Path) -> str:
@@ -118,6 +119,15 @@ class PublicDemoTests(unittest.TestCase):
     def test_builder_reuses_existing_dashboard_parsers(self) -> None:
         source = BUILDER.read_text(encoding="utf-8")
         self.assertIn("from labops.web import build_agentteams_v2_state, build_at004_state", source)
+
+    def test_pages_artifact_is_limited_to_the_public_demo(self) -> None:
+        workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertNotIn("push:", workflow)
+        self.assertIn("python -B scripts/build_public_demo.py --check", workflow)
+        self.assertIn("path: docs/public-demo", workflow)
+        self.assertNotIn("path: docs\n", workflow)
+        self.assertNotIn("path: .\n", workflow)
 
 
 if __name__ == "__main__":

@@ -38,20 +38,25 @@ docs/public-demo/index.html
 
 ## 推荐部署：GitHub Pages
 
-仓库采用 `docs/` 目录，因此可以直接使用 GitHub Pages 的 branch publishing：
+不要将整个 `docs/` 设置为 Pages 的 branch publishing 源。仓库内还有项目文档，公网 Demo 的部署边界应当只包含 `docs/public-demo/`。
+
+项目已提供手动发布工作流 `.github/workflows/pages-public-demo.yml`。它先运行归档证据一致性校验，再将 **仅有的** `docs/public-demo/` 目录上传为 Pages artifact：
 
 1. 打开仓库 **Settings → Pages**。
-2. 在 **Build and deployment** 中选择 **Deploy from a branch**。
-3. Branch 选择 `main`，目录选择 `/docs`，保存。
-4. 等待 Pages 部署完成后访问：
+2. 在 **Build and deployment → Source** 中选择 **GitHub Actions**。
+3. 打开仓库 **Actions → Deploy public evidence replay**。
+4. 选择 **Run workflow**，确认从 `main` 运行。
+5. 等待部署完成后访问：
 
 ```text
-https://jakiic.github.io/LabOps-Guard/public-demo/
+https://jakiic.github.io/LabOps-Guard/
 ```
 
 报名表中的“对外 Demo URL”应填写上面的完整页面地址，而不是仓库地址、本地 Dashboard 地址或控制面地址。首次填写前，应在无登录的浏览器窗口中确认页面可访问，并核对页首存在 **Archived Verified Run / Evidence Replay** 标签。
 
-GitHub Pages 官方配置说明：<https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site>
+工作流只支持人工触发，避免普通代码提交意外更新比赛演示。需要更新公网内容时，先重新生成并校验静态页面，合并到 `main` 后再人工运行部署工作流。
+
+GitHub Pages 官方自定义工作流说明：<https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages>
 
 ## 其他静态托管方式
 
@@ -75,7 +80,7 @@ GitHub Pages 官方配置说明：<https://docs.github.com/en/pages/getting-star
 | 任意文件访问 | 不存在 | 无上传、文件选择器或文件读取逻辑 |
 | 修改状态 | 不存在 | 单个静态 HTML，无写入接口 |
 | 执行实验 | 不存在 | Runner 只作为归档结果展示，不部署执行端 |
-| 原始证据访问 | 不存在 | 仅输出白名单摘要，不发布证据目录或 ZIP |
+| 原始证据访问 | 不存在 | Pages artifact 仅包含公开 Demo 目录，不发布证据、其他文档或 ZIP |
 | Matrix / 对象存储凭据 | 不包含 | 不输出控制面地址、房间标识或凭据 |
 | 本机路径与回环地址 | 不包含 | 构建和测试使用拒绝列表扫描 |
 | Token、密钥与口令 | 不包含 | 构建和测试使用凭据模式扫描 |
