@@ -2,6 +2,14 @@ name: Deploy public evidence replay
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/pages-public-demo.yml
+      - docs/public-demo/**
+      - labops/public_demo.html
+      - scripts/build_public_demo.py
 
 permissions:
   contents: read
