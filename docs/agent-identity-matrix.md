@@ -15,6 +15,7 @@ Human approval is a separate event, not a seventh Agent. The real AT-004 sequenc
 Collector → Analyst → Planner → Executor → Auditor, with one approval between planning and execution.
 Every handoff records task/incident ID, inputs, outputs, timestamp, state and a real Matrix event ID.
 
-Closure rule: only the Incident Commander may publish `RESOLVED`, and only after an independent
-Auditor reports passing postconditions, unchanged protected hashes, approval-before-run and a valid
-trace chain.
+Closure rule: the Verification Auditor exclusively decides `RESOLVED`, `ROLLED_BACK`, or `BLOCKED`
+after checking postconditions, protected hashes, approval-before-run, and the trace chain. The
+Incident Commander may publish the decided state, package evidence, and write Case Memory only after
+that decision; the Commander cannot change it.

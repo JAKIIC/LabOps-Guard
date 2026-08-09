@@ -5,6 +5,9 @@ LabOps Guard 是面向 AI 实验与评测事故的可信多智能体治理系统
 
 **无证据不诊断，无审批不执行，无验证不闭环。**
 
+- 🌐 **Public Evidence Demo**：<https://jakiic.github.io/LabOps-Guard/>
+- 💻 **Source**：<https://github.com/JAKIIC/LabOps-Guard>
+
 一个模型昨天的评测准确率是 97.8%，今天降到 71.9%。值班工程师需要判断问题来自模型、
 数据、评测代码还是配置。LabOps Guard 让六个权限隔离的 Agent 收集证据、提出可证伪假设、
 申请最小修改，并在断网沙箱中执行获批方案。独立 Auditor 检查原始运行产物和保护文件哈希，
@@ -31,7 +34,7 @@ manifest、保护文件哈希、审批时序和 Trace 重算验收结论，最�
 
 | 角色 | 主要 Skill | 权限边界 |
 |---|---|---|
-| Incident Commander | `pack-lab-evidence`, `publish-case-memory` | 只编排、验收交接、发布状态与案例记忆，不执行或自证 |
+| Incident Commander | `pack-lab-evidence`, `publish-case-memory` | 只编排、验收交接、封包并发布 Case Memory，不执行、不自证、不覆盖 Auditor 裁决 |
 | Evidence Collector | `collect-lab-evidence` | 只读取白名单证据，不诊断、不修改实验 |
 | RCA Analyst | `diagnose-lab-incident` | 只基于 `evidence_id` 生成可证伪假设 |
 | Experiment Planner | `plan-lab-experiment` | 只生成单变量、有限预算、可回滚计划 |
@@ -53,7 +56,8 @@ AgentTeams 负责角色编排和上下文交接；LabOps Guard 的 Schema、Poli
 - Agent Worker 不安装 PyTorch、不持有 Docker socket；Runner 非 root、只读根文件系统、
   限制 CPU/内存/PID 且实验期断网；
 - metric、数据、checkpoint、评测协议和原始工作区受保护；
-- Executor 的结论不能作为验证证据；只有 Auditor 的独立复核才能进入 `RESOLVED`；
+- Executor 的结论不能作为验证证据；Verification Auditor 独占 `RESOLVED / ROLLED_BACK / BLOCKED` 终态裁决权；
+- Incident Commander 只能在 Auditor 裁决后发布状态、封包证据并沉淀 Case Memory，不得改变终态；
 - 证据不足、运行依赖缺失或链路异常都必须显式 `BLOCKED`。
 
 ## 快速验证

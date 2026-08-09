@@ -163,8 +163,8 @@ def _render_content(at004: dict[str, Any], at002: dict[str, Any]) -> str:
     bundle = at004["bundle"]
     unsafe = at002["unsafe_case"]
 
-    baseline = " × ".join(_pct(value, 3) for value in run["baseline_values"])
-    candidate = " × ".join(_pct(value, 7) for value in run["candidate_values"])
+    baseline = f'{_pct(run["baseline_accuracy"], 2)} × {len(run["baseline_values"])}'
+    candidate = f'{_pct(run["candidate_accuracy"], 2)} × {len(run["candidate_values"])}'
     checks = "".join(
         f'<div class="check">{_e(name.replace("_", " "))}</div>'
         for name, passed in capability["checks"].items()
@@ -193,7 +193,7 @@ def _render_content(at004: dict[str, Any], at002: dict[str, Any]) -> str:
     return f"""
     <section class="panel hero">
       <div class="kicker">AT-004 · archived verified run</div>
-      <h1>Evaluation drift was isolated and safely resolved.</h1>
+      <h1>评测预处理漂移：已隔离定位并可信修复</h1>
       <p>六个 Agent 基于归档证据完成诊断、受控实验与独立复核。这里展示的是经过完整性校验的 Evidence Replay，不是实时运行界面。</p>
       <div class="truth-line"><span>PASS / RESOLVED</span><span>6 Agent roles ran</span><span>Human approval before execution</span><span>Trace CHAIN_OK</span></div>
     </section>
@@ -204,22 +204,30 @@ def _render_content(at004: dict[str, Any], at002: dict[str, Any]) -> str:
         <div class="panel summary-card"><div class="label">Archived task</div><div class="value">{_e(at004["task_id"])}</div><div class="tiny">Evaluation preprocessing drift</div></div>
         <div class="panel summary-card"><div class="label">Decision</div><div class="value ok">{_e(at004["status"])}</div><div class="tiny">Independent verification</div></div>
         <div class="panel summary-card"><div class="label">Resolution</div><div class="value ok">{_e(at004["resolution_status"])}</div><div class="tiny">Target ≥ 97.00%</div></div>
-        <div class="panel summary-card"><div class="label">Evidence</div><div class="value">{_e(at004["evidence_count"])} facts</div><div class="tiny">27 bundle artifacts</div></div>
+        <div class="panel summary-card"><div class="label">Evidence</div><div class="value">{_e(at004["evidence_count"])} facts</div><div class="tiny">27 ZIP entries</div></div>
       </div>
     </section>
 
     <section class="section" aria-labelledby="metrics">
       <div class="head"><h2 id="metrics">Before / After Metrics</h2><p>THREE REPEATS · ZERO SPREAD</p></div>
       <div class="metric-stage">
-        <div class="panel score before"><div class="label">Before · train_augmented</div><div class="number">{_pct(run["baseline_accuracy"], 3)}</div><div class="repeat">{_e(baseline)}</div></div>
+        <div class="panel score before"><div class="label">Before · train_augmented</div><div class="number">{_pct(run["baseline_accuracy"], 2)}</div><div class="repeat">{_e(baseline)}</div></div>
         <div class="arrow" aria-hidden="true">→</div>
-        <div class="panel score after"><div class="label">After · eval_standard</div><div class="number">{_pct(run["candidate_accuracy"], 7)}</div><div class="repeat">{_e(candidate)}</div></div>
+        <div class="panel score after"><div class="label">After · eval_standard</div><div class="number">{_pct(run["candidate_accuracy"], 2)}</div><div class="repeat">{_e(candidate)}</div></div>
       </div>
     </section>
 
     <section class="section" aria-labelledby="agents">
       <div class="head"><h2 id="agents">六 Agent 协作顺序</h2><p>HUMAN APPROVAL IS A SEPARATE GATE</p></div>
       <div class="panel agents">{_render_agents(at004["agentteams"]["roles"])}</div>
+      <div class="panel duty-grid" aria-label="Separation of duties">
+        <div class="duty"><b>Commander</b><span>编排与封包，不能覆盖终态裁决</span></div>
+        <div class="duty"><b>Collector</b><span>只能取证，不能诊断</span></div>
+        <div class="duty"><b>Analyst</b><span>只能诊断，不能执行</span></div>
+        <div class="duty"><b>Planner</b><span>只能制定计划，不能审批</span></div>
+        <div class="duty"><b>Executor</b><span>只能执行获批计划，不能宣布成功</span></div>
+        <div class="duty"><b>Auditor</b><span>独占终态裁决，不能修改结果</span></div>
+      </div>
     </section>
 
     <section class="section" aria-labelledby="evidence">
@@ -273,14 +281,19 @@ def _render_content(at004: dict[str, Any], at002: dict[str, Any]) -> str:
       <div class="panel trace">{_render_trace(at004["agentteams"]["handoffs"])}</div>
     </section>
 
+    <section class="section" aria-labelledby="reusable-infra">
+      <div class="head"><h2 id="reusable-infra">Reusable Infra</h2><p>NOT A ONE-OFF SCRIPT</p></div>
+      <div class="panel infra"><div><div class="kicker">可复用能力合同</div><h3>7 versioned Skills</h3><p>同一组职责边界可迁移到训练、评测、数据处理和发布验证。</p></div><div class="infra-items"><span>Structured I/O Schema</span><span>Sandbox execution contract</span><span>Policy + approval gate</span><span>Case Memory</span></div></div>
+    </section>
+
     <section class="section" aria-labelledby="auditor">
       <div class="head"><h2 id="auditor">Auditor Decision</h2><p>INDEPENDENT RECOMPUTATION</p></div>
       <div class="panel decision"><div><div class="kicker">Verification Auditor</div><h3>PASS / RESOLVED</h3><p>三次候选结果达到冻结阈值；重复性、审批顺序、受保护输入、Runner 产物和 Trace 哈希链均通过独立复核。</p></div><div class="decision-mark">VERIFIED</div></div>
     </section>
 
     <section class="section" aria-labelledby="bundle">
-      <div class="head"><h2 id="bundle">Evidence Bundle SHA-256</h2><p>{_e(bundle["artifact_count"])} ARTIFACTS · MEMBER SET VERIFIED</p></div>
-      <div class="panel bundle"><div><div class="label">AT-004 archived evidence bundle</div><div class="digest">{_e(bundle["sha256"])}</div></div><span class="pill verified">HASH VERIFIED</span></div>
+      <div class="head"><h2 id="bundle">Evidence Bundle SHA-256</h2><p>{_e(bundle["artifact_count"])} ZIP ENTRIES · MEMBER SET VERIFIED</p></div>
+      <div class="panel bundle"><div><div class="label">AT-004 archived evidence bundle · 27 ZIP entries</div><div class="digest">{_e(bundle["sha256"])}</div></div><span class="pill verified">HASH VERIFIED</span></div>
     </section>
 
     <section class="section branches" aria-labelledby="safety-branches">

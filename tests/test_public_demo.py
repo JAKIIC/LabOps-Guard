@@ -51,8 +51,8 @@ class PublicDemoTests(unittest.TestCase):
             "Evidence Replay",
             "Read-only · Static",
             "LABOPS-AT-004-EVAL-DRIFT",
-            "71.875% × 71.875% × 71.875%",
-            "97.8124976% × 97.8124976% × 97.8124976%",
+            "71.88% × 3",
+            "97.81% × 3",
             "PASS / RESOLVED",
             "Incident Summary",
             "Evidence 排除过程",
@@ -68,10 +68,19 @@ class PublicDemoTests(unittest.TestCase):
             "POLICY_VIOLATION / ROLLED_BACK",
             "metric.py 非法篡改被拦截",
             "不是实时运行界面",
+            "评测预处理漂移：已隔离定位并可信修复",
+            "Separation of duties",
+            "独占终态裁决",
+            "7 versioned Skills",
+            "Structured I/O Schema",
+            "27 ZIP entries",
         ]
         for text in required:
             with self.subTest(text=text):
                 self.assertIn(text, self.document)
+        self.assertNotIn("71.875%", self.document)
+        self.assertNotIn("97.8124976%", self.document)
+        self.assertNotIn("27 bundle artifacts", self.document)
 
     def test_six_agent_order(self) -> None:
         roles = [

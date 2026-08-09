@@ -20,7 +20,7 @@ AT-002 证明“依赖缺失时安全阻塞”；AT-003 证明“经过审批的
 5. 解释边界：Safe Executor 不运行 PyTorch，只把结构化计划和审批提交给本机控制面；Runner 容器没有网络、没有密钥、非 root、只读并受资源限制。
 6. 展示 RuntimeCapabilityCheck 全部通过，以及三次重复结果：`last.pt ≈ 70.00%`，`best.pt ≈ 98.12%`。
 7. 展示受保护对象：`metric.py`、验证数据和原始工作区均未修改。
-8. 展示 Verification Auditor 独立复核。首次总 Trace 审计因重复 Matrix event ID 返回 ISSUE，系统没有收口；修正后再次审计为 `CHAIN_OK / ACCEPTED`，才允许 Manager 标记 `RESOLVED`。
+8. 展示 Verification Auditor 独立复核。首次总 Trace 审计因重复 Matrix event ID 返回 ISSUE，系统没有收口；修正后再次审计为 `CHAIN_OK / ACCEPTED`，Auditor 才裁决 `RESOLVED`。Manager 随后只负责封包和发布，不改变终态。
 9. 最后展示三层完整性：证据 ZIP、包内 26 个 artifact、Runner 原始输出 manifest 全部哈希一致。
 
 ## 六角色实际交接
