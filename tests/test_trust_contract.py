@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import tomllib
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
@@ -17,6 +18,14 @@ AT002 = ROOT / "demo" / "output-agentteams-at002"
 
 
 class TestTrustContract(unittest.TestCase):
+    def test_package_metadata_uses_the_public_positioning(self) -> None:
+        metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+        self.assertEqual(
+            metadata["project"]["description"],
+            "Trust Infrastructure for Production Agent Systems",
+        )
+
     def test_contract_cross_references_are_consistent(self) -> None:
         self.assertEqual(validate_trust_contract(ROOT), [])
 

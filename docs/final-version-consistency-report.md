@@ -21,6 +21,7 @@
 |---|---|---|
 | 公开 `main` / Pages | 公开版本尚未包含 Phase 6–8 三个候选提交 | 评委看到旧定位、旧 Dashboard 和旧说明 |
 | 产品定位 | README、Dashboard、演示材料与 PPT 首页仍使用上一版长定位 | 对外口径不唯一 |
+| 包元数据 | `pyproject.toml` 的项目描述仍为上一版定位 | 构建发行元数据与 README 不一致 |
 | AT-004 Manager Prompt | Task Contract 使用活动状态机，Prompt 仍引用历史状态机文件 | 代码包内部引用不一致 |
 | 测试口径 | 提交清单写成“117 项通过，2 项跳过” | 把收集数误写为通过数 |
 | PPT/PDF | 结构和链接正确，但首页英文定位未采用最终口径 | 材料与 README 不完全一致 |
@@ -35,7 +36,8 @@
 | README / 文档 | 已统一 | 对外定位统一为 `Trust Infrastructure for Production Agent Systems`，内部兼容版本号不作为产品口径 |
 | AT-004 Prompt | 已统一 | Manager Prompt 与 Task Contract 均引用当前活动状态机；历史案例文件保留只读兼容 |
 | PPT / PDF | 已统一 | 18 页结构、数据、二维码和链接未变；首页定位更新并重新导出 PDF |
-| 测试描述 | 已纠正 | Task 1 共收集 118 个测试，其中 116 通过、2 个可选 PyTorch 测试跳过 |
+| 测试描述 | 已纠正 | Task 1 共收集 119 个测试，其中 117 通过、2 个可选 PyTorch 测试跳过 |
+| 包元数据 | 已统一 | `pyproject.toml` 与 README、Dashboard、PPT/PDF 使用同一英文定位 |
 | SHA-256 | 已更新 | PPT/PDF 新摘要写入 `submission/SHA256SUMS.txt`，Evaluation Suite 摘要保持不变 |
 | 正式 Evidence | 未修改 | AT-002、AT-003、AT-004 已验证 Bundle 不重新生成、不改写 |
 

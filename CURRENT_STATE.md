@@ -114,7 +114,7 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
 
 ## 最近验证
 
-- Phase 9 Task 1 全量回归为 118 tests，其中 116 通过、2 个可选 PyTorch 测试跳过；失败为 0。
+- Phase 9 Task 1 全量回归为 119 tests，其中 117 通过、2 个可选 PyTorch 测试跳过；失败为 0。
 - Phase 8 全量回归为 117 tests，其中 115 通过、2 个可选 PyTorch 测试跳过；失败为 0。
 - 三套正式 Evidence、Public Replay stale check、18 页 PPT/PDF 渲染与提交文件校验通过；
   正式发布动作仍等待项目所有者确认。

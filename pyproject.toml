@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "labops-guard"
 version = "1.0.0rc1"
-description = "Trustworthy agent execution and governance infrastructure for AI engineering"
+description = "Trust Infrastructure for Production Agent Systems"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{name = "LabOps Guard contributors"}]
