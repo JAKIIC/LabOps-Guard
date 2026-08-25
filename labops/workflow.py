@@ -1,4 +1,8 @@
-"""Role-restricted incident state machine for the v0.2 workflow."""
+"""Role-restricted incident state machine for the legacy compatibility flow.
+
+New AgentTeams runs use ``agentteams/state_machine_v3.json``.  This module
+remains stable so archived deterministic checkpoint workflows can be replayed.
+"""
 
 from __future__ import annotations
 

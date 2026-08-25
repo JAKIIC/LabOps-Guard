@@ -1,8 +1,24 @@
 # LabOps Guard current state
 
-更新时间：2026-08-09
+更新时间：2026-08-25
 权威仓库：本文档所在 Git 仓库
-当前阶段：Phase 6 初赛材料冻结；正式 Release/Tag 保持冻结
+当前阶段：Phase 6B Trust Contract Convergence 已完成，等待 Phase 7 确认；
+正式 Release/Tag 保持冻结
+
+## Semifinal Trust Contract
+
+LabOps Guard 当前对外定位为“面向 AI 工程任务的可信 Agent 执行与治理基础设施”。
+Python 包版本为 `1.0.0rc1`，材料版本为 `v1.0-rc1`。当前候选版已建立：
+
+- Trust Contract v1，引用六 Agent 身份、Worker 历史别名、v3 状态机、Skill Registry
+  与 Tool Contract；
+- 七 Skill 可查询、可校验 Registry，未授权 Agent 与 Registry 损坏均 fail closed；
+- Gateway 旧 `/v1/run` 请求保持可用，同时归一化为含审批、副作用、预算和审计
+  上下文的 Tool Contract；
+- Trust Snapshot 以 `VERIFIED / CONFIGURED / LIMITED / BLOCKED` 表达 Identity、Skills、
+  Policy/Approval、Execution、Evidence/Trace 和 Audit 六个信任域。
+
+原 Phase 6 初赛证据、版本和发布冻结记录作为历史基线继续保留。
 
 ## 已验证主线
 

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/trust_contract.schema.json",
+  "title": "LabOpsTrustContract",
+  "type": "object",
+  "required": ["schema_version", "identity_source", "worker_aliases", "state_machine", "skill_registry", "tool_contract", "trust_snapshot", "active_agent_ids", "terminal_authority", "publication_authority", "invariants"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "system": {"type": "string"},
+    "identity_source": {"type": "string"},
+    "worker_aliases": {"type": "string"},
+    "state_machine": {"type": "string"},
+    "skill_registry": {"type": "string"},
+    "tool_contract": {"type": "string"},
+    "trust_snapshot": {"type": "string"},
+    "active_agent_ids": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"type": "string"}},
+    "terminal_authority": {"type": "string"},
+    "publication_authority": {"type": "string"},
+    "invariants": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

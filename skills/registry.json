@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0",
+  "skills": [
+    {
+      "skill_id": "collect-lab-evidence",
+      "version": "0.2.0",
+      "owner_agents": ["evidence-collector"],
+      "io_schema": "skills/collect-lab-evidence/references/io-schema.json",
+      "tool_dependencies": ["allowlisted-filesystem", "sha256"],
+      "invocation_condition": "An incident contract and explicit read allowlist are available",
+      "policy_class": "read_only_auto",
+      "failure_states": ["BLOCKED"],
+      "audit_events": ["skill.invoked", "evidence.registered", "skill.blocked"],
+      "lifecycle": "active"
+    },
+    {
+      "skill_id": "diagnose-lab-incident",
+      "version": "0.2.0",
+      "owner_agents": ["rca-analyst"],
+      "io_schema": "skills/diagnose-lab-incident/references/io-schema.json",
+      "tool_dependencies": ["evidence-store"],
+      "invocation_condition": "Schema-valid evidence with evidence_id values is available",
+      "policy_class": "read_only_auto",
+      "failure_states": ["UNKNOWN", "BLOCKED"],
+      "audit_events": ["skill.invoked", "hypothesis.registered", "skill.blocked"],
+      "lifecycle": "active"
+    },
+    {
+      "skill_id": "plan-lab-experiment",
+      "version": "0.2.0",
+      "owner_agents": ["experiment-planner"],
+      "io_schema": "skills/plan-lab-experiment/references/io-schema.json",
+      "tool_dependencies": ["policy-engine"],
+      "invocation_condition": "One evidence-backed falsifiable hypothesis is selected",
+      "policy_class": "manual_approval",
+      "failure_states": ["REJECTED", "BLOCKED"],
+      "audit_events": ["skill.invoked", "plan.registered", "policy.decided"],
+      "lifecycle": "active"
+    },
+    {
+      "skill_id": "control-lab-action",
+      "version": "0.2.0",
+      "owner_agents": ["safe-executor"],
+      "io_schema": "skills/control-lab-action/references/io-schema.json",
+      "tool_dependencies": ["runner-gateway", "sandbox-runner"],
+      "invocation_condition": "A valid Tool Contract and approval scoped to the action are present",
+      "policy_class": "manual_approval",
+      "failure_states": ["BLOCKED", "POLICY_VIOLATION", "REJECTED"],
+      "audit_events": ["skill.invoked", "approval.checked", "runner.started", "runner.completed"],
+      "lifecycle": "active"
+    },
+    {
+      "skill_id": "verify-lab-result",
+      "version": "0.2.0",
+      "owner_agents": ["verification-auditor"],
+      "io_schema": "skills/verify-lab-result/references/io-schema.json",
+      "tool_dependencies": ["runner-artifacts", "trace-verifier"],
+      "invocation_condition": "Raw Runner outputs, approval, plan and pre-run hashes are available",
+      "policy_class": "read_only_auto",
+      "failure_states": ["BLOCKED", "ROLLED_BACK"],
+      "audit_events": ["skill.invoked", "verification.completed", "terminal.decided"],
+      "lifecycle": "active"
+    },
+    {
+      "skill_id": "pack-lab-evidence",
+      "version": "0.2.0",
+      "owner_agents": ["labops-manager"],
+      "io_schema": "skills/pack-lab-evidence/references/io-schema.json",
+      "tool_dependencies": ["artifact-store", "sha256"],
+      "invocation_condition": "A terminal verification and valid trace are available",
+      "policy_class": "read_only_auto",
+      "failure_states": ["BLOCKED"],
+      "audit_events": ["skill.invoked", "bundle.created", "bundle.rejected"],
+      "lifecycle": "active"
+    },
+    {
+      "skill_id": "publish-case-memory",
+      "version": "0.1.0",
+      "owner_agents": ["labops-manager"],
+      "io_schema": "skills/publish-case-memory/references/io-schema.json",
+      "tool_dependencies": ["case-memory-store"],
+      "invocation_condition": "The incident has a terminal Auditor decision and immutable closure bundle",
+      "policy_class": "read_only_auto",
+      "failure_states": ["BLOCKED"],
+      "audit_events": ["skill.invoked", "memory.published", "memory.rejected"],
+      "lifecycle": "active"
+    }
+  ]
+}

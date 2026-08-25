@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Read-only compatibility for archived AgentTeams worker identifiers",
+  "aliases": {
+    "researcher": "experiment-planner",
+    "controlled-executor": "safe-executor"
+  },
+  "authorization_rule": "Aliases explain archived provenance only and never grant permissions"
+}

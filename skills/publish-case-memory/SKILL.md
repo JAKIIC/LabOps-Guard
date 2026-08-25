@@ -5,6 +5,9 @@ description: Publish an independently verified LabOps Guard incident closure as 
 
 # Publish Case Memory
 
+Runtime registry binding: `skills/registry.json#publish-case-memory`. Registry authorization and
+I/O validation fail closed before this Skill is invoked.
+
 Skill version: `0.1.0`; I/O schema version: `1.0`.
 
 ## Workflow

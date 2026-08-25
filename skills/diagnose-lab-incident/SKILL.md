@@ -5,6 +5,9 @@ description: Convert collected LabOps Guard evidence and explicit evidence gaps 
 
 # Diagnose Lab Incident
 
+Runtime registry binding: `skills/registry.json#diagnose-lab-incident`. Registry authorization and
+I/O validation fail closed before this Skill is invoked.
+
 Create hypotheses only from registered evidence. Read `references/io-schema.json` first.
 
 ## Workflow

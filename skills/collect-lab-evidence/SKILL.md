@@ -5,6 +5,9 @@ description: Register an approved AI experiment snapshot and collect allowlisted
 
 # Collect Lab Evidence
 
+Runtime registry binding: `skills/registry.json#collect-lab-evidence`. Registry authorization and
+I/O validation fail closed before this Skill is invoked.
+
 Produce evidence, not a diagnosis. Read `references/io-schema.json` before accepting a task.
 
 ## Workflow

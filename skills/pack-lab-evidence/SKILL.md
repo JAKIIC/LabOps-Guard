@@ -5,6 +5,9 @@ description: Package allowlisted LabOps Guard registry, evidence, diagnosis, app
 
 # Pack Lab Evidence
 
+Runtime registry binding: `skills/registry.json#pack-lab-evidence`. Registry authorization and I/O
+validation fail closed before this Skill is invoked.
+
 Package existing evidence without changing its meaning. Read `references/io-schema.json`.
 
 ## Workflow

@@ -20,11 +20,11 @@ Required real handoffs, in order:
    checkpoint/data/metric hashes, current and historical preprocessing profiles,
    repeat stability, recent diff, frozen protocol and Runner contract. Do not
    name a root cause in the collector artifact.
-3. RCA Analyst -> Experiment Planner (`researcher`): rank at least four hypotheses
+3. RCA Analyst -> Experiment Planner (`experiment-planner`; archived Worker alias `researcher`): rank at least four hypotheses
    using supporting and contradicting evidence, confidence, verification cost and
    risk. The required candidates are preprocessing drift, checkpoint mismatch,
    validation-data drift and randomness. Do not rank by task or case name.
-4. Experiment Planner -> Safe Executor (`controlled-executor`): emit one structured
+4. Experiment Planner -> Safe Executor (`safe-executor`; archived Worker alias `controlled-executor`): emit one structured
    ExperimentPlan whose only change is
    `eval_config.json:evaluation.preprocessing_profile` from `train_augmented` to
    `eval_standard`. Use `evaluate_preprocessing_profile`, image

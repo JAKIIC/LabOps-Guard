@@ -5,6 +5,9 @@ description: Independently verify LabOps Guard action results, concrete postcond
 
 # Verify Lab Result
 
+Runtime registry binding: `skills/registry.json#verify-lab-result`. Registry authorization and I/O
+validation fail closed before this Skill is invoked.
+
 Verify independently from raw action records. Read `references/io-schema.json` first.
 
 ## Workflow

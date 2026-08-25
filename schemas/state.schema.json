@@ -7,7 +7,7 @@
   "properties": {
     "schema_version": {"type": "string"},
     "incident_id": {"type": "string"},
-    "state": {"type": "string", "enum": ["RECEIVED", "TRIAGED", "EVIDENCE_COLLECTING", "EVIDENCE_READY", "DIAGNOSING", "HYPOTHESES_READY", "PLAN_READY", "POLICY_CHECKING", "APPROVAL_PENDING", "EXECUTING", "VERIFYING", "RESOLVED", "FAILED", "ROLLED_BACK", "ARCHIVED"]},
+    "state": {"type": "string", "enum": ["RECEIVED", "TRIAGED", "EVIDENCE_COLLECTING", "EVIDENCE_READY", "DIAGNOSING", "HYPOTHESES_READY", "DIAGNOSIS_READY", "PLANNING", "PLAN_READY", "POLICY_CHECKING", "APPROVAL_PENDING", "APPROVED", "EXECUTING", "VERIFYING", "RESOLVED", "FAILED", "ROLLED_BACK", "BLOCKED", "REJECTED", "ARCHIVED"]},
     "updated_at": {"type": "string"},
     "updated_by": {"type": "string"}
   },

@@ -1,0 +1,23 @@
+{
+  "schema_version": "3.0",
+  "initial_state": "RECEIVED",
+  "terminal_states": ["RESOLVED", "ROLLED_BACK", "BLOCKED", "REJECTED"],
+  "transitions": [
+    {"from": "RECEIVED", "to": "EVIDENCE_COLLECTING", "actor": "labops-manager", "requires": ["incident_contract"]},
+    {"from": "EVIDENCE_COLLECTING", "to": "EVIDENCE_READY", "actor": "evidence-collector", "requires": ["evidence.json", "immutable_hashes"]},
+    {"from": "EVIDENCE_READY", "to": "DIAGNOSING", "actor": "labops-manager", "requires": ["evidence_schema_valid"]},
+    {"from": "DIAGNOSING", "to": "DIAGNOSIS_READY", "actor": "rca-analyst", "requires": ["hypothesis.json", "evidence_ids"]},
+    {"from": "DIAGNOSIS_READY", "to": "PLANNING", "actor": "labops-manager", "requires": ["hypothesis_schema_valid"]},
+    {"from": "PLANNING", "to": "PLAN_READY", "actor": "experiment-planner", "requires": ["plan.json", "one_variable", "rollback_defined"]},
+    {"from": "PLAN_READY", "to": "POLICY_CHECKING", "actor": "labops-manager", "requires": ["plan_schema_valid"]},
+    {"from": "POLICY_CHECKING", "to": "APPROVAL_PENDING", "actor": "labops-manager", "requires": ["policy_requires_approval"]},
+    {"from": "POLICY_CHECKING", "to": "REJECTED", "actor": "labops-manager", "requires": ["policy_denied"]},
+    {"from": "APPROVAL_PENDING", "to": "APPROVED", "actor": "human-approver", "requires": ["approval_id", "approved_scope", "approved_at"]},
+    {"from": "APPROVAL_PENDING", "to": "REJECTED", "actor": "human-approver", "requires": ["approval_rejected_or_timed_out"]},
+    {"from": "APPROVED", "to": "EXECUTING", "actor": "safe-executor", "requires": ["approval_before_run", "tool_contract_valid", "sandbox_snapshot"]},
+    {"from": "EXECUTING", "to": "VERIFYING", "actor": "safe-executor", "requires": ["run.json", "changed_path_manifest"]},
+    {"from": "VERIFYING", "to": "RESOLVED", "actor": "verification-auditor", "requires": ["independent_metric_pass", "immutable_hashes_match", "approval_before_run", "trace_chain_ok"]},
+    {"from": "VERIFYING", "to": "ROLLED_BACK", "actor": "verification-auditor", "requires": ["policy_violation", "rollback_hash_restored"]},
+    {"from": "VERIFYING", "to": "BLOCKED", "actor": "verification-auditor", "requires": ["verification_inconclusive"]}
+  ]
+}

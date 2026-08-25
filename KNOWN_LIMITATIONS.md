@@ -1,5 +1,16 @@
 # Known limitations
 
+## v1.0-rc1 trust boundary
+
+- Agent Identity 是策略身份和职责分离契约，不是密码学身份、OIDC 或工作负载身份平台。
+- Trust Contract、Skill Registry 和 Tool Contract 在单仓库/单机候选版内实现，不是多租户
+  分布式 Control Plane。
+- 当前 Dashboard 仍为初赛只读事故视图；Phase 6 只提供六信任域 Trust Snapshot
+  JSON/CLI，Trust Dashboard UI 属于待确认的 Phase 7。
+- Tool Contract 是项目自定义契约；MCP 仍只是可选适配方向，本版未实现 MCP Server。
+- Evidence-centric Observability 依赖本地 Trace、Manifest、Metrics 和 Bundle，未部署 OTel
+  Collector 或后端。
+
 ## Scope of evidence
 
 - AT-004 是确定性、合成、单机 CPU fixture。它证明该事件的闭环和安全边界，不证明任意

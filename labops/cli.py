@@ -9,6 +9,8 @@ Standard-library only. Subcommands:
   run       execute a controlled action (dry-run first)
   verify    verify post-action closure
   trace     dump / verify trace chain
+  skills    list, describe, or validate a registered Skill
+  trust     emit the evidence-backed Trust Layer snapshot
   demo      run the polar-baseline demo end-to-end
 """
 
@@ -209,6 +211,43 @@ def cmd_web(args) -> int:
     return 0
 
 
+def cmd_skills(args) -> int:
+    from labops import skill_registry
+
+    project_root = Path(__file__).resolve().parent.parent
+    try:
+        if args.action == "list":
+            payload = {"schema_version": "1.0", "skills": skill_registry.list_skills(project_root)}
+        elif args.action == "describe":
+            payload = skill_registry.describe_skill(
+                args.skill_id, project_root, caller_agent_id=args.caller_agent_id
+            )
+        else:
+            document = json.loads(Path(args.input_json).read_text(encoding="utf-8"))
+            payload = skill_registry.validate_skill_input(
+                args.skill_id,
+                document,
+                project_root,
+                caller_agent_id=args.caller_agent_id,
+            )
+    except (OSError, json.JSONDecodeError, ValueError, PermissionError) as exc:
+        print(json.dumps({"status": "BLOCKED", "error": str(exc)}, ensure_ascii=False), file=sys.stderr)
+        return 2
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_trust(args) -> int:
+    from labops.trust import build_trust_snapshot
+
+    project_root = Path(__file__).resolve().parent.parent
+    at004 = Path(args.at004_root) if args.at004_root else project_root / "demo" / "output-agentteams-at004"
+    at002 = Path(args.at002_root) if args.at002_root else project_root / "demo" / "output-agentteams-at002"
+    payload = build_trust_snapshot(project_root, at004, at002)
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if payload["contract_status"] == "CONFIGURED" else 2
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="labops", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -294,6 +333,29 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--agentteams-v3-workspace", default=None, help="read-only LABOPS-AT-003 evidence bundle")
     sp.add_argument("--at004-workspace", default=None, help="read-only LABOPS-AT-004 local or AgentTeams evidence")
     sp.set_defaults(func=cmd_web)
+
+    sp = sub.add_parser("skills", help="inspect the repository-native Skill Registry")
+    skill_sub = sp.add_subparsers(dest="action", required=True)
+    skill_list = skill_sub.add_parser("list", help="list active Skills")
+    skill_list.add_argument("--format", choices=["json"], default="json")
+    skill_list.set_defaults(func=cmd_skills)
+    skill_describe = skill_sub.add_parser("describe", help="describe one Skill")
+    skill_describe.add_argument("skill_id")
+    skill_describe.add_argument("--caller-agent-id", default=None)
+    skill_describe.add_argument("--format", choices=["json"], default="json")
+    skill_describe.set_defaults(func=cmd_skills)
+    skill_validate = skill_sub.add_parser("validate", help="validate a Skill invocation input")
+    skill_validate.add_argument("skill_id")
+    skill_validate.add_argument("input_json")
+    skill_validate.add_argument("--caller-agent-id", default=None)
+    skill_validate.add_argument("--format", choices=["json"], default="json")
+    skill_validate.set_defaults(func=cmd_skills)
+
+    sp = sub.add_parser("trust", help="emit the read-only Trust Layer snapshot")
+    sp.add_argument("--at004-root", default=None)
+    sp.add_argument("--at002-root", default=None)
+    sp.add_argument("--format", choices=["json"], default="json")
+    sp.set_defaults(func=cmd_trust)
 
     return p
 

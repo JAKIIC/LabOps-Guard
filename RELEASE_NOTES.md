@@ -1,4 +1,19 @@
-# LabOps Guard v0.3.0-rc1 draft
+# LabOps Guard v1.0-rc1 semifinal candidate
+
+这是面向 GOAI 2026 Agent Infra 复赛的 source-only 候选版。项目定位升级为：
+Trustworthy Agent Execution & Governance Infrastructure for AI Engineering。Python 包版本
+为符合 PEP 440 的 `1.0.0rc1`，对外材料口径为 `v1.0-rc1`。
+
+本候选版增加 Trust Contract v1、Identity/Alias 兼容层、v3 审批状态机、七 Skill
+Registry、Tool Contract、结构化 Gateway 错误码与六信任域 Trust Snapshot。原始
+AT-002/003/004 Evidence Bundle 不重新生成。
+
+由于 Runner 镜像许可证/NOTICE 门禁仍未关闭，本文档不表示已创建 Git Tag、
+GitHub Release、Runner 镜像或镜像 tar。
+
+## 历史初赛候选版记录
+
+### LabOps Guard v0.3.0-rc1 draft
 
 这是面向 GOAI Agent Infra 初赛的发布候选草案；源码采用 Apache License 2.0。尚未创建
 GitHub Release 或 `v0.3.0-rc1` Tag。

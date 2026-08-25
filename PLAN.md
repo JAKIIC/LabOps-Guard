@@ -1,5 +1,23 @@
 # LabOps Guard execution plan
 
+## Phase 6B — Trust Contract Convergence
+
+- [x] 冻结 `v1.0-rc1` / `1.0.0rc1` 版本口径；保留原 Phase 6 初赛冻结记录。
+- [x] 建立 Trust Contract v1、六 Agent 唯一身份、历史 Worker Alias 和 v3 状态机。
+- [x] 建立七 Skill 运行时 Registry、可查询 CLI 与 fail-closed 校验。
+- [x] 统一 Tool Contract、结构化错误码与六信任域 Trust Snapshot。
+
+`v1.0-rc1` 是复赛源码与材料候选版。Runner 镜像四个许可证门禁关闭前，
+不创建 Tag/Release，不发布镜像或镜像 tar。
+
+## Phase 7–8 — 等待项目所有者确认
+
+- [ ] 将 Dashboard 与 Public Evidence Replay 升级为只读 Trust Dashboard。
+- [ ] 完成合法修复 / 非法 metric 修改双分支故事。
+- [ ] 完成 10 案例 Trust Benchmark v1 与真实评测报告。
+- [ ] 统一 README、18 页复赛 PPT/PDF、视频脚本和提交清单。
+- [ ] 完成全量回归、证据、静态页、隐私、许可证与提交包冻结检查。
+
 当前计划以 AT-004 已真实 `PASS / RESOLVED` 为起点，不再增加 Demo 功能。
 
 ## Phase 5A — release readiness

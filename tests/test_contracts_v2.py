@@ -22,10 +22,27 @@ class TestFormalSchemas(unittest.TestCase):
         with self.assertRaises(ContractError):
             validate_document({"schema_version": "1.0"}, "incident.schema.json")
 
-    def test_all_eight_schemas_exist(self):
+    def test_required_schemas_exist_and_are_valid_json(self):
         root = Path(__file__).resolve().parent.parent / "schemas"
-        expected = {"incident", "state", "evidence", "hypothesis", "plan", "run", "verification", "trace"}
-        self.assertEqual(expected, {p.name.split(".")[0] for p in root.glob("*.schema.json")})
+        expected = {
+            "incident",
+            "state",
+            "evidence",
+            "hypothesis",
+            "plan",
+            "run",
+            "verification",
+            "trace",
+            "trust_contract",
+            "skill_registry",
+            "tool_contract",
+            "trust_snapshot",
+        }
+        schema_paths = list(root.glob("*.schema.json"))
+        self.assertTrue(expected.issubset({p.name.split(".")[0] for p in schema_paths}))
+        for path in schema_paths:
+            with self.subTest(schema=path.name):
+                self.assertIsInstance(json.loads(path.read_text(encoding="utf-8")), dict)
 
 
 class TestRoleRestrictedStateMachine(unittest.TestCase):

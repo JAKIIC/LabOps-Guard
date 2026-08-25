@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/trust_snapshot.schema.json",
+  "title": "TrustSnapshot",
+  "type": "object",
+  "required": ["schema_version", "positioning", "contract_status", "domains"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "positioning": {"type": "string"},
+    "contract_status": {"type": "string", "enum": ["CONFIGURED", "BLOCKED"]},
+    "domains": {"type": "object"}
+  },
+  "additionalProperties": false
+}

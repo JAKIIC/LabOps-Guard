@@ -65,7 +65,7 @@ class TestPhase5Contracts(unittest.TestCase):
         self.assertIn("main_demo = 'LABOPS-AT-004-EVAL-DRIFT'", text)
         self.assertIn("python_package_version = $packageVersion", text)
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-        self.assertRegex(pyproject, re.compile(r'^version = "0\.3\.0rc1"$', re.MULTILINE))
+        self.assertRegex(pyproject, re.compile(r'^version = "1\.0\.0rc1"$', re.MULTILINE))
 
     def test_public_repository_hygiene_boundaries_are_explicit(self):
         self.assertFalse((ROOT / "SELF_CHECK.md").exists())

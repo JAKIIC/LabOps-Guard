@@ -120,6 +120,20 @@ class TestCheckpointAgentTeam(unittest.TestCase):
         rollback = next(transition for transition in terminal if transition["to"] == "ROLLED_BACK")
         self.assertIn("rollback_hash_restored", rollback["requires"])
 
+    def test_v3_state_machine_has_explicit_policy_and_approval_gates(self):
+        machine = json.loads((ROOT / "agentteams" / "state_machine_v3.json").read_text(encoding="utf-8"))
+        transitions = {
+            (item["from"], item["to"]): item for item in machine["transitions"]
+        }
+        self.assertEqual(transitions[("PLAN_READY", "POLICY_CHECKING")]["actor"], "labops-manager")
+        self.assertEqual(transitions[("POLICY_CHECKING", "APPROVAL_PENDING")]["actor"], "labops-manager")
+        self.assertEqual(transitions[("APPROVAL_PENDING", "APPROVED")]["actor"], "human-approver")
+        self.assertEqual(transitions[("APPROVED", "EXECUTING")]["actor"], "safe-executor")
+        for terminal_state in ("RESOLVED", "ROLLED_BACK", "BLOCKED"):
+            incoming = [item for item in machine["transitions"] if item["to"] == terminal_state]
+            self.assertTrue(incoming)
+            self.assertEqual({item["actor"] for item in incoming}, {"verification-auditor"})
+
     def test_planning_skill_is_complete(self):
         path = ROOT / "skills" / "plan-lab-experiment" / "SKILL.md"
         text = path.read_text(encoding="utf-8")

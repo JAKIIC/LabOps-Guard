@@ -5,6 +5,9 @@ description: Create a minimal, evidence-grounded experiment plan for LabOps Guar
 
 # Plan Lab Experiment
 
+Runtime registry binding: `skills/registry.json#plan-lab-experiment`. Registry authorization and
+I/O validation fail closed before this Skill is invoked.
+
 Convert one evidence-backed hypothesis into one bounded experiment plan. Never execute the plan or claim that it worked.
 
 ## Workflow

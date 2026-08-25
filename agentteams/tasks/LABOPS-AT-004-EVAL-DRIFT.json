@@ -6,12 +6,12 @@
     "labops-manager",
     "evidence-collector",
     "rca-analyst",
-    "researcher",
-    "controlled-executor",
+    "experiment-planner",
+    "safe-executor",
     "verification-auditor"
   ],
   "prompt_file": "agentteams/prompts/eval_drift_task.md",
-  "state_machine": "agentteams/state_machine_v2.json",
+  "state_machine": "agentteams/state_machine_v3.json",
   "workspace": "shared/tasks/LABOPS-AT-004-EVAL-DRIFT/",
   "runner_contract": {
     "endpoint": "http://host.docker.internal:18103/v1/run",
@@ -23,9 +23,9 @@
   "required_handoffs": [
     "labops-manager -> evidence-collector",
     "evidence-collector -> rca-analyst",
-    "rca-analyst -> researcher",
-    "researcher -> controlled-executor",
-    "controlled-executor -> verification-auditor",
+    "rca-analyst -> experiment-planner",
+    "experiment-planner -> safe-executor",
+    "safe-executor -> verification-auditor",
     "verification-auditor -> labops-manager"
   ],
   "archival_constraints": [

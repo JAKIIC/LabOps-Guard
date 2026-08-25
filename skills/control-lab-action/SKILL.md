@@ -5,6 +5,9 @@ description: Classify, dry-run, request approval for, and safely execute LabOps 
 
 # Control Lab Action
 
+Runtime registry binding: `skills/registry.json#control-lab-action`. Registry authorization and
+I/O validation fail closed before this Skill is invoked.
+
 Treat approval as a gate, never as a descriptive field. Read `references/io-schema.json`.
 
 ## Workflow

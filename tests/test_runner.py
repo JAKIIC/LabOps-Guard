@@ -108,11 +108,60 @@ class TestRunnerContracts(unittest.TestCase):
                     urllib.request.urlopen(request, timeout=2)
                 self.assertEqual(caught.exception.code, 400)
                 response = json.loads(caught.exception.read())
-                self.assertEqual(response, {"ok": False, "error": "structured experiment_plan and approval required"})
+                self.assertEqual(response["ok"], False)
+                self.assertEqual(response["code"], "INVALID_SCHEMA")
+                self.assertEqual(response["error"], "structured experiment_plan and approval required")
             finally:
                 server.shutdown()
                 server.server_close()
                 thread.join(timeout=2)
+
+    def test_gateway_normalizes_legacy_request_to_tool_contract(self):
+        from labops.runner_gateway import normalize_tool_contract
+
+        request = {
+            "experiment_plan": {
+                "task_id": "LABOPS-AT-004-EVAL-DRIFT",
+                "incident_id": "DEMO-EVAL-DRIFT-004",
+                "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-002",
+                "runtime": {"image": "labops/pytorch-cpu-runner:0.2.0"},
+                "budget": {"device": "cpu", "network": False},
+                "success_criteria": {"accuracy": {"minimum": 0.97}},
+            },
+            "approval": {
+                "approval_id": "APR-2",
+                "task_id": "LABOPS-AT-004-EVAL-DRIFT",
+                "decision": "APPROVED",
+                "decided_by": "human-user",
+                "approved_at": "2026-08-25T00:00:00Z",
+            },
+        }
+
+        contract = normalize_tool_contract(request)
+
+        self.assertEqual(contract["tool_id"], "labops.runner.execute")
+        self.assertEqual(contract["caller_agent_id"], "safe-executor")
+        self.assertEqual(contract["skill_id"], "control-lab-action")
+        self.assertEqual(contract["approval_reference"], "APR-2")
+        self.assertEqual(contract["idempotency_key"], "RUN-LABOPS-AT-004-AGENTTEAMS-002")
+
+    def test_gateway_rejects_tool_contract_identity_binding_mismatch(self):
+        from labops.runner_gateway import normalize_tool_contract
+
+        request = {
+            "experiment_plan": {
+                "task_id": "LABOPS-AT-004-EVAL-DRIFT",
+                "incident_id": "DEMO-EVAL-DRIFT-004",
+                "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-003",
+                "budget": {},
+                "success_criteria": {},
+            },
+            "approval": {"approval_id": "APR-3"},
+            "tool_contract": {"task_id": "ANOTHER-TASK"},
+        }
+
+        with self.assertRaisesRegex(ValueError, "binding"):
+            normalize_tool_contract(request)
 
 
 class TestIncidentIdentityRegression(unittest.TestCase):

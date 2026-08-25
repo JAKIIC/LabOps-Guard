@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "system": "LabOps Guard trustworthy agent execution and governance",
+  "identity_source": "agentteams/agent_identities_v2.json",
+  "worker_aliases": "agentteams/worker_aliases.json",
+  "state_machine": "agentteams/state_machine_v3.json",
+  "skill_registry": "skills/registry.json",
+  "tool_contract": "schemas/tool_contract.schema.json",
+  "trust_snapshot": "schemas/trust_snapshot.schema.json",
+  "active_agent_ids": [
+    "labops-manager",
+    "evidence-collector",
+    "rca-analyst",
+    "experiment-planner",
+    "safe-executor",
+    "verification-auditor"
+  ],
+  "terminal_authority": "verification-auditor",
+  "publication_authority": "labops-manager",
+  "invariants": [
+    "no_evidence_no_diagnosis",
+    "no_approval_no_execution",
+    "no_verification_no_closure",
+    "executor_cannot_self_verify",
+    "forbidden_actions_cannot_be_approved"
+  ]
+}

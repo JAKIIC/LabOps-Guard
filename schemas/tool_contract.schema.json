@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/tool_contract.schema.json",
+  "title": "GovernedToolContract",
+  "type": "object",
+  "required": ["tool_id", "caller_agent_id", "skill_id", "task_id", "incident_id", "run_id", "approval_reference", "input_schema_version", "allowed_side_effects", "protected_resources", "resource_budget", "idempotency_key", "success_postconditions", "audit_context"],
+  "properties": {
+    "tool_id": {"type": "string"},
+    "caller_agent_id": {"type": "string"},
+    "skill_id": {"type": "string"},
+    "task_id": {"type": "string"},
+    "incident_id": {"type": "string"},
+    "run_id": {"type": "string"},
+    "approval_reference": {"type": "string"},
+    "input_schema_version": {"type": "string"},
+    "allowed_side_effects": {"type": "array", "items": {"type": "string"}},
+    "protected_resources": {"type": "array", "items": {"type": "string"}},
+    "resource_budget": {"type": "object"},
+    "idempotency_key": {"type": "string"},
+    "success_postconditions": {"type": "object"},
+    "audit_context": {"type": "object"}
+  },
+  "additionalProperties": false
+}
