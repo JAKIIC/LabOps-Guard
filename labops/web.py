@@ -819,6 +819,7 @@ def build_dashboard_state(
     agentteams_v2_workspace: str | Path | None = None,
     agentteams_v3_workspace: str | Path | None = None,
     at004_workspace: str | Path | None = None,
+    project_root: str | Path | None = None,
 ) -> dict:
     """Build the allowlisted dashboard payload from generated demo artifacts."""
     workspace = Path(workspace)
@@ -879,6 +880,54 @@ def build_dashboard_state(
     incident_state = summary.get("incident_state", manifest.get("final_state", verification.get("incident_state", "NOT_RUN")))
     underlying_issue_resolved = bool(summary.get("underlying_issue_resolved", manifest_verification.get("underlying_issue_resolved", verification.get("underlying_issue_resolved", False))))
 
+    trust_root = Path(project_root) if project_root else Path(__file__).resolve().parent.parent
+    trust_at004 = Path(at004_workspace) if at004_workspace else trust_root / "demo" / "output-agentteams-at004"
+    trust_at002 = Path(agentteams_v2_workspace) if agentteams_v2_workspace else trust_root / "demo" / "output-agentteams-at002"
+    try:
+        from labops.skill_registry import list_skills
+        from labops.trust import build_trust_snapshot
+
+        snapshot = build_trust_snapshot(trust_root, trust_at004, trust_at002)
+        domains = snapshot["domains"]
+        skills = dict(domains["skills"])
+        skills["registered_count"] = len(list_skills(trust_root))
+        trust_layer = {
+            "contract": "Trust Contract v1",
+            "state_machine": "Trust State Machine v1",
+            "positioning": snapshot["positioning"],
+            "contract_status": snapshot["contract_status"],
+            "read_only": True,
+            "evidence_chain": ["identity", "policy", "execution", "evidence", "audit"],
+            "identity": domains["identity"],
+            "skills": skills,
+            "policy": domains["policy"],
+            "execution": domains["execution"],
+            "evidence": domains["evidence"],
+            "audit": domains["audit"],
+        }
+    except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError):
+        blocked = {
+            "status": "BLOCKED",
+            "summary": "Trust evidence is incomplete or unreadable",
+            "checks": {"trust_snapshot_available": False},
+            "evidence_refs": ["Trust Contract v1"],
+            "limitations": ["Trust contract or archived evidence could not be validated"],
+        }
+        trust_layer = {
+            "contract": "Trust Contract v1",
+            "state_machine": "Trust State Machine v1",
+            "positioning": "Trustworthy Agent Execution & Governance Infrastructure for AI Engineering",
+            "contract_status": "BLOCKED",
+            "read_only": True,
+            "evidence_chain": ["identity", "policy", "execution", "evidence", "audit"],
+            "identity": blocked,
+            "skills": {**blocked, "registered_count": 0},
+            "policy": blocked,
+            "execution": blocked,
+            "evidence": blocked,
+            "audit": blocked,
+        }
+
     return {
         "schema_version": "1.1",
         "ready": ready,
@@ -889,6 +938,7 @@ def build_dashboard_state(
             "read_only": True,
         },
         "principles": ["无证据不诊断", "无审批不执行", "无验证不闭环"],
+        "trust_layer": trust_layer,
         "summary": {
             "allowed_files": allowed_files,
             "snapshot_status": summary.get("verification_status", registry.get("verification_status", "NOT_RUN")),
@@ -1028,7 +1078,7 @@ def make_handler(
             else:
                 self._json(404, {"ok": False, "error": "not found"})
 
-        def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
+        def _reject_write(self) -> None:
             # Drain the request body before rejecting it. On Windows, closing a
             # socket with unread request bytes can reset the connection before
             # urllib receives the intended HTTP 405 response.
@@ -1036,6 +1086,18 @@ def make_handler(
             if content_length > 0:
                 self.rfile.read(content_length)
             self._json(405, {"ok": False, "error": "dashboard is read-only"})
+
+        def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
+            self._reject_write()
+
+        def do_PUT(self) -> None:  # noqa: N802 - stdlib handler API
+            self._reject_write()
+
+        def do_PATCH(self) -> None:  # noqa: N802 - stdlib handler API
+            self._reject_write()
+
+        def do_DELETE(self) -> None:  # noqa: N802 - stdlib handler API
+            self._reject_write()
 
         def log_message(self, fmt: str, *args) -> None:
             print(f"[dashboard] {self.client_address[0]} {fmt % args}")

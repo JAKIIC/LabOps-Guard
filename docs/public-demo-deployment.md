@@ -1,15 +1,18 @@
-# LabOps Guard 初赛公网 Evidence Replay 部署说明
+# LabOps Guard 复赛公网 Trust Evidence Replay 部署说明
 
 ## 结论
 
 该 Demo **可以纯静态托管**，公网不需要 LabOps Python 后端、数据库、对象存储或 AgentTeams 控制面。
 
-构建过程只在开发环境读取 AT-004 与 AT-002 的已归档证据，并复用 `labops.web` 中现有 Dashboard 解析函数。生成器先验证关键状态、指标、六角色顺序、审批顺序、Trace、Runner 隔离条件和证据包哈希，再把明确的公开白名单字段渲染成单个 HTML 文件：
+构建过程只在开发环境读取 AT-004 与 AT-002 的已归档证据，并复用 `labops.web` 与
+`labops.trust` 的验证逻辑。生成器先验证 Trust Contract v1、五段证据链、关键状态、指标、
+六角色顺序、审批顺序、Trace、Runner 隔离条件和证据包哈希，再把公开白名单字段渲染成单个
+HTML 文件。页面不生成综合评分：
 
 ```text
 不可变归档证据
   → 现有 Dashboard 证据解析函数
-  → 完整性与事实边界校验（失败即不生成）
+  → Trust Contract v1 与完整性校验（失败即不生成）
   → 公开字段白名单
   → docs/public-demo/index.html
 ```

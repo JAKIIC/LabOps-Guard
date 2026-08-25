@@ -5,8 +5,9 @@
 - Agent Identity 是策略身份和职责分离契约，不是密码学身份、OIDC 或工作负载身份平台。
 - Trust Contract、Skill Registry 和 Tool Contract 在单仓库/单机候选版内实现，不是多租户
   分布式 Control Plane。
-- 当前 Dashboard 仍为初赛只读事故视图；Phase 6 只提供六信任域 Trust Snapshot
-  JSON/CLI，Trust Dashboard UI 属于待确认的 Phase 7。
+- 当前本地与公网页面均为只读 Trust Dashboard / Evidence Replay，只展示
+  Identity → Policy → Execution → Evidence → Audit 的逐域证据，不生成综合评分，也不提供
+  执行、修改或审批入口。
 - Tool Contract 是项目自定义契约；MCP 仍只是可选适配方向，本版未实现 MCP Server。
 - Evidence-centric Observability 依赖本地 Trace、Manifest、Metrics 和 Bundle，未部署 OTel
   Collector 或后端。
@@ -54,7 +55,7 @@
   对应源码义务、完整镜像 NOTICE 包、最终重建 digest 对比。因此镜像、镜像 tar、Tag 和
   GitHub Release 不发布；详见 `docs/compliance/runner-license-review.md`。
 - 公开仓库、首次推送、远端 CI、README/License 展示和公开证据隐私检查均已完成；
-  `v0.3.0-rc1` Tag 和 GitHub Release 等待上述四个门禁关闭，不以提交截止时间为由跳过。
+  `v1.0-rc1` Tag 和 GitHub Release 等待上述四个门禁关闭，不以提交截止时间为由跳过。
 - 当前兼容路径使用项目自建并采用 Apache-2.0 的
   `demo/fixtures/project_snapshot_synthetic/`。早期 Polar 快照字节已从 `main` 删除；Git 历史
   和 AT-001 不可变输出只保留历史事件与哈希，因此不能用于重新分发原快照。

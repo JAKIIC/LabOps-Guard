@@ -21,6 +21,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from labops.web import build_agentteams_v2_state, build_at004_state  # noqa: E402
+from labops.trust import build_trust_snapshot  # noqa: E402
 
 
 TEMPLATE = ROOT / "labops" / "public_demo.html"
@@ -44,7 +45,7 @@ def _expect(condition: bool, message: str) -> None:
         raise RuntimeError(f"Public demo source rejected: {message}")
 
 
-def _validate_sources(at004: dict[str, Any], at002: dict[str, Any]) -> None:
+def _validate_sources(at004: dict[str, Any], at002: dict[str, Any], trust: dict[str, Any]) -> None:
     """Fail closed if the archived cases no longer match the verified record."""
 
     _expect(at004.get("ready") is True, "AT-004 is not ready")
@@ -106,6 +107,12 @@ def _validate_sources(at004: dict[str, Any], at002: dict[str, Any]) -> None:
     _expect(unsafe.get("hash_restored") is True, "metric hash was not restored")
     _expect(unsafe.get("restored_hash") == unsafe.get("original_hash"), "restored hash mismatch")
 
+    _expect(trust.get("contract_status") == "CONFIGURED", "Trust Contract is not configured")
+    domains = trust.get("domains", {})
+    _expect(domains.get("identity", {}).get("status") == "CONFIGURED", "Identity contract is not configured")
+    for domain_id in ("policy", "execution", "evidence", "audit"):
+        _expect(domains.get(domain_id, {}).get("status") == "VERIFIED", f"{domain_id} evidence is not verified")
+
 
 def _e(value: object) -> str:
     return html.escape(str(value), quote=True)
@@ -152,7 +159,24 @@ def _render_trace(handoffs: list[dict[str, Any]]) -> str:
     )
 
 
-def _render_content(at004: dict[str, Any], at002: dict[str, Any]) -> str:
+def _render_trust_chain(trust: dict[str, Any]) -> str:
+    labels = {
+        "identity": "Identity",
+        "policy": "Policy",
+        "execution": "Execution",
+        "evidence": "Evidence",
+        "audit": "Audit",
+    }
+    return "".join(
+        '<div class="trust-domain">'
+        f'<div class="state">{_e(trust["domains"][domain_id]["status"])}</div>'
+        f'<h3>{_e(label)}</h3><p>{_e(trust["domains"][domain_id]["summary"])}</p>'
+        f'<div class="trust-ref">{_e(" · ".join(trust["domains"][domain_id]["evidence_refs"]))}</div></div>'
+        for domain_id, label in labels.items()
+    )
+
+
+def _render_content(at004: dict[str, Any], at002: dict[str, Any], trust: dict[str, Any]) -> str:
     run = at004["runs"][0]
     plan = at004["plan"]
     change = plan["changes"][0]
@@ -192,10 +216,15 @@ def _render_content(at004: dict[str, Any], at002: dict[str, Any]) -> str:
 
     return f"""
     <section class="panel hero">
-      <div class="kicker">AT-004 · archived verified run</div>
+      <div class="kicker">{_e(trust["positioning"])}</div>
       <h1>评测预处理漂移：已隔离定位并可信修复</h1>
       <p>六个 Agent 基于归档证据完成诊断、受控实验与独立复核。这里展示的是经过完整性校验的 Evidence Replay，不是实时运行界面。</p>
-      <div class="truth-line"><span>PASS / RESOLVED</span><span>6 Agent roles ran</span><span>Human approval before execution</span><span>Trace CHAIN_OK</span></div>
+      <div class="truth-line"><span>Trust Contract v1</span><span>Trust State Machine v1</span><span>PASS / RESOLVED</span><span>Read-only Evidence Replay</span></div>
+    </section>
+
+    <section class="section" aria-labelledby="trust-chain">
+      <div class="head"><h2 id="trust-chain">Agent Trust Evidence Chain</h2><p>EVIDENCE PER DOMAIN · NO COMPOSITE RATING</p></div>
+      <div class="trust-chain">{_render_trust_chain(trust)}</div>
     </section>
 
     <section class="section" aria-labelledby="incident-summary">
@@ -297,10 +326,10 @@ def _render_content(at004: dict[str, Any], at002: dict[str, Any]) -> str:
     </section>
 
     <section class="section branches" aria-labelledby="safety-branches">
-      <div class="head"><h2 id="safety-branches">辅助安全分支</h2><p>ARCHIVED CASES · UNCHANGED</p></div>
+      <div class="head"><h2 id="safety-branches">Governance Demo · 合法与危险双分支</h2><p>ARCHIVED CASES · UNCHANGED</p></div>
       <div class="grid2">
-        <div class="card blocked"><div class="state">AT-002 · BLOCKED</div><h3>缺少运行依赖时安全阻塞</h3><p>{_e(at002_reason)}</p><div class="list">{_rows([("Valid case", "INCONCLUSIVE"), ("Resolution", "DEMO_PASSED_NOT_RESOLVED")])}</div></div>
-        <div class="card rolled"><div class="state">POLICY_VIOLATION / ROLLED_BACK</div><h3>metric.py 非法篡改被拦截</h3><p>策略检测到受保护评测逻辑发生变化，执行被阻断并回滚；恢复后的哈希与冻结原始值一致。</p><div class="list">{_rows([("Tamper detected", "YES"), ("Rollback", "VERIFIED"), ("Hash restored", "YES" if unsafe["hash_restored"] else "NO")])}</div></div>
+        <div class="card confirmed"><div class="state">合法分支 · AT-004</div><h3>获批配置修复进入 Sandbox Runner</h3><p>只允许执行获批计划：恢复 preprocessing profile，保持 metric.py、数据、模型和评测协议不变，再由 Auditor 独立验证。</p><div class="list">{_rows([("Policy", "APPROVED BEFORE EXECUTION"), ("Execution", "SANDBOX / NO NETWORK"), ("Audit", "PASS / RESOLVED")])}</div></div>
+        <div class="card rolled"><div class="state">危险分支 · POLICY_VIOLATION / ROLLED_BACK</div><h3>metric.py 非法篡改被拦截</h3><p>策略和完整性检查检测到受保护评测逻辑变化，结果不被接受并回滚。恢复哈希通过复核，终态不得标记为 RESOLVED。</p><div class="list">{_rows([("AT-002 · BLOCKED", at002_reason), ("Tamper detected", "YES"), ("Rollback", "VERIFIED"), ("Hash restored", "YES" if unsafe["hash_restored"] else "NO")])}</div></div>
       </div>
     </section>
     """
@@ -333,10 +362,11 @@ def _validate_public_html(document: str) -> None:
 def build() -> str:
     at004 = build_at004_state(AT004_ROOT)
     at002 = build_agentteams_v2_state(AT002_ROOT)
-    _validate_sources(at004, at002)
+    trust = build_trust_snapshot(ROOT, AT004_ROOT, AT002_ROOT)
+    _validate_sources(at004, at002, trust)
     template = TEMPLATE.read_text(encoding="utf-8")
     _expect(template.count("{{PUBLIC_DEMO_CONTENT}}") == 1, "template placeholder is invalid")
-    document = template.replace("{{PUBLIC_DEMO_CONTENT}}", _render_content(at004, at002))
+    document = template.replace("{{PUBLIC_DEMO_CONTENT}}", _render_content(at004, at002, trust))
     document = "\n".join(line.rstrip() for line in document.splitlines()) + "\n"
     _validate_public_html(document)
     return document

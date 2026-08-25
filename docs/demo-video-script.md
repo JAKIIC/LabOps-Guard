@@ -1,67 +1,65 @@
-# LabOps Guard 初赛演示视频脚本
+# LabOps Guard 复赛演示视频脚本
 
-建议时长：3 分 30 秒至 4 分钟。画面以只读 Dashboard、AgentTeams 交接证据和官方模板 PPT 为主；
-不把提示词、口头结论或界面回放当作执行证据。
+建议时长：4 分钟。主画面使用只读 Trust Dashboard 与 Public Trust Evidence Replay。
+对外统一使用 Trust Contract v1 和 Trust State Machine v1，不展示内部兼容文件版本。
 
-## 0:00–0:25｜问题与原则
+## 0:00–0:30｜Agent 获得执行权后的风险
 
-画面：PPT 封面、AT-004 概览。
+画面：项目定位与 Trust Dashboard 首页。
 
-旁白：AI 实验指标回退时，给出建议并不等于完成可信修复。LabOps Guard 通过六角色职责
-隔离，把一次异常变成可审批、可阻塞、可回滚、可复核的工程事件。原则是：无证据不诊断，
-无审批不执行，无验证不闭环。
+旁白：未来 Agent 不只回答问题，还会修改配置、运行评测并影响工程结论。真正的风险不是
+“Agent 会不会给建议”，而是我们能否证明它是谁、为什么获准行动、执行了什么，以及结果
+是否经过独立验证。LabOps Guard 是面向 AI 工程任务的可信 Agent 执行与治理基础设施。
 
-## 0:25–0:55｜真实异常
+## 0:30–1:10｜Trust Contract 与五段证据链
 
-画面：Dashboard 的 AT-004 基线卡片、Evidence Collector 事实清单。
+画面：Identity → Policy → Execution → Evidence → Audit。
 
-旁白：固定 checkpoint、验证数据、metric 与评测协议后，accuracy 连续三次为 71.875%，
-历史基线约为 97.8124976%，两侧重复实验 spread 都是 0。Collector 只采集白名单事实和哈希，
-不提前诊断。
+旁白：Trust Contract v1 统一身份、能力、策略、执行与证据要求；Trust State Machine v1
+保证审批、执行和审计顺序。六个 Agent 各有职责边界，七个 Skill 保持注册和可校验。
+Dashboard 不给综合评分，而是逐域显示状态、检查项、证据来源和限制。
 
-## 0:55–1:25｜六角色交接与 RCA
+## 1:10–1:50｜危险分支：越权修改 metric
 
-画面：六角色时序与 handoff manifest。
+画面：AT-002 危险分支。
 
-旁白：Commander、Collector、Analyst、Planner、Executor、Auditor 依次交接，每次记录任务
-ID、输入、输出、时间、状态和 Matrix 事件。Analyst 排除 checkpoint、数据、metric 和随机性，
-把 evaluation preprocessing profile 漂移列为首要假设。
+旁白：如果 Agent 为了让指标变好而修改受保护的 metric.py，Policy 和哈希检查会识别越权。
+该结果不能被接受，动作被回滚，Auditor 给出 POLICY_VIOLATION / ROLLED_BACK。即使恢复哈希
+通过复核，终态也不得标记为 RESOLVED。这证明治理层能拒绝“看起来更好”的不可信结果。
 
-## 1:25–2:05｜审批与受限执行
+## 1:50–2:50｜合法分支：AT-004 受控修复
 
-画面：ExperimentPlan、人工审批记录、RuntimeCapabilityCheck 8/8、Runner 结果。
+画面：AT-004 证据、计划、人工审批和 Runner。
 
-旁白：Planner 只允许在沙箱中把一个配置字段从 train_augmented 恢复为 eval_standard，预算
-为 CPU、30 秒、三次复算、禁止联网。Safe Executor 只有在人工批准后才能调用 Runner 0.2.0；
-Runner 非 root、network=none，不修改原始工作区。
+旁白：固定 checkpoint、验证数据、metric 和协议后，accuracy 连续三次为 71.875%，历史
+基线为 97.8124976%。Collector 只采集白名单证据；Analyst 将 preprocessing profile 漂移
+列为首要假设。Planner 只允许在沙箱中把 train_augmented 恢复为 eval_standard，预算为
+CPU、30 秒、三次复算、禁止联网。人工批准早于执行，Safe Executor 只能提交获批计划。
+断网 Runner 完成后，候选三次达到 97.8124976%，受保护哈希保持不变。
 
-## 2:05–2:40｜独立验证
+## 2:50–3:30｜Independent Audit 与 Evidence Bundle
 
-画面：71.875% × 3 → 97.8124976% × 3、六组保护哈希、Trace 检查。
+画面：Auditor、Trace、Bundle SHA-256。
 
-旁白：候选三次复算恢复到 97.8124976%，只有一个沙箱字段改变。Auditor 不接受 Executor
-的成功声明，而是从原始日志、metrics 和 manifest 独立重算；第一次 Trace 审计失败被保留，
-补齐真实事件后才得到 CHAIN_OK / ACCEPTED 与 PASS / RESOLVED。
+旁白：Auditor 不采信 Executor 的成功声明，而是从原始日志、metrics、manifest、审批时序
+和保护哈希独立重算。最终得到 PASS / RESOLVED，Trace 为 7 entries、CHAIN_OK / ACCEPTED，
+27-entry Evidence Bundle 的 SHA-256 为
+4092b43f39df52db3847caa28ca01e4321129a1c17ec7ca5efd2029ab1fb77cd。
 
-## 2:40–3:10｜安全失败与经验沉淀
+## 3:30–4:00｜边界与开源入口
 
-画面：AT-002 BLOCKED、非法 metric 修改 ROLLED_BACK、case memory 搜索结果。
+画面：Trust Dashboard、Public Replay、GitHub。
 
-旁白：依赖缺失不是失败旁白，而是正式 BLOCKED 结果；非法 metric 修改被拒绝并回滚。
-Auditor 裁决后，Incident Commander 发布独立 postmortem 和可搜索 case memory，不覆盖原始
-AT-004 证据包，也不增加第七个 Agent。
+旁白：Dashboard 与公网回放都只读，不能执行、修改或审批。当前实现是单机确定性 CPU
+Runtime，不宣称已经部署生产身份、分布式调度、MCP Server 或 OTel 后端。项目开放六角色、
+七个 Skill、Runner 契约和证据验证代码，所有成功结论都能回到不可变证据。
 
-## 3:10–3:30｜收尾
+## 现场降级顺序
 
-画面：五类证据、7 个 Skill、开源边界、最终状态。
+1. 本地 Trust Dashboard。
+2. Public Trust Evidence Replay。
+3. 预录完整运行视频。
+4. Evidence Bundle 离线验证输出。
 
-旁白：LabOps Guard 开放的是六角色、7 个版本化 Skill、受限 Runner 契约和证据合同。当前
-是单机 CPU 演示；生产身份、外部调度和 OTel 后端属于后续路线。Runner 镜像在许可证门禁
-关闭前不单独分发，也不会为了按时提交冒充完成。
-
-## 录制前检查
-
-- AT-004 是唯一主演示；AT-003 仅作快速兜底，AT-002 保持 BLOCKED；
-- Dashboard、PPT、README 与证据包显示相同的指标、Runner 版本和最终状态；
-- 画面不出现 Token、凭据、本机绝对路径或个人隐私；
-- 任一哈希校验失败时停止录制闭环，不宣称 RESOLVED。
+不得把 Public Replay 或录屏称为实时 AgentTeams 执行。任一哈希或契约校验失败时停止演示
+闭环，并明确显示 `BLOCKED`。

@@ -2,20 +2,22 @@
 
 ## 一句话
 
-LabOps Guard 不是替模型“调参”，而是让六个受限 Agent 用证据定位评测链路漂移，经人工审批只修改一个沙箱字段，再交给断网 PyTorch Runner 执行，最后由独立 Auditor 决定能否 `RESOLVED`。
+LabOps Guard 是面向 AI 工程任务的可信 Agent 执行与治理基础设施。它用 Trust Contract v1
+和 Trust State Machine v1 约束六个 Agent，并以 Identity → Policy → Execution → Evidence
+→ Audit 的证据链证明一次工程行动为什么可以或不可以被信任。
 
 ## 现场演示顺序（约 4 分钟）
 
-1. 打开 `http://127.0.0.1:8787/`，先指出主演示来源为 `AGENTTEAMS_RUN`，AT-002 仍是 `BLOCKED`，AT-003 是 checkpoint 备用案例。
-2. 展示异常：同一固定评测对象从历史约 `97.81%` 稳定降至 `71.88%`，连续三次无波动。
-3. 展示证据与反证：checkpoint、验证集、metric、模型和评测协议哈希不变；唯一近期配置变化是 preprocessing profile。
-4. 展示 RCA：预处理漂移置信度 `0.92`；随机性、checkpoint、验证集变化均被证据压低。
-5. 展示计划：只改沙箱 `evaluation.preprocessing_profile: train_augmented → eval_standard`；CPU、30 秒、3 次、禁网；禁止改评测逻辑和原始工作区；定义回滚。
-6. 展示人工审批早于执行，Safe Executor 只提交结构化 plan，不在 Worker 中安装或运行 PyTorch。
-7. 展示 Runner：`labops/pytorch-cpu-runner:0.2.0`、PyTorch 2.5.1+cpu、network none、能力检查通过。
-8. 展示后置指标：`71.875% × 3 → 97.8124976% × 3`，唯一 changed path 是沙箱预处理字段，六组受保护哈希不变。
+1. 打开 `http://127.0.0.1:8787/`，明确页面是只读 Trust Dashboard，不提供执行、修改或审批入口。
+2. 从五段证据链说明六 Agent Identity、Policy/Approval、Runner、Evidence Bundle 与 Auditor 的关系。
+3. 先展示危险分支：修改 `metric.py` 属于越权操作，结果被判为 `POLICY_VIOLATION / ROLLED_BACK`，终态不得标记为 `RESOLVED`。
+4. 再展示合法分支：同一固定评测对象从历史约 `97.81%` 稳定降至 `71.88%`，连续三次无波动。
+5. 展示证据与 RCA：checkpoint、验证集、metric、模型和评测协议哈希不变；唯一近期配置变化是 preprocessing profile。
+6. 展示计划：只改沙箱 `evaluation.preprocessing_profile: train_augmented → eval_standard`；CPU、30 秒、3 次、禁网并定义回滚。
+7. 展示人工审批早于执行；Safe Executor 只能执行获批 Tool Contract，不能宣布成功。
+8. 展示 Runner 与后置指标：`71.875% × 3 → 97.8124976% × 3`，唯一 changed path 是沙箱预处理字段，六组受保护哈希不变。
 9. 展示 Auditor：独立重算后 `PASS / RESOLVED`；总追踪链 `7 entries / CHAIN_OK / ACCEPTED`。
-10. 最后展示首次 `ISSUE` 仍在包内：系统会暴露并保留自己的审计错误，而不是覆盖历史。
+10. 回到 Trust Dashboard，强调没有综合评分，每个信任域分别给出证据和限制；失败项必须显示 `BLOCKED`。
 
 ## 六角色实际交接
 

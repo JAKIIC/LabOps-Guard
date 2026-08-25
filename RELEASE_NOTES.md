@@ -4,9 +4,14 @@
 Trustworthy Agent Execution & Governance Infrastructure for AI Engineering。Python 包版本
 为符合 PEP 440 的 `1.0.0rc1`，对外材料口径为 `v1.0-rc1`。
 
-本候选版增加 Trust Contract v1、Identity/Alias 兼容层、v3 审批状态机、七 Skill
+本候选版增加 Trust Contract v1、Identity/Alias 兼容层、Trust State Machine v1、七 Skill
 Registry、Tool Contract、结构化 Gateway 错误码与六信任域 Trust Snapshot。原始
 AT-002/003/004 Evidence Bundle 不重新生成。
+
+Phase 7 将本地 Dashboard 与 Public Evidence Replay 升级为只读 Trust Dashboard，重点展示
+Identity → Policy → Execution → Evidence → Audit 的证据链，以及 AT-004 合法修复与
+metric.py 越权修改的危险分支。页面不生成综合评分，不提供执行、修改或审批入口。
+Phase 7 全量回归为 110 tests，三套正式 Evidence Bundle 与 Public Replay 陈旧检查通过。
 
 由于 Runner 镜像许可证/NOTICE 门禁仍未关闭，本文档不表示已创建 Git Tag、
 GitHub Release、Runner 镜像或镜像 tar。

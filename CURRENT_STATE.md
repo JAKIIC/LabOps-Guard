@@ -2,7 +2,7 @@
 
 更新时间：2026-08-25
 权威仓库：本文档所在 Git 仓库
-当前阶段：Phase 6B Trust Contract Convergence 已完成，等待 Phase 7 确认；
+当前阶段：Phase 7 Trust Dashboard & Governance Demo 已完成，等待 Phase 8 确认；
 正式 Release/Tag 保持冻结
 
 ## Semifinal Trust Contract
@@ -10,7 +10,7 @@
 LabOps Guard 当前对外定位为“面向 AI 工程任务的可信 Agent 执行与治理基础设施”。
 Python 包版本为 `1.0.0rc1`，材料版本为 `v1.0-rc1`。当前候选版已建立：
 
-- Trust Contract v1，引用六 Agent 身份、Worker 历史别名、v3 状态机、Skill Registry
+- Trust Contract v1，引用六 Agent 身份、Worker 历史别名、Trust State Machine v1、Skill Registry
   与 Tool Contract；
 - 七 Skill 可查询、可校验 Registry，未授权 Agent 与 Registry 损坏均 fail closed；
 - Gateway 旧 `/v1/run` 请求保持可用，同时归一化为含审批、副作用、预算和审计
@@ -19,6 +19,16 @@ Python 包版本为 `1.0.0rc1`，材料版本为 `v1.0-rc1`。当前候选版已
   Policy/Approval、Execution、Evidence/Trace 和 Audit 六个信任域。
 
 原 Phase 6 初赛证据、版本和发布冻结记录作为历史基线继续保留。
+
+## Phase 7 Trust Dashboard
+
+- `/api/status` 增加只读 `trust_layer`，按 Identity → Policy → Execution → Evidence → Audit
+  输出状态、检查项、证据引用和限制；不生成综合评分。
+- 本地 Dashboard 已升级为 Trust Dashboard；POST、PUT、PATCH、DELETE 均返回 `405`。
+- Public Evidence Replay 继续构建时静态生成、无脚本、无网络请求，并新增合法 AT-004 与
+  危险 metric 修改双分支证据。
+- 对外只使用 Trust Contract v1 与 Trust State Machine v1，不显示内部兼容文件版本。
+- Agent 和 Skill 数量保持六个与七个，不增加运行时角色或能力包。
 
 ## 已验证主线
 
@@ -90,6 +100,10 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
 
 ## 最近验证
 
+- Phase 7 全量回归为 110 tests，其中 108 通过、2 个可选 PyTorch 测试跳过；失败为 0。
+- Trust Dashboard 的 GET/API/健康检查通过；POST、PUT、PATCH、DELETE 均返回 `405`。
+- Public Trust Evidence Replay stale check、无脚本/无网络/无表单检查和 390px–1280px
+  响应式渲染检查通过。
 - Phase 5A 全量回归为 89 tests；仓库卫生契约加入后当前全量为 90 tests。
 - 提交 `cff32ba0d16860fa42806d5353cca54337fd7a0a` 的 GitHub Actions 已通过：Windows/Linux
   × Python 3.9/3.12 四组均为 success，包含单元/契约、证据完整性和敏感模式扫描。

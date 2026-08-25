@@ -76,6 +76,42 @@ class TestDashboardState(unittest.TestCase):
         self.assertTrue(state["safety"]["prohibited_operations_zero"])
         self.assertEqual(state["summary"]["incident_state"], "DEMO_PASSED_NOT_RESOLVED")
 
+    def test_trust_layer_exposes_ordered_evidence_chain_without_score(self):
+        root = repo_root()
+        state = build_dashboard_state(
+            self.workspace,
+            agentteams_v2_workspace=root / "demo" / "output-agentteams-at002",
+            at004_workspace=root / "demo" / "output-agentteams-at004",
+        )
+
+        trust = state["trust_layer"]
+        self.assertEqual(trust["contract"], "Trust Contract v1")
+        self.assertEqual(trust["state_machine"], "Trust State Machine v1")
+        self.assertTrue(trust["read_only"])
+        self.assertEqual(
+            trust["evidence_chain"],
+            ["identity", "policy", "execution", "evidence", "audit"],
+        )
+        self.assertEqual(trust["skills"]["registered_count"], 7)
+        for domain_id in trust["evidence_chain"]:
+            with self.subTest(domain_id=domain_id):
+                domain = trust[domain_id]
+                self.assertIn(domain["status"], {"VERIFIED", "CONFIGURED", "LIMITED", "BLOCKED"})
+                self.assertTrue(domain["summary"])
+                self.assertIsInstance(domain["checks"], dict)
+                self.assertTrue(domain["evidence_refs"])
+        self.assertNotIn("score", json.dumps(trust, ensure_ascii=False).lower())
+
+    def test_blocked_trust_layer_does_not_expose_host_paths(self):
+        with tempfile.TemporaryDirectory() as missing_root:
+            state = build_dashboard_state(self.workspace, project_root=missing_root)
+
+        payload = json.dumps(state["trust_layer"], ensure_ascii=False)
+        self.assertEqual(state["trust_layer"]["contract_status"], "BLOCKED")
+        self.assertNotIn(missing_root, payload)
+        self.assertNotIn(Path(missing_root).name, payload)
+        self.assertNotIn("FileNotFoundError", payload)
+
 
 class TestDashboardHTTP(unittest.TestCase):
     def setUp(self):
@@ -97,16 +133,23 @@ class TestDashboardHTTP(unittest.TestCase):
     def test_dashboard_and_api(self):
         html = urllib.request.urlopen(self.base + "/", timeout=3).read().decode("utf-8")
         self.assertIn("LabOps Guard", html)
+        self.assertIn("Trust Contract v1", html)
+        self.assertIn("Trust State Machine v1", html)
+        self.assertNotIn("Trust Score", html)
+        self.assertNotIn("state_machine_v3", html)
+        self.assertNotIn("<form", html.lower())
         payload = json.load(urllib.request.urlopen(self.base + "/api/status", timeout=3))
         self.assertTrue(payload["ready"])
         health = json.load(urllib.request.urlopen(self.base + "/healthz", timeout=3))
         self.assertTrue(health["ok"])
 
     def test_dashboard_is_read_only(self):
-        request = urllib.request.Request(self.base + "/api/status", data=b"{}", method="POST")
-        with self.assertRaises(urllib.error.HTTPError) as caught:
-            urllib.request.urlopen(request, timeout=3)
-        self.assertEqual(caught.exception.code, 405)
+        for method in ("POST", "PUT", "PATCH", "DELETE"):
+            with self.subTest(method=method):
+                request = urllib.request.Request(self.base + "/api/status", data=b"{}", method=method)
+                with self.assertRaises(urllib.error.HTTPError) as caught:
+                    urllib.request.urlopen(request, timeout=3)
+                self.assertEqual(caught.exception.code, 405)
 
 
 class TestContainerPackaging(unittest.TestCase):

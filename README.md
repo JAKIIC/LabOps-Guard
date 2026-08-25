@@ -1,7 +1,8 @@
 # LabOps Guard
 
-LabOps Guard 是面向 AI 实验与评测事故的可信多智能体治理系统。它把一次异常处理拆成
-六个职责隔离角色，并用结构化证据、人工审批、受限执行、独立复核和哈希链保证：
+LabOps Guard 是面向 AI 工程任务的可信 Agent 执行与治理基础设施（Trustworthy Agent
+Execution & Governance Infrastructure for AI Engineering）。它通过 Trust Contract v1 与
+Trust State Machine v1，把六个职责隔离角色的身份、策略、执行、证据和审计统一成可复核链路：
 
 **无证据不诊断，无审批不执行，无验证不闭环。**
 
@@ -12,6 +13,14 @@ LabOps Guard 是面向 AI 实验与评测事故的可信多智能体治理系统
 数据、评测代码还是配置。LabOps Guard 让六个权限隔离的 Agent 收集证据、提出可证伪假设、
 申请最小修改，并在断网沙箱中执行获批方案。独立 Auditor 检查原始运行产物和保护文件哈希，
 通过后才允许关闭事故。
+
+```text
+Identity → Policy → Execution → Evidence → Audit
+   Trust Contract v1 · Trust State Machine v1 · read-only Trust Dashboard
+```
+
+Dashboard 不生成综合评分，也不提供执行、修改或审批操作；每个信任域分别展示状态、检查项、
+证据来源和已知限制。Skill Registry 仍保持七个现有 Skill，不新增 Agent 或 Skill。
 
 ## 已验证的主演示
 
@@ -76,8 +85,9 @@ python -B -m labops.case_memory search "evaluation drift"
 docker compose up -d --build
 ```
 
-仪表盘只投影已归档证据，服务端会重新验证 ZIP member set、artifact manifest、Runner
-manifest 和 Trace，不提供任意文件访问，也不改变事故状态。
+Trust Dashboard 只投影已归档证据，服务端会重新验证 Identity、Policy/Approval、Runner、
+ZIP member set、artifact manifest 和 Trace。页面不提供执行、修改或审批入口；所有写方法
+统一返回 `405`。公网 Public Evidence Replay 仍是无脚本、无网络请求的构建时静态页面。
 
 ## 证据与复现入口
 
@@ -113,8 +123,8 @@ Python/PyTorch 仓库，但实验容器运行时禁止联网。当前没有部�
 Server、mTLS/OIDC 服务身份、GPU 调度、外部数据集或 RAG；相关迁移边界见
 `KNOWN_LIMITATIONS.md`、`docs/observability.md` 与 `docs/competition-mapping.md`。
 
-源码采用 Apache-2.0，公开仓库为 `https://github.com/JAKIIC/LabOps-Guard`；候选 Git Tag
-`v0.3.0-rc1` 对应 Python 包版本 `0.3.0rc1`。`main` 已通过
+源码采用 Apache-2.0，公开仓库为 `https://github.com/JAKIIC/LabOps-Guard`；候选材料版本
+`v1.0-rc1` 对应 Python 包版本 `1.0.0rc1`。`main` 已通过
 Windows/Linux、Python 3.9/3.12 的 GitHub Actions。正式 Release/Tag 仍需确认发布时间，
 Runner 镜像级 SBOM、许可证和 NOTICE 复核已完成：源码与初赛材料可提交，但基础镜像
 再分发条款、Debian 对应源码义务、完整镜像 NOTICE 包和最终 digest 对比尚未关闭。

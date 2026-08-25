@@ -47,6 +47,14 @@ class PublicDemoTests(unittest.TestCase):
 
     def test_required_replay_content(self) -> None:
         required = [
+            "Trustworthy Agent Execution &amp; Governance Infrastructure for AI Engineering",
+            "Trust Contract v1",
+            "Trust State Machine v1",
+            "Identity",
+            "Policy",
+            "Execution",
+            "Evidence",
+            "Audit",
             "Archived Verified Run",
             "Evidence Replay",
             "Read-only · Static",
@@ -74,6 +82,10 @@ class PublicDemoTests(unittest.TestCase):
             "7 versioned Skills",
             "Structured I/O Schema",
             "27 ZIP entries",
+            "合法分支",
+            "危险分支",
+            "只允许执行获批计划",
+            "终态不得标记为 RESOLVED",
         ]
         for text in required:
             with self.subTest(text=text):
@@ -81,6 +93,8 @@ class PublicDemoTests(unittest.TestCase):
         self.assertNotIn("71.875%", self.document)
         self.assertNotIn("97.8124976%", self.document)
         self.assertNotIn("27 bundle artifacts", self.document)
+        self.assertNotIn("Trust Score", self.document)
+        self.assertNotIn("state_machine_v3", self.document)
 
     def test_six_agent_order(self) -> None:
         roles = [
@@ -128,6 +142,7 @@ class PublicDemoTests(unittest.TestCase):
     def test_builder_reuses_existing_dashboard_parsers(self) -> None:
         source = BUILDER.read_text(encoding="utf-8")
         self.assertIn("from labops.web import build_agentteams_v2_state, build_at004_state", source)
+        self.assertIn("from labops.trust import build_trust_snapshot", source)
 
     def test_pages_artifact_is_limited_to_the_public_demo(self) -> None:
         workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
