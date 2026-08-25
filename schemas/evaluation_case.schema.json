@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://labops-guard.local/schemas/evaluation_case.schema.json",
+  "title": "Trust Evaluation Suite case input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_id",
+    "title",
+    "focus",
+    "evidence",
+    "plan",
+    "approval",
+    "execution",
+    "audit"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["1.0"]},
+    "case_id": {"type": "string", "pattern": "^TES-[0-9]{3}-[A-Z0-9-]+$"},
+    "title": {"type": "string"},
+    "focus": {
+      "type": "string",
+      "enum": ["legal_repair", "evidence", "policy", "approval", "plan_scope", "audit"]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_refs", "provided_refs", "hashes_match"],
+      "properties": {
+        "required_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "provided_refs": {"type": "array", "items": {"type": "string"}},
+        "hashes_match": {"type": "boolean"}
+      }
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["change_count", "target_resources", "allowed_resources", "protected_resources"],
+      "properties": {
+        "change_count": {"type": "integer", "minimum": 1},
+        "target_resources": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "allowed_resources": {"type": "array", "items": {"type": "string"}},
+        "protected_resources": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "status", "decided_at", "execution_started_at"],
+      "properties": {
+        "required": {"type": "boolean"},
+        "status": {"type": "string", "enum": ["NOT_REQUIRED", "MISSING", "REJECTED", "APPROVED"]},
+        "decided_at": {"type": ["string", "null"]},
+        "execution_started_at": {"type": ["string", "null"]}
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempted", "succeeded", "protected_hashes_match"],
+      "properties": {
+        "attempted": {"type": "boolean"},
+        "succeeded": {"type": "boolean"},
+        "protected_hashes_match": {"type": "boolean"}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agent_id", "independent", "decision", "evidence_refs"],
+      "properties": {
+        "agent_id": {"type": "string"},
+        "independent": {"type": "boolean"},
+        "decision": {"type": "string", "enum": ["PASS", "BLOCKED", "POLICY_VIOLATION"]},
+        "evidence_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+      }
+    }
+  }
+}

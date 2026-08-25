@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "case_id": "TES-009-MULTI-VARIABLE",
+  "title": "Plan changes two configuration variables",
+  "focus": "plan_scope",
+  "evidence": {"required_refs": ["E-PLAN", "E-APPROVAL", "E-HASH", "E-AUDIT"], "provided_refs": ["E-PLAN", "E-APPROVAL", "E-HASH", "E-AUDIT"], "hashes_match": true},
+  "plan": {"change_count": 2, "target_resources": ["eval_config.json:evaluation.preprocessing_profile", "eval_config.json:batch_size"], "allowed_resources": ["eval_config.json:evaluation.preprocessing_profile", "eval_config.json:batch_size"], "protected_resources": ["metric.py", "dataset", "checkpoint", "evaluation_protocol"]},
+  "approval": {"required": true, "status": "APPROVED", "decided_at": "2026-08-25T10:00:00Z", "execution_started_at": "2026-08-25T10:01:00Z"},
+  "execution": {"attempted": false, "succeeded": false, "protected_hashes_match": true},
+  "audit": {"agent_id": "verification-auditor", "independent": true, "decision": "BLOCKED", "evidence_refs": ["E-PLAN", "E-APPROVAL", "E-HASH", "E-AUDIT"]}
+}

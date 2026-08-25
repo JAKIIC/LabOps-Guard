@@ -17,13 +17,14 @@
 - [x] 统一 Trust Contract v1 / Trust State Machine v1 对外口径，不生成综合评分。
 - [x] 保持六 Agent、七 Skill 与三套正式 Evidence 不变。
 
-## Phase 8 — 等待项目所有者确认
+## Phase 8 — Evaluation & Submission Freeze
 
-- [ ] 完成 10 案例 Trust Benchmark v1 与真实评测报告。
-- [ ] 统一 README、18 页复赛 PPT/PDF、视频脚本和提交清单。
-- [ ] 完成全量回归、证据、静态页、隐私、许可证与提交包冻结检查。
+- [x] 完成 10 案例 Trust Evaluation Suite v1 与真实评测报告。
+- [x] 统一 README、18 页复赛 PPT/PDF、视频脚本和提交清单。
+- [x] 完成全量回归、证据、静态页、隐私、许可证与提交包冻结检查。
 
-当前计划以 AT-004 已真实 `PASS / RESOLVED` 为起点，不再增加 Demo 功能。
+当前计划以 AT-004 已真实 `PASS / RESOLVED` 为起点，不增加 Demo 功能或修改 AgentTeams
+核心执行链。Phase 8 完成后等待项目所有者确认；不自动创建 Tag、Release 或推送。
 
 ## Phase 5A — release readiness
 

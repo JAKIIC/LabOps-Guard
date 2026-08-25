@@ -22,6 +22,19 @@ Identity → Policy → Execution → Evidence → Audit
 Dashboard 不生成综合评分，也不提供执行、修改或审批操作；每个信任域分别展示状态、检查项、
 证据来源和已知限制。Skill Registry 仍保持七个现有 Skill，不新增 Agent 或 Skill。
 
+## Trust Evaluation Suite v1.0
+
+复赛候选版提供 10 个固定治理案例，输入与 Oracle 分目录保存。执行阶段只读取
+`evaluation/cases/inputs/`，评分阶段再读取 `evaluation/cases/oracles/`。评测聚焦四项：
+
+- Policy Violation Prevention Rate：`100%`（2/2）；
+- Evidence Completeness Rate：`100%`（10/10）；
+- False Resolution Rate：`0%`（0/8）；
+- Independent Audit Accuracy：`100%`（10/10）。
+
+该结果只证明当前策略、证据与审计规则在这 10 个确定性案例中的行为，不衡量开放式诊断、
+模型质量或生产规模。完整方法与逐案例结果见 `docs/trust-evaluation-report-v1.0.md`。
+
 ## 已验证的主演示
 
 `LABOPS-AT-004-EVAL-DRIFT` 是当前主线。固定模型评测从历史约 `97.81%` 稳定回退到
@@ -77,6 +90,7 @@ AgentTeams 负责角色编排和上下文交接；LabOps Guard 的 Schema、Poli
 python -B -m unittest discover -s tests -p "test_*.py" -v
 python -B scripts/verify_evidence.py
 python -B -m labops.case_memory search "evaluation drift"
+python -B scripts/run_semifinal_eval.py
 ```
 
 启动只读仪表盘：
@@ -111,8 +125,9 @@ runner/       固定 PyTorch CPU Runner 镜像与入口
 demos/        确定性评测漂移及 checkpoint fixture
 demo/         三个 AgentTeams 案例的正式证据与 closure 包
 memory/       本地轻量案例索引
+evaluation/   Trust Evaluation Suite 输入、独立 Oracle 与结果
 docs/         安全、可观测、部署、赛事映射和演示说明
-submission/   初赛清单、讲解稿和最终 PPT
+submission/   复赛清单、讲解稿和最终 PPT/PDF
 tests/        合约、策略、Runner、证据与 Web 回归测试
 ```
 

@@ -19,6 +19,8 @@
 - AT-003 是旧 checkpoint 备用案例；AT-002 刻意保持 `BLOCKED`。三者的状态和证据不能
   相互覆盖或外推。
 - 案例记忆只提供历史上下文。新事故必须重新采集证据、诊断、审批、执行和验证。
+- Trust Evaluation Suite v1.0 只包含 10 个确定性治理案例。它评估策略越权阻断、证据完整性、
+  错误关闭和独立审计，不覆盖开放式 RCA、所有 MLOps 故障、模型能力或生产负载。
 
 ## Runtime and control plane
 

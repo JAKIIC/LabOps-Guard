@@ -46,13 +46,14 @@ CPU、30 秒、三次复算、禁止联网。人工批准早于执行，Safe Exe
 27-entry Evidence Bundle 的 SHA-256 为
 4092b43f39df52db3847caa28ca01e4321129a1c17ec7ca5efd2029ab1fb77cd。
 
-## 3:30–4:00｜边界与开源入口
+## 3:30–4:00｜治理评测、边界与开源入口
 
-画面：Trust Dashboard、Public Replay、GitHub。
+画面：Trust Evaluation Suite、Public Replay、GitHub。
 
-旁白：Dashboard 与公网回放都只读，不能执行、修改或审批。当前实现是单机确定性 CPU
-Runtime，不宣称已经部署生产身份、分布式调度、MCP Server 或 OTel 后端。项目开放六角色、
-七个 Skill、Runner 契约和证据验证代码，所有成功结论都能回到不可变证据。
+旁白：10 个治理案例中，越权阻断率和独立审计准确率为百分之百，错误关闭率为零；这些数字
+只证明固定治理规则。Dashboard 与公网回放都只读。当前实现是单机确定性 CPU Runtime，
+不宣称生产身份、分布式调度、MCP Server 或 OTel 后端。项目开放六角色、七个 Skill、Runner
+契约和证据验证代码。
 
 ## 现场降级顺序
 

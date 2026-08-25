@@ -13,6 +13,11 @@ Identity → Policy → Execution → Evidence → Audit 的证据链，以及 A
 metric.py 越权修改的危险分支。页面不生成综合评分，不提供执行、修改或审批入口。
 Phase 7 全量回归为 110 tests，三套正式 Evidence Bundle 与 Public Replay 陈旧检查通过。
 
+Phase 8 增加 Trust Evaluation Suite v1.0。10 个输入案例与独立 Oracle 分离，固定评估策略
+越权阻断、证据完整性、错误关闭和独立审计。当前结果为 `100% / 100% / 0% / 100%`，只用于
+治理规则验证，不宣称通用 Agent 推理能力。复赛 README、18 页 PPT/PDF、视频脚本与提交
+清单已统一；AgentTeams 核心执行链和 AT-002/003/004 正式证据保持不变。
+
 由于 Runner 镜像许可证/NOTICE 门禁仍未关闭，本文档不表示已创建 Git Tag、
 GitHub Release、Runner 镜像或镜像 tar。
 

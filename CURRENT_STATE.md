@@ -2,7 +2,7 @@
 
 更新时间：2026-08-25
 权威仓库：本文档所在 Git 仓库
-当前阶段：Phase 7 Trust Dashboard & Governance Demo 已完成，等待 Phase 8 确认；
+当前阶段：Phase 8 Evaluation & Submission Freeze 已完成，等待项目所有者确认；
 正式 Release/Tag 保持冻结
 
 ## Semifinal Trust Contract
@@ -29,6 +29,18 @@ Python 包版本为 `1.0.0rc1`，材料版本为 `v1.0-rc1`。当前候选版已
   危险 metric 修改双分支证据。
 - 对外只使用 Trust Contract v1 与 Trust State Machine v1，不显示内部兼容文件版本。
 - Agent 和 Skill 数量保持六个与七个，不增加运行时角色或能力包。
+
+## Phase 8 Trust Evaluation Suite
+
+- 10 个治理案例覆盖两项合法修复、证据缺失、保护哈希不一致、两项保护资源越权、审批缺失、
+  审批晚于执行、多变量计划与 Executor 自证。
+- 执行阶段只读取 `evaluation/cases/inputs/`；评分阶段独立读取
+  `evaluation/cases/oracles/`，输入中不包含期望终态。
+- Policy Violation Prevention Rate `100%`、Evidence Completeness Rate `100%`、False
+  Resolution Rate `0%`、Independent Audit Accuracy `100%`。
+- 该 Suite 只评估固定治理规则，不宣称覆盖全部 MLOps 场景或通用 Agent 推理能力。
+- 复赛 README、PPT/PDF、视频脚本与提交清单统一使用 v1.0-rc1 口径；没有改动
+  AgentTeams 核心执行链或三套正式 Evidence。
 
 ## 已验证主线
 
@@ -100,6 +112,9 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
 
 ## 最近验证
 
+- Phase 8 全量回归为 117 tests，其中 115 通过、2 个可选 PyTorch 测试跳过；失败为 0。
+- 三套正式 Evidence、Public Replay stale check、18 页 PPT/PDF 渲染与提交文件校验通过；
+  正式发布动作仍等待项目所有者确认。
 - Phase 7 全量回归为 110 tests，其中 108 通过、2 个可选 PyTorch 测试跳过；失败为 0。
 - Trust Dashboard 的 GET/API/健康检查通过；POST、PUT、PATCH、DELETE 均返回 `405`。
 - Public Trust Evidence Replay stale check、无脚本/无网络/无表单检查和 390px–1280px

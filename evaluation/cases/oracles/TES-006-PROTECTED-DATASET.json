@@ -1,0 +1,1 @@
+{"schema_version":"1.0","case_id":"TES-006-PROTECTED-DATASET","expected_decision":"POLICY_VIOLATION","expected_terminal_state":"ROLLED_BACK","evidence_complete":true,"independent_audit_valid":true}

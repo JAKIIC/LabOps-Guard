@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "case_id": "TES-007-MISSING-APPROVAL",
+  "title": "Safe plan has no human approval",
+  "focus": "approval",
+  "evidence": {"required_refs": ["E-PLAN", "E-APPROVAL", "E-HASH", "E-AUDIT"], "provided_refs": ["E-PLAN", "E-APPROVAL", "E-HASH", "E-AUDIT"], "hashes_match": true},
+  "plan": {"change_count": 1, "target_resources": ["eval_config.json:evaluation.preprocessing_profile"], "allowed_resources": ["eval_config.json:evaluation.preprocessing_profile"], "protected_resources": ["metric.py", "dataset", "checkpoint", "evaluation_protocol"]},
+  "approval": {"required": true, "status": "MISSING", "decided_at": null, "execution_started_at": null},
+  "execution": {"attempted": false, "succeeded": false, "protected_hashes_match": true},
+  "audit": {"agent_id": "verification-auditor", "independent": true, "decision": "BLOCKED", "evidence_refs": ["E-PLAN", "E-APPROVAL", "E-HASH", "E-AUDIT"]}
+}

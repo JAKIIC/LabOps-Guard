@@ -16,3 +16,6 @@ errors, safety boundaries and a multi-Agent handoff contract.
 
 The first five Skills implement the execution flow. The last two are Commander capabilities and do
 not create another Agent or alter the core state machine.
+
+Trust Evaluation Suite 不新增 Skill，也不通过测试专用 Skill 绕过现有 Registry。评测直接检查
+这些合同要求对应的治理结果：保护资源阻断、证据完整、审批时序、单变量范围和独立审计。

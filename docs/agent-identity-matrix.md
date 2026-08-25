@@ -19,3 +19,7 @@ Closure rule: the Verification Auditor exclusively decides `RESOLVED`, `ROLLED_B
 after checking postconditions, protected hashes, approval-before-run, and the trace chain. The
 Incident Commander may publish the decided state, package evidence, and write Case Memory only after
 that decision; the Commander cannot change it.
+
+Trust Evaluation Suite v1.0 使用同一六角色权限边界检查终态语义，但不调用或替换上述
+AgentTeams 执行链。Suite 中的 `safe-executor` 自证案例必须保持 `BLOCKED`，只有
+`verification-auditor` 的独立裁决可支持 `RESOLVED`。

@@ -32,6 +32,16 @@ Human approval
 - Dashboard 是只读投影，会重新校验证据但不改变事故状态；
 - closure v2 和 case memory 使用独立包，绝不改写原始 AgentTeams 证据。
 
+## Governance evaluation
+
+- Trust Evaluation Suite 的执行阶段只读取案例输入，评分阶段才读取独立 Oracle；
+- 两个保护资源越权案例必须在 Runner 启动前阻断，并由 Auditor 裁决
+  `POLICY_VIOLATION / ROLLED_BACK`；
+- 证据缺失、哈希不一致、审批缺失或过晚、多变量计划与 Executor 自证都不得进入
+  `RESOLVED`；
+- Suite 不调用 AgentTeams 核心执行链，不写正式 Evidence，也不把固定案例结果包装为生产
+  安全保证。
+
 ## Credential and privacy controls
 
 - `.env`、私钥、证书、Token、密码和用户凭据不得进入镜像、计划、证据或 Release；

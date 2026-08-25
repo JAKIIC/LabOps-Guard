@@ -1,6 +1,6 @@
 # GOAI Agent Infra requirement mapping
 
-核对日期：2026-08-09
+核对日期：2026-08-25
 官方入口：<https://www.goaihz.com/tracks?track=infra>
 
 ## 初赛交付
@@ -26,6 +26,7 @@
 | 经验沉淀 | Skill 版本化 + AT-004 postmortem + 可搜索 case memory | `skills/CHANGELOG.md`、`memory/cases/` |
 | Skill 工程 | 7 个 Skill 包；五个主流程 Skill + Commander 的打包/记忆能力 | `docs/skill-integration-matrix.md` |
 | 共享状态/轨迹 | Matrix + MinIO 共享状态、两类哈希链与 Dashboard 投影 | 三个独立证据包 |
+| 治理评测 | 10 案例 Trust Evaluation Suite，输入与 Oracle 分离 | `docs/trust-evaluation-report-v1.0.md` |
 
 ## 工具契约与迁移边界
 
@@ -42,11 +43,17 @@ Runner Gateway 当前是本地 HTTP 适配层，不宣称已经实现 MCP Server
 
 | 权重 | 答卷重点 |
 |---:|---|
-| 场景价值与行业复制 25% | 解决 AI 实验“修复是否可信”，可迁移到训练、评测、数据和发布流水线 |
+| 场景价值与行业复制 25% | 解决 Agent 工程行动“是否获准、是否可信”，以 AI 评测漂移作为可复核样例 |
 | 多 Agent 协同 25% | 六角色职责隔离、结构化 handoff、审批、失败分支和独立裁决 |
 | Skill 工程与生态复用 25% | 版本、I/O、生命周期、失败处理、安全边界和跨项目参数化 |
-| 工程运行与安全审计 20% | 断网 Runner、真实指标、保护哈希、回滚、证据 ZIP 与 Dashboard |
+| 工程运行与安全审计 20% | 断网 Runner、保护哈希、回滚、证据 ZIP、Trust Dashboard 与治理评测 |
 | 开放/开源贡献 5% | Schema、Skill、Runner 契约、案例记忆、文档与最小 CI |
+
+## Trust Evaluation Suite 边界
+
+Suite 固定为 10 个治理案例，集中检查 Policy violation prevention、Evidence completeness、
+False resolution prevention 和 Independent audit。执行阶段不读取 Oracle；评分阶段再对照独立
+期望终态。该结果不作为综合分数，也不外推为通用 Agent 推理或全场景 MLOps 能力。
 
 ## 明确不宣称
 
