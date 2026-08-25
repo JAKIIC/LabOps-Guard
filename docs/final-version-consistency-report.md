@@ -45,6 +45,8 @@
 
 - `origin/main`：本报告所在冻结提交包含 Phase 6、Phase 7、Phase 8 与本次一致性收口。
 - GitHub Pages：由 `pages-public-demo.yml` 从 `main` 的 `docs/public-demo/` 手动发布；发布后只提供静态、无脚本、无网络请求的 Evidence Replay。
+- Task 1 截止状态：公开 `main` 已同步；Pages 仍需项目所有者在 GitHub Actions 手动运行一次
+  `Deploy public evidence replay`，线上页在该运行成功前不得视为已同步。
 - PPT 中公开地址：
   - GitHub：`https://github.com/JAKIIC/LabOps-Guard`
   - Demo：`https://jakiic.github.io/LabOps-Guard/`
