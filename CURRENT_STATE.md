@@ -7,7 +7,8 @@
 
 ## Semifinal Trust Contract
 
-LabOps Guard 当前对外定位为“面向 AI 工程任务的可信 Agent 执行与治理基础设施”。
+LabOps Guard 当前对外定位为“面向生产级 Agent 系统的可信基础设施（Trust Infrastructure for
+Production Agent Systems）”。当前工程是单机参考实现，不宣称已经完成生产级多租户部署。
 Python 包版本为 `1.0.0rc1`，材料版本为 `v1.0-rc1`。当前候选版已建立：
 
 - Trust Contract v1，引用六 Agent 身份、Worker 历史别名、Trust State Machine v1、Skill Registry
@@ -80,7 +81,7 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
 - AT-002 保持 `BLOCKED`，证明 Worker 缺少依赖时不会在线安装或伪造结果。
 - AT-002 非法 metric 修改保持 `POLICY_VIOLATION / ROLLED_BACK`，回滚哈希一致。
 
-## Phase 5A 进度
+## Phase 5A 历史进度（已由 v1.0-rc1 取代）
 
 - AT-004 核心实现与正式证据已形成独立本地 Git 提交。
 - 六个角色 Skill 已增加版本、跨项目复用、多 Agent 交接、生命周期与结构化错误；无引用
@@ -92,7 +93,8 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
 - README、赛事材料、PPT、开源治理和 CI 已统一；源码采用 Apache-2.0，公开远端和首次
   SSH 推送已完成。公开仓库：`https://github.com/JAKIIC/LabOps-Guard`。正式 Tag、Release
   与 Runner 镜像再分发仍保持冻结。
-- 候选 Git Tag `v0.3.0-rc1` 对应 Python 包版本 `0.3.0rc1`。
+- 当时的候选 Git Tag 为 `v0.3.0-rc1`，对应 Python 包版本 `0.3.0rc1`；该口径已被当前
+  `v1.0-rc1` / `1.0.0rc1` 取代。
 
 ## Phase 6 初赛定稿
 
@@ -112,6 +114,7 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
 
 ## 最近验证
 
+- Phase 9 Task 1 全量回归为 118 tests，其中 116 通过、2 个可选 PyTorch 测试跳过；失败为 0。
 - Phase 8 全量回归为 117 tests，其中 115 通过、2 个可选 PyTorch 测试跳过；失败为 0。
 - 三套正式 Evidence、Public Replay stale check、18 页 PPT/PDF 渲染与提交文件校验通过；
   正式发布动作仍等待项目所有者确认。

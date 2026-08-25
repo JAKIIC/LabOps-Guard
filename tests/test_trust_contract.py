@@ -44,6 +44,10 @@ class TestTrustContract(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(first["schema_version"], "1.0")
         self.assertEqual(
+            first["positioning"],
+            "Trust Infrastructure for Production Agent Systems",
+        )
+        self.assertEqual(
             set(first["domains"]),
             {"identity", "skills", "policy", "execution", "evidence", "audit"},
         )

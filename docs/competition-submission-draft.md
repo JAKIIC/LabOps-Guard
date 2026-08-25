@@ -2,11 +2,11 @@
 
 ## 项目名称
 
-LabOps Guard：面向 AI 工程任务的可信 Agent 执行与治理基础设施
+LabOps Guard：面向生产级 Agent 系统的可信基础设施
 
 ## 一句话定位
 
-LabOps Guard 以身份、策略、受限执行、证据和独立审计约束 Agent 的每一次工程行动。
+LabOps Guard 以身份、Skill、策略、审批、受限执行、证据和独立审计约束 Agent 的每一次工程行动。
 
 ## 500 字以内作品简介
 

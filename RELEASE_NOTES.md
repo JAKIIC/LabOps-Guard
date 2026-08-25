@@ -1,7 +1,7 @@
 # LabOps Guard v1.0-rc1 semifinal candidate
 
 这是面向 GOAI 2026 Agent Infra 复赛的 source-only 候选版。项目定位升级为：
-Trustworthy Agent Execution & Governance Infrastructure for AI Engineering。Python 包版本
+Trust Infrastructure for Production Agent Systems。Python 包版本
 为符合 PEP 440 的 `1.0.0rc1`，对外材料口径为 `v1.0-rc1`。
 
 本候选版增加 Trust Contract v1、Identity/Alias 兼容层、Trust State Machine v1、七 Skill

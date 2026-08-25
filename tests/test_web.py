@@ -87,6 +87,10 @@ class TestDashboardState(unittest.TestCase):
         trust = state["trust_layer"]
         self.assertEqual(trust["contract"], "Trust Contract v1")
         self.assertEqual(trust["state_machine"], "Trust State Machine v1")
+        self.assertEqual(
+            trust["positioning"],
+            "Trust Infrastructure for Production Agent Systems",
+        )
         self.assertTrue(trust["read_only"])
         self.assertEqual(
             trust["evidence_chain"],

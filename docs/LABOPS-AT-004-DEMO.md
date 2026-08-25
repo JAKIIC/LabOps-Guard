@@ -2,7 +2,7 @@
 
 ## 一句话
 
-LabOps Guard 是面向 AI 工程任务的可信 Agent 执行与治理基础设施。它用 Trust Contract v1
+LabOps Guard 是面向生产级 Agent 系统的可信基础设施参考实现。它用 Trust Contract v1
 和 Trust State Machine v1 约束六个 Agent，并以 Identity → Policy → Execution → Evidence
 → Audit 的证据链证明一次工程行动为什么可以或不可以被信任。
 

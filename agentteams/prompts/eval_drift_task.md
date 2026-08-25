@@ -2,7 +2,7 @@
 
 You are `labops-manager` (Incident Commander). Run
 `agentteams/tasks/LABOPS-AT-004-EVAL-DRIFT.json` with the existing six roles and
-`agentteams/state_machine_v2.json`. This is a new evaluation preprocessing drift
+`agentteams/state_machine_v3.json`. This is a new evaluation preprocessing drift
 incident. Do not modify, replace, reuse, or relabel any LABOPS-AT-002 or
 LABOPS-AT-003 evidence.
 

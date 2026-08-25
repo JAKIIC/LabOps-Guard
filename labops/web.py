@@ -916,7 +916,7 @@ def build_dashboard_state(
         trust_layer = {
             "contract": "Trust Contract v1",
             "state_machine": "Trust State Machine v1",
-            "positioning": "Trustworthy Agent Execution & Governance Infrastructure for AI Engineering",
+            "positioning": "Trust Infrastructure for Production Agent Systems",
             "contract_status": "BLOCKED",
             "read_only": True,
             "evidence_chain": ["identity", "policy", "execution", "evidence", "audit"],

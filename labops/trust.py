@@ -10,7 +10,7 @@ from labops.contracts import validate_document
 from labops.skill_registry import list_skills
 
 
-POSITIONING = "Trustworthy Agent Execution & Governance Infrastructure for AI Engineering"
+POSITIONING = "Trust Infrastructure for Production Agent Systems"
 
 
 def _read(path: Path) -> dict[str, Any]:

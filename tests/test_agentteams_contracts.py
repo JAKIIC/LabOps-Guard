@@ -134,6 +134,18 @@ class TestCheckpointAgentTeam(unittest.TestCase):
             self.assertTrue(incoming)
             self.assertEqual({item["actor"] for item in incoming}, {"verification-auditor"})
 
+    def test_at004_manager_prompt_uses_the_active_task_state_machine(self):
+        root = Path(__file__).resolve().parent.parent
+        task = json.loads(
+            (root / "agentteams" / "tasks" / "LABOPS-AT-004-EVAL-DRIFT.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        prompt = (root / task["prompt_file"]).read_text(encoding="utf-8")
+
+        self.assertIn(task["state_machine"], prompt)
+        self.assertNotIn("agentteams/state_machine_v2.json", prompt)
+
     def test_planning_skill_is_complete(self):
         path = ROOT / "skills" / "plan-lab-experiment" / "SKILL.md"
         text = path.read_text(encoding="utf-8")

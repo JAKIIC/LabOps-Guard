@@ -47,7 +47,7 @@ class PublicDemoTests(unittest.TestCase):
 
     def test_required_replay_content(self) -> None:
         required = [
-            "Trustworthy Agent Execution &amp; Governance Infrastructure for AI Engineering",
+            "Trust Infrastructure for Production Agent Systems",
             "Trust Contract v1",
             "Trust State Machine v1",
             "Identity",
