@@ -105,6 +105,10 @@ ZIP member set、artifact manifest 和 Trace。页面不提供执行、修改或
 
 ## 证据与复现入口
 
+复赛录制与第三方操作从 `docs/final-demo-guide.md` 开始。该 Runbook 明确区分真实
+AgentTeams live execution、本地确定性控制面和 Archived Evidence Replay，并提供只读
+`python -B -m labops demo-readiness` 预检入口。
+
 | 案例 | 角色 | 结果 | 入口 |
 |---|---:|---|---|
 | AT-004 评测预处理漂移（主） | 6 | `PASS / RESOLVED` | `docs/LABOPS-AT-004-DEMO.md` |

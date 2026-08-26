@@ -248,6 +248,21 @@ def cmd_trust(args) -> int:
     return 0 if payload["contract_status"] == "CONFIGURED" else 2
 
 
+def cmd_demo_readiness(args) -> int:
+    from labops.demo_readiness import build_readiness
+
+    project_root = Path(__file__).resolve().parent.parent
+    payload = build_readiness(
+        project_root,
+        service_checks=args.service_checks,
+        show_prompt=args.show_prompt,
+        gateway_url=args.gateway_url,
+        dashboard_url=args.dashboard_url,
+    )
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if payload["status"] == "LOCAL_READY" else 2
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="labops", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -356,6 +371,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--at002-root", default=None)
     sp.add_argument("--format", choices=["json"], default="json")
     sp.set_defaults(func=cmd_trust)
+
+    sp = sub.add_parser("demo-readiness", help="read-only preflight for the real AgentTeams recording workflow")
+    sp.add_argument("--service-checks", action="store_true", help="check Docker, Runner Gateway and Dashboard")
+    sp.add_argument("--show-prompt", action="store_true", help="include the exact AT-004 Manager Prompt")
+    sp.add_argument("--gateway-url", default="http://127.0.0.1:18103/healthz")
+    sp.add_argument("--dashboard-url", default="http://127.0.0.1:8787/healthz")
+    sp.set_defaults(func=cmd_demo_readiness)
 
     return p
 
