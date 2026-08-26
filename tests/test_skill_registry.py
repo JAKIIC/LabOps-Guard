@@ -16,6 +16,8 @@ from labops.skill_registry import (
     describe_skill,
     list_skills,
     validate_skill_input,
+    validate_skill_output,
+    validate_skill_usage_event,
 )
 
 
@@ -62,6 +64,88 @@ class TestSkillRegistry(unittest.TestCase):
 
         self.assertIn("incident_id", str(caught.exception))
         self.assertIn("approval", str(caught.exception))
+
+    def test_planning_invocation_is_read_only_but_its_plan_still_requires_approval(self) -> None:
+        skill = describe_skill("plan-lab-experiment", ROOT, caller_agent_id="experiment-planner")
+        self.assertEqual(skill["policy_class"], "read_only_auto")
+        result = validate_skill_input(
+            "plan-lab-experiment",
+            {"hypothesis_id": "H-1", "evidence_ids": ["E-1"], "claim": "bounded claim"},
+            ROOT,
+            caller_agent_id="experiment-planner",
+        )
+        self.assertTrue(result["valid"])
+
+    def test_validate_output_enforces_the_registered_output_contract(self) -> None:
+        with self.assertRaises(SkillInputError) as caught:
+            validate_skill_output(
+                "control-lab-action",
+                {"effective_policy_class": "manual_approval"},
+                ROOT,
+                caller_agent_id="safe-executor",
+            )
+        self.assertIn("execution_status", str(caught.exception))
+
+        result = validate_skill_output(
+            "control-lab-action",
+            {
+                "effective_policy_class": "manual_approval",
+                "approval_status": "APPROVED",
+                "dry_run": {},
+                "execution_status": "completed",
+                "simulated": False,
+                "handoff_state": "VERIFYING",
+            },
+            ROOT,
+            caller_agent_id="safe-executor",
+        )
+        self.assertEqual(result, {"valid": True, "skill_id": "control-lab-action", "version": "0.2.0"})
+
+    def test_usage_event_must_bind_real_registry_identity_version_and_artifacts(self) -> None:
+        event = {
+            "schema_version": "1.0",
+            "run_mode": "LIVE_AGENTTEAMS",
+            "event_id": "$new-live-matrix-event",
+            "task_id": "LABOPS-AT-004-EVAL-DRIFT-RECORDING",
+            "incident_id": "DEMO-EVAL-DRIFT-RECORDING",
+            "skill_id": "control-lab-action",
+            "skill_version": "0.2.0",
+            "owner_agent": "safe-executor",
+            "input_schema_version": "1.0",
+            "output_schema_version": "1.0",
+            "started_at": "2026-08-26T10:00:00Z",
+            "completed_at": "2026-08-26T10:00:08Z",
+            "status": "COMPLETED",
+            "input_artifact_refs": [
+                {"path": "shared/tasks/recording/plan.json", "sha256": "a" * 64}
+            ],
+            "output_artifact_refs": [
+                {"path": "shared/tasks/recording/run_result.json", "sha256": "b" * 64}
+            ],
+            "trace_reference": {"source": "matrix", "event_id": "$new-live-matrix-event"},
+        }
+        result = validate_skill_usage_event(event, ROOT)
+        self.assertEqual(result["status"], "VALID")
+        self.assertEqual(result["skill_id"], "control-lab-action")
+
+        wrong_owner = dict(event, owner_agent="rca-analyst")
+        with self.assertRaises(SkillAuthorizationError):
+            validate_skill_usage_event(wrong_owner, ROOT)
+
+        missing_output = dict(event, output_artifact_refs=[])
+        with self.assertRaises(SkillInputError):
+            validate_skill_usage_event(missing_output, ROOT)
+
+        invalid_artifact = dict(
+            event,
+            output_artifact_refs=[{"path": "C:\\private\\result.json", "sha256": "not-a-hash"}],
+        )
+        with self.assertRaises(SkillInputError):
+            validate_skill_usage_event(invalid_artifact, ROOT)
+
+        invalid_time = dict(event, completed_at="not-a-timestamp")
+        with self.assertRaises(SkillInputError):
+            validate_skill_usage_event(invalid_time, ROOT)
 
     def test_malformed_registry_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

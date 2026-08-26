@@ -222,7 +222,7 @@ def cmd_skills(args) -> int:
             payload = skill_registry.describe_skill(
                 args.skill_id, project_root, caller_agent_id=args.caller_agent_id
             )
-        else:
+        elif args.action == "validate":
             document = json.loads(Path(args.input_json).read_text(encoding="utf-8"))
             payload = skill_registry.validate_skill_input(
                 args.skill_id,
@@ -230,6 +230,17 @@ def cmd_skills(args) -> int:
                 project_root,
                 caller_agent_id=args.caller_agent_id,
             )
+        elif args.action == "validate-output":
+            document = json.loads(Path(args.output_json).read_text(encoding="utf-8"))
+            payload = skill_registry.validate_skill_output(
+                args.skill_id,
+                document,
+                project_root,
+                caller_agent_id=args.caller_agent_id,
+            )
+        else:
+            document = json.loads(Path(args.event_json).read_text(encoding="utf-8"))
+            payload = skill_registry.validate_skill_usage_event(document, project_root)
     except (OSError, json.JSONDecodeError, ValueError, PermissionError) as exc:
         print(json.dumps({"status": "BLOCKED", "error": str(exc)}, ensure_ascii=False), file=sys.stderr)
         return 2
@@ -365,6 +376,18 @@ def build_parser() -> argparse.ArgumentParser:
     skill_validate.add_argument("--caller-agent-id", default=None)
     skill_validate.add_argument("--format", choices=["json"], default="json")
     skill_validate.set_defaults(func=cmd_skills)
+    skill_validate_output = skill_sub.add_parser("validate-output", help="validate a Skill output contract")
+    skill_validate_output.add_argument("skill_id")
+    skill_validate_output.add_argument("output_json")
+    skill_validate_output.add_argument("--caller-agent-id", default=None)
+    skill_validate_output.add_argument("--format", choices=["json"], default="json")
+    skill_validate_output.set_defaults(func=cmd_skills)
+    skill_validate_event = skill_sub.add_parser(
+        "validate-event", help="validate, but never create, a live AgentTeams Skill usage event"
+    )
+    skill_validate_event.add_argument("event_json")
+    skill_validate_event.add_argument("--format", choices=["json"], default="json")
+    skill_validate_event.set_defaults(func=cmd_skills)
 
     sp = sub.add_parser("trust", help="emit the read-only Trust Layer snapshot")
     sp.add_argument("--at004-root", default=None)

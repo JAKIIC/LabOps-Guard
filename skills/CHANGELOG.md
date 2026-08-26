@@ -1,5 +1,11 @@
 # Skill changelog
 
+## plan-lab-experiment 0.2.1 - 2026-08-26
+
+- Classified planning itself as `read_only_auto`; a generated plan still carries its own
+  `approval_required` flag and must pass the separate Policy and Human Approval gates before
+  Safe Executor may invoke a tool.
+
 ## 0.2.0 - 2026-08-06
 
 - Added explicit skill and I/O schema versions to all six supported skills.

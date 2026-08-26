@@ -27,12 +27,12 @@
     },
     {
       "skill_id": "plan-lab-experiment",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "owner_agents": ["experiment-planner"],
       "io_schema": "skills/plan-lab-experiment/references/io-schema.json",
       "tool_dependencies": ["policy-engine"],
       "invocation_condition": "One evidence-backed falsifiable hypothesis is selected",
-      "policy_class": "manual_approval",
+      "policy_class": "read_only_auto",
       "failure_states": ["REJECTED", "BLOCKED"],
       "audit_events": ["skill.invoked", "plan.registered", "policy.decided"],
       "lifecycle": "active"

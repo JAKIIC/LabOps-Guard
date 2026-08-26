@@ -56,6 +56,18 @@ Archived replay: immutable ZIP + manifest + Dashboard projection (no live execut
 `skill_id` 调用事件，因此录制时应在 AgentTeams UI 展示 Worker 实际使用的 Skill；不得仅凭
 角色名称反推并宣称“Skill 调用已被 Trace 证明”。
 
+`demo-readiness` 会显示七 Skill、版本、Owner 和预期 pipeline，并明确返回
+`runtime_event_emission=NOT_IMPLEMENTED` 与 `live_visibility=AGENTTEAMS_HOOK_REQUIRED`。
+若实际 AgentTeams 部署有真实 Worker invocation hook，可让 hook 产生符合
+`schemas/skill_usage_event.schema.json` 的新 live event，再执行：
+
+```powershell
+python -B -m labops skills validate-event <event.json>
+```
+
+该命令只验证 event，不生成、不持久化、不发送 Matrix 消息。若部署没有 hook，视频只能展示
+Skill Registry 与 Worker 配置，并明确它们是 `CONFIGURED`，不是 runtime invocation proof。
+
 ## 3. 环境前置
 
 - Python 3.9+；

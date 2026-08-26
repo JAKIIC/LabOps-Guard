@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from labops.trust import validate_trust_contract
+from labops.skill_registry import SkillRegistryError, list_skills
 
 
 ROLE_ORDER = [
@@ -32,6 +33,15 @@ ROLE_ORDER = [
 TASK_PATH = Path("agentteams/tasks/LABOPS-AT-004-EVAL-DRIFT.json")
 PROMPT_PATH = Path("agentteams/prompts/eval_drift_task.md")
 RUNNER_IMAGE = "labops/pytorch-cpu-runner:0.2.0"
+SKILL_PIPELINE = [
+    ("Evidence Collection", "collect-lab-evidence", "evidence-collector"),
+    ("RCA", "diagnose-lab-incident", "rca-analyst"),
+    ("Safe Planning", "plan-lab-experiment", "experiment-planner"),
+    ("Controlled Execution", "control-lab-action", "safe-executor"),
+    ("Independent Verification", "verify-lab-result", "verification-auditor"),
+    ("Evidence Packaging", "pack-lab-evidence", "labops-manager"),
+    ("Case Memory", "publish-case-memory", "labops-manager"),
+]
 
 
 def _run(command: list[str], root: Path) -> subprocess.CompletedProcess[str]:
@@ -120,6 +130,49 @@ def _verify_evidence(root: Path) -> tuple[list[dict[str, Any]], list[str]]:
     return results, errors
 
 
+def _check_skills(root: Path) -> tuple[dict[str, Any], list[str]]:
+    errors: list[str] = []
+    try:
+        registry = {item["skill_id"]: item for item in list_skills(root)}
+    except SkillRegistryError as exc:
+        return {"status": "BLOCKED", "error": str(exc)}, ["Skill Registry failed closed"]
+    expected_pipeline = []
+    for stage, skill_id, owner_agent in SKILL_PIPELINE:
+        skill = registry.get(skill_id)
+        if skill is None:
+            errors.append(f"expected Skill is not active: {skill_id}")
+            continue
+        if skill["owner_agents"] != [owner_agent]:
+            errors.append(f"Skill owner differs from the recording pipeline: {skill_id}")
+        io_contract = json.loads((root / skill["io_schema"]).read_text(encoding="utf-8"))
+        expected_pipeline.append(
+            {
+                "stage": stage,
+                "skill_id": skill_id,
+                "skill_version": skill["version"],
+                "owner_agent": owner_agent,
+                "io_schema_version": io_contract.get("schema_version"),
+                "runtime_visibility": "AGENTTEAMS_HOOK_REQUIRED",
+            }
+        )
+    if len(registry) != 7:
+        errors.append("active Skill count is not seven")
+    event_contract = root / "schemas" / "skill_usage_event.schema.json"
+    if not event_contract.is_file():
+        errors.append("Skill usage event validation contract is missing")
+    return {
+        "status": "CONFIGURED" if not errors else "BLOCKED",
+        "registry_valid": not errors,
+        "registered_count": len(registry),
+        "expected_pipeline": expected_pipeline,
+        "usage_event_contract": "schemas/skill_usage_event.schema.json",
+        "event_validation_command": "python -B -m labops skills validate-event <event.json>",
+        "runtime_event_emission": "NOT_IMPLEMENTED",
+        "historical_at004_has_skill_usage_events": False,
+        "live_visibility": "AGENTTEAMS_HOOK_REQUIRED",
+    }, errors
+
+
 def _check_docker(root: Path) -> dict[str, Any]:
     docker = shutil.which("docker")
     if not docker:
@@ -168,8 +221,9 @@ def build_readiness(
     root = Path(project_root).resolve()
     task, task_errors = _check_task(root, show_prompt)
     evidence, evidence_errors = _verify_evidence(root)
+    skills, skill_errors = _check_skills(root)
     contract_errors = validate_trust_contract(root)
-    errors = task_errors + evidence_errors + [f"trust contract: {item}" for item in contract_errors]
+    errors = task_errors + evidence_errors + skill_errors + [f"trust contract: {item}" for item in contract_errors]
 
     services: dict[str, Any]
     if service_checks:
@@ -196,6 +250,7 @@ def build_readiness(
         "task": task,
         "trust_contract": {"status": "PASS" if not contract_errors else "FAIL", "errors": contract_errors},
         "evidence": evidence,
+        "skills": skills,
         "services": services,
         "manual_live_checks": [
             {"component": "HiClaw / AgentTeams Manager", "status": "MANUAL_CHECK_REQUIRED"},

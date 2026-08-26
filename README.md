@@ -71,6 +71,9 @@ Incident → Evidence → Hypothesis → Plan → Human Approval → Sandbox Run
 AgentTeams 负责角色编排和上下文交接；LabOps Guard 的 Schema、Policy、Gateway、Runner
 与 Auditor 负责确定性验证和安全门。自然语言回复不是执行证据。
 
+七个版本化 Skill 的 I/O、失败处理、安全边界、复用方式及 runtime evidence 事实边界见
+[`docs/skill-framework.md`](docs/skill-framework.md)。
+
 ## 安全不变量
 
 - Planner 每个计划只允许一个被证据支持的变量变化，并定义预算、成功条件与回滚；

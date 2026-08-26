@@ -40,7 +40,9 @@ Convert one evidence-backed hypothesis into one bounded experiment plan. Never e
 
 ## Version, reuse, and lifecycle
 
-- Skill version: `0.2.0`; I/O schema version: `1.0`.
+- Skill version: `0.2.1`; I/O schema version: `1.0`.
+- Planning is a read-only invocation. The resulting plan can still set
+  `approval_required=true`; this classification never authorizes execution.
 - Input lifecycle: `DIAGNOSIS_READY` -> `PLANNING`. Output lifecycle: `PLAN_READY`, `REJECTED`,
   or `BLOCKED`; planning never implies approval or execution.
 - In a multi-agent run, consume one RCA hypothesis routed by the Incident Commander and hand a

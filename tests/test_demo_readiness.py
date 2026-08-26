@@ -40,6 +40,23 @@ class TestDemoReadiness(unittest.TestCase):
             {item["task_id"] for item in report["evidence"]},
             {"LABOPS-AT-002", "LABOPS-AT-003", "LABOPS-AT-004-EVAL-DRIFT"},
         )
+        self.assertEqual(report["skills"]["status"], "CONFIGURED")
+        self.assertEqual(report["skills"]["registered_count"], 7)
+        self.assertEqual(
+            [item["skill_id"] for item in report["skills"]["expected_pipeline"]],
+            [
+                "collect-lab-evidence",
+                "diagnose-lab-incident",
+                "plan-lab-experiment",
+                "control-lab-action",
+                "verify-lab-result",
+                "pack-lab-evidence",
+                "publish-case-memory",
+            ],
+        )
+        self.assertEqual(report["skills"]["runtime_event_emission"], "NOT_IMPLEMENTED")
+        self.assertFalse(report["skills"]["historical_at004_has_skill_usage_events"])
+        self.assertEqual(report["skills"]["live_visibility"], "AGENTTEAMS_HOOK_REQUIRED")
         serialized = json.dumps(report, ensure_ascii=False)
         self.assertNotIn(str(ROOT), serialized)
 

@@ -147,3 +147,63 @@ def validate_skill_input(
     if missing:
         raise SkillInputError(f"Missing required Skill input: {', '.join(missing)}")
     return {"valid": True, "skill_id": skill_id, "version": skill["version"]}
+
+
+def validate_skill_output(
+    skill_id: str,
+    document: dict[str, Any],
+    project_root: str | Path | None = None,
+    caller_agent_id: str | None = None,
+) -> dict[str, Any]:
+    """Validate the required output fields declared by a Skill I/O contract."""
+
+    if not isinstance(document, dict):
+        raise SkillInputError("Skill output must be an object")
+    root = _root(project_root)
+    skill = describe_skill(skill_id, root, caller_agent_id)
+    io_contract = json.loads((root / skill["io_schema"]).read_text(encoding="utf-8"))
+    required = set(io_contract.get("output", {}).get("required", []))
+    missing = sorted(name for name in required if name not in document)
+    if missing:
+        raise SkillInputError(f"Missing required Skill output: {', '.join(missing)}")
+    return {"valid": True, "skill_id": skill_id, "version": skill["version"]}
+
+
+def validate_skill_usage_event(
+    document: dict[str, Any],
+    project_root: str | Path | None = None,
+) -> dict[str, Any]:
+    """Validate a real live-run Skill event without creating or persisting it."""
+
+    if not isinstance(document, dict):
+        raise SkillInputError("Skill usage event must be an object")
+    root = _root(project_root)
+    try:
+        validate_document(document, "skill_usage_event.schema.json", root)
+    except ValueError as exc:
+        raise SkillInputError(f"Invalid Skill usage event: {exc}") from exc
+    skill = describe_skill(
+        document["skill_id"], root, caller_agent_id=document["owner_agent"]
+    )
+    io_contract = json.loads((root / skill["io_schema"]).read_text(encoding="utf-8"))
+    schema_version = io_contract.get("schema_version")
+    if document["skill_version"] != skill["version"]:
+        raise SkillInputError("Skill usage event version differs from the active Registry")
+    if document["input_schema_version"] != schema_version or document["output_schema_version"] != schema_version:
+        raise SkillInputError("Skill usage event I/O schema version differs from the active contract")
+    terminal = document["status"] in {"COMPLETED", "BLOCKED", "FAILED"}
+    if terminal and not document["completed_at"]:
+        raise SkillInputError("Terminal Skill usage event requires completed_at")
+    if document["status"] == "STARTED" and document["completed_at"] is not None:
+        raise SkillInputError("STARTED Skill usage event must not claim completed_at")
+    if document["status"] == "COMPLETED" and not document["output_artifact_refs"]:
+        raise SkillInputError("COMPLETED Skill usage event requires output artifact references")
+    if document["completed_at"] and document["completed_at"] < document["started_at"]:
+        raise SkillInputError("Skill usage event completed_at precedes started_at")
+    return {
+        "status": "VALID",
+        "skill_id": skill["skill_id"],
+        "skill_version": skill["version"],
+        "owner_agent": document["owner_agent"],
+        "persistence": "NOT_PERFORMED",
+    }

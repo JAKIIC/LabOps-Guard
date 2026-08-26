@@ -35,6 +35,7 @@ class TestFormalSchemas(unittest.TestCase):
             "trace",
             "trust_contract",
             "skill_registry",
+            "skill_usage_event",
             "tool_contract",
             "trust_snapshot",
         }
