@@ -110,7 +110,9 @@ ZIP member set、artifact manifest 和 Trace。页面不提供执行、修改或
 
 复赛录制与第三方操作从 `docs/final-demo-guide.md` 开始。该 Runbook 明确区分真实
 AgentTeams live execution、本地确定性控制面和 Archived Evidence Replay，并提供只读
-`python -B -m labops demo-readiness` 预检入口。
+`python -B -m labops demo-readiness` 预检入口。最终四分钟视频按
+`docs/final-demo-recording-runbook.md` 执行；它根据实机彩排明确采用 Strategy C，并要求画面标注
+`LIVE CHECK` 或 `ARCHIVED VERIFIED RUN`。
 
 | 案例 | 角色 | 结果 | 入口 |
 |---|---:|---|---|

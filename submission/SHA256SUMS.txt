@@ -1,4 +1,4 @@
-f2a8876823fd9a14dda1b3cd3ec6e8a16ed02b6955751e6b556f9e3803ef99e6 *LabOps-Guard-GOAI-复赛方案-v1.0-rc1.pptx
-6d50ebb5530a6b1a2367ecbf4ebf2bac64cbc457a38086c6f9eacea2168a7484 *LabOps-Guard-GOAI-复赛方案-v1.0-rc1.pdf
+295c9ffdc54d7db9d04cc4dc229b5f9cfd3afda1bd9f8d7b29941e75f2079dcd *LabOps-Guard-GOAI-复赛方案-v1.0-rc1.pptx
+8411b10e17826d4955f4d14d4123dac741aca1a0cec404b480256b25bc369b02 *LabOps-Guard-GOAI-复赛方案-v1.0-rc1.pdf
 a965c9c9584ecdd9d2ff97ef4df09e757277740e20aa16736028aef88998d455 *../evaluation/results/trust-evaluation-suite-v1.json
 914c3536a3d8e90a4942af526bcfb346cf39ccfb13d6fa8d0b3ee9b579d82002 *../docs/trust-evaluation-report-v1.0.md

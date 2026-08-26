@@ -36,7 +36,7 @@
 | README / 文档 | 已统一 | 对外定位统一为 `Trust Infrastructure for Production Agent Systems`，内部兼容版本号不作为产品口径 |
 | AT-004 Prompt | 已统一 | Manager Prompt 与 Task Contract 均引用当前活动状态机；历史案例文件保留只读兼容 |
 | PPT / PDF | 已统一 | 18 页结构、数据、二维码和链接未变；首页定位更新并重新导出 PDF |
-| 测试描述 | 已纠正 | Task 1 共收集 119 个测试，其中 117 通过、2 个可选 PyTorch 测试跳过 |
+| 测试描述 | 已纠正并在 Task 5 复核 | 最终共 127 个测试；CI 口径为 125 通过、2 个可选 PyTorch 跳过；比赛机器 127 个全部通过 |
 | 包元数据 | 已统一 | `pyproject.toml` 与 README、Dashboard、PPT/PDF 使用同一英文定位 |
 | SHA-256 | 已更新 | PPT/PDF 新摘要写入 `submission/SHA256SUMS.txt`，Evaluation Suite 摘要保持不变 |
 | 正式 Evidence | 未修改 | AT-002、AT-003、AT-004 已验证 Bundle 不重新生成、不改写 |
