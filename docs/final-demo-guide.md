@@ -114,7 +114,21 @@ Skill Registry 与 Worker 配置，并明确它们是 `CONFIGURED`，不是 runt
 docker compose up -d --build
 ```
 
-### 4.4 启动短生命周期 Runner Gateway
+### 4.4 准备不可覆盖的 live session
+
+每次录制先创建独立会话。该命令只写入会话包络、完整 Manager Prompt 和空的 Evidence 目录，
+不会发送 Matrix 消息、批准计划或调用 Runner：
+
+```powershell
+python -B -m labops live-demo prepare --session 20260831-001
+```
+
+生成目录为 `demo/live-sessions/20260831-001/`，固定标记
+`classification=NON_FORMAL_LIVE_DEMO`，并分别生成 task instance、incident instance、attempt、
+run ID 和 storage namespace。已有 session 会拒绝覆盖；此目录已被 Git 忽略，不能替代三份正式
+Evidence。
+
+### 4.5 启动短生命周期 Runner Gateway
 
 为本次录制选择一个全新的、非正式输出目录；不得指向 `demo/output-agentteams-at002`、
 `at003` 或 `at004`：
@@ -122,7 +136,7 @@ docker compose up -d --build
 ```powershell
 python -B -m labops.runner_gateway `
   --repo-root . `
-  --output-root artifacts/LABOPS-AT-004-recording-01 `
+  --output-root demo/live-sessions/20260831-001/gateway-runs `
   --host 0.0.0.0 `
   --port 18103
 ```
@@ -130,7 +144,7 @@ python -B -m labops.runner_gateway `
 `0.0.0.0` 用于让容器内 Worker 通过 `host.docker.internal` 访问 Gateway，只应在受信任的本地
 网络和防火墙边界内短时使用，录制后立即停止。Gateway 没有 mTLS/OIDC，不应长期暴露。
 
-### 4.5 运行只读 readiness helper
+### 4.6 运行只读 readiness helper
 
 ```powershell
 python -B -m labops demo-readiness --service-checks --show-prompt
@@ -162,9 +176,11 @@ Contract 和 run ID 已冻结，不允许通过改正式任务文件来解决冲
 
 ### 步骤 2：在 Manager room 触发任务
 
-打开配置给 `labops-manager` 的 AgentTeams Manager room。运行 readiness helper 的
-`--show-prompt`，把 JSON 中 `task.manager_prompt` 的完整文本原样发送给 Manager。不要只发送
-一句“运行 AT-004”，也不要发送正式 Evidence 的历史结论作为答案。
+打开配置给 `labops-manager` 的 AgentTeams Manager room。把
+`demo/live-sessions/20260831-001/manager_task.md` 的完整文本由真人原样发送给 Manager。该文件
+同时包含本次 session 绑定和 AT-004 Prompt 的 session-bound copy；核心 Prompt 文件不修改，
+副本只替换本次非正式 run ID。不要只发送一句“运行 AT-004”，也不要发送
+正式 Evidence 的历史结论作为答案。
 
 ### 步骤 3：观察真实 handoff
 
@@ -187,9 +203,12 @@ Worker；不得补写消息或伪造 event ID。
 
 ### 步骤 4：人工审批与 Runner
 
-Planner 产出 `plan.json` 且策略检查通过后，Manager 才请求单独人工审批。批准记录必须包含
-approver、decision 和时间，且时间早于 Runner start。随后 Safe Executor 才能调用
-`POST /v1/run`。此时在 Gateway 终端展示真实 HTTP 请求日志，并在新的输出目录观察：
+Planner 产出 `plan.json` 且策略检查通过后，Manager 才请求单独人工审批。ApprovalGrant v1
+必须绑定 `incident_id`、`plan_id`、canonical plan SHA-256、`run_id`、批准范围、副作用、保护
+资源、预算、批准/过期时间和一次性 nonce；`decided_by` 必须是真人。计划哈希、范围、预算、
+时效或 nonce 不一致时，Gateway 返回 `APPROVAL_REQUIRED` 并保持 fail closed。随后 Safe
+Executor 才能调用 `POST /v1/run`。此时在 Gateway 终端展示真实 HTTP 请求日志，并在新的输出
+目录观察：
 
 ```text
 gateway_request.json
@@ -225,6 +244,16 @@ Auditor 应从原始 stdout/metrics/manifest 重算：
 - 历史可复核证据：运行 `python -B scripts/verify_evidence.py`；
 - Trust Dashboard：打开 `http://127.0.0.1:8787/`，明确口播“这是对已归档正式 Evidence 的
   只读投影，不是刚才 live run 的实时控制台”。
+
+把本次真实 Matrix events/handoff、ApprovalGrant、Gateway request/response、Runner 五个原始
+输出、Trace 和 Auditor 结论导出到本 session 的 `evidence/` 约定路径后，运行：
+
+```powershell
+python -B -m labops live-demo verify --session 20260831-001
+```
+
+只有六次真实 Matrix handoff、会话绑定、ApprovalGrant、Artifact 哈希、Trace 和 Auditor
+`PASS / RESOLVED` 全部互相一致时才返回 `VERIFIED`。该命令只读取并验证，不补写任何事件。
 
 本次录制产物不得覆盖或替换三个正式 Evidence Bundle。若要归档新运行，应在本任务之外使用
 新的 run ID/目录和独立审批流程。
@@ -265,6 +294,7 @@ AT-002 用于解释异常处理，建议重放正式证据而不是现场制造�
 | Gateway 不健康 | 不批准执行；检查 18103 和新输出目录 |
 | Runner image 缺失 | 保持 `BLOCKED`；本地构建后重新 preflight |
 | approval 缺失或晚于运行 | Runner 必须拒绝；Auditor 不得 `RESOLVED` |
+| plan hash/scope/budget/expiry/nonce 不匹配 | Gateway 返回 `APPROVAL_REQUIRED` 和结构化原因；Runner 不启动 |
 | Trace/Hash 失败 | 展示失败并保持 `BLOCKED / INCONCLUSIVE` |
 | Dashboard 不可用 | 用 `scripts/verify_evidence.py` 和正式包复核；不影响 live Matrix 事实 |
 
@@ -272,10 +302,12 @@ AT-002 用于解释异常处理，建议重放正式证据而不是现场制造�
 
 - [ ] 六个规范 Agent 身份在线；human approval 不计作 Agent；
 - [ ] Manager Prompt 来自仓库当前文件；
+- [ ] `live-demo prepare` 已生成全新的 session，未覆盖旧 session；
 - [ ] MinIO/shared state 指向隔离的录制命名空间，而非正式运行归档位置；
 - [ ] Gateway 输出目录全新且不在三个正式 Evidence 目录中；
 - [ ] Runner image 为 `0.2.0`，CPU、`network=none`；
 - [ ] Matrix handoff、Gateway 请求、Runner Artifact、Auditor 结论均能入镜；
+- [ ] `live-demo verify` 对本次新 run 返回 `VERIFIED`；
 - [ ] Dashboard 被称为只读 Archived Evidence Replay；
 - [ ] AT-002 被称为隔离 fixture 风险案例；
 - [ ] 无 Token、密钥、私有 room ID、主机绝对路径或个人信息；

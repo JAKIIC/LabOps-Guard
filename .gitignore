@@ -8,6 +8,7 @@ __pycache__/
 *.p12
 /artifacts/
 demo/output/
+demo/live-sessions/
 .pytest_cache/
 .coverage
 release/

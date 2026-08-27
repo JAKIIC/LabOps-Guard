@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/live_demo_session.schema.json",
+  "title": "LiveDemoSession",
+  "type": "object",
+  "required": ["schema_version", "classification", "session_id", "scenario_contract", "scenario_incident", "task_instance_id", "incident_instance_id", "attempt_id", "run_id", "storage_namespace", "agent_order", "required_handoffs", "expected_evidence", "helper_boundaries"],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["1.0"]},
+    "classification": {"type": "string", "enum": ["NON_FORMAL_LIVE_DEMO"]},
+    "session_id": {"type": "string", "pattern": "^[0-9]{8}-[0-9]{3}$"},
+    "scenario_contract": {"type": "string"},
+    "scenario_incident": {"type": "string"},
+    "task_instance_id": {"type": "string"},
+    "incident_instance_id": {"type": "string"},
+    "attempt_id": {"type": "string"},
+    "run_id": {"type": "string"},
+    "storage_namespace": {"type": "string"},
+    "agent_order": {"type": "array", "items": {"type": "string"}},
+    "required_handoffs": {"type": "array", "items": {"type": "object"}},
+    "expected_evidence": {"type": "array", "items": {"type": "string"}},
+    "helper_boundaries": {"type": "object"}
+  },
+  "additionalProperties": false
+}

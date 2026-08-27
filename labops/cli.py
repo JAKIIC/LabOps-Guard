@@ -274,6 +274,27 @@ def cmd_demo_readiness(args) -> int:
     return 0 if payload["status"] == "LOCAL_READY" else 2
 
 
+def cmd_live_demo(args) -> int:
+    from labops.live_demo import prepare_session, verify_session
+
+    project_root = Path(__file__).resolve().parent.parent
+    sessions_root = (
+        Path(args.sessions_root)
+        if args.sessions_root
+        else project_root / "demo" / "live-sessions"
+    )
+    try:
+        if args.action == "prepare":
+            payload = prepare_session(project_root, sessions_root, args.session)
+        else:
+            payload = verify_session(project_root, sessions_root, args.session)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(json.dumps({"status": "BLOCKED", "error": str(exc)}, ensure_ascii=False, indent=2))
+        return 2
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if payload["status"] in {"PREPARED", "VERIFIED"} else 2
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="labops", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -401,6 +422,18 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--gateway-url", default="http://127.0.0.1:18103/healthz")
     sp.add_argument("--dashboard-url", default="http://127.0.0.1:8787/healthz")
     sp.set_defaults(func=cmd_demo_readiness)
+
+    sp = sub.add_parser("live-demo", help="prepare or verify a non-formal real AgentTeams live session")
+    live_sub = sp.add_subparsers(dest="action", required=True)
+    for action_name in ("prepare", "verify"):
+        live = live_sub.add_parser(action_name)
+        live.add_argument("--session", required=True, help="isolated session ID in YYYYMMDD-NNN format")
+        live.add_argument(
+            "--sessions-root",
+            default=None,
+            help="session storage root (default: demo/live-sessions)",
+        )
+        live.set_defaults(func=cmd_live_demo)
 
     return p
 
