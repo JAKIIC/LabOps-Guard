@@ -14,6 +14,11 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from labops.approval_grant import (
+    ApprovalBindingError,
+    consume_approval_nonce,
+    validate_approval_grant,
+)
 from labops.contracts import validate_document
 from labops.runner import AT004_RUNNER_IMAGE, RUNNER_IMAGE, execute_runner_plan
 
@@ -149,10 +154,19 @@ def make_handler(repo_root: Path, output_root: Path):
             self.end_headers()
             self.wfile.write(body)
 
-        def _error(self, status: int, code: str, message: str, detail: str | None = None) -> None:
+        def _error(
+            self,
+            status: int,
+            code: str,
+            message: str,
+            detail: str | None = None,
+            reason: str | None = None,
+        ) -> None:
             if code not in ERROR_CODES:
                 raise ValueError(f"unknown Gateway error code: {code}")
             payload = {"ok": False, "code": code, "error": message}
+            if reason:
+                payload["reason"] = reason
             if detail:
                 payload["detail"] = detail[:500]
             self._send(status, payload)
@@ -194,6 +208,17 @@ def make_handler(repo_root: Path, output_root: Path):
             except ValueError as exc:
                 self._error(400, "INVALID_SCHEMA", str(exc))
                 return
+            try:
+                approval_binding = validate_approval_grant(plan, approval, tool_contract)
+            except ApprovalBindingError as exc:
+                self._error(
+                    403,
+                    "APPROVAL_REQUIRED",
+                    "ApprovalGrant v1 does not authorize this execution",
+                    exc.detail,
+                    exc.reason,
+                )
+                return
             task_id = str(plan.get("task_id", ""))
             contract = TASK_CONTRACTS.get(task_id)
             run_id = str(plan.get("run_id", ""))
@@ -220,8 +245,24 @@ def make_handler(repo_root: Path, output_root: Path):
                 if run_dir.exists():
                     self._error(409, "RUN_ID_CONFLICT", "run_id already exists; evidence is append-only")
                     return
+                try:
+                    approval_consumption = consume_approval_nonce(
+                        approval,
+                        output_root / "approval_nonce_ledger.json",
+                    )
+                except ApprovalBindingError as exc:
+                    self._error(
+                        403,
+                        "APPROVAL_REQUIRED",
+                        "ApprovalGrant v1 does not authorize this execution",
+                        exc.detail,
+                        exc.reason,
+                    )
+                    return
                 run_dir.mkdir(parents=True, exist_ok=False)
                 request["tool_contract"] = tool_contract
+                request["approval_binding"] = approval_binding
+                request["approval_consumption"] = approval_consumption
                 (run_dir / "gateway_request.json").write_text(json.dumps(request, ensure_ascii=False, indent=2), encoding="utf-8")
                 demo = repo_root.joinpath(*contract["demo"])
                 baseline = repo_root.joinpath(*contract["baseline"])

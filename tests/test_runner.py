@@ -14,6 +14,7 @@ from unittest import mock
 from http.server import ThreadingHTTPServer
 
 from labops.at003 import build_plan
+from labops.approval_grant import canonical_plan_sha256
 from labops.checkpoint_incident import collect_checkpoint_evidence, diagnose_checkpoint, diagnose_policy_violation
 from labops.runner import RUNNER_IMAGE, runtime_capability_check
 from labops.runner_gateway import MAX_BODY, RUN_ID, RUN_ID_AT004, TASK_CONTRACTS, make_handler
@@ -162,6 +163,135 @@ class TestRunnerContracts(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "binding"):
             normalize_tool_contract(request)
+
+    def test_gateway_rejects_plan_changed_after_human_approval_without_running(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output = root / "runs"
+            plan = {
+                "task_id": "LABOPS-AT-004-EVAL-DRIFT",
+                "incident_id": "DEMO-EVAL-DRIFT-004",
+                "plan_id": "PLAN-LABOPS-AT-004-001",
+                "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-101",
+                "runtime": {"image": "labops/pytorch-cpu-runner:0.2.0"},
+                "changes": [{
+                    "file": "eval_config.json",
+                    "field": "evaluation.preprocessing_profile",
+                    "before": "train_augmented",
+                    "after": "eval_standard",
+                }],
+                "budget": {"max_runtime_seconds": 30, "device": "cpu", "network": False},
+                "forbidden_changes": ["metric.py", "validation_data.pt", "checkpoint"],
+                "success_criteria": {"minimum": 0.97},
+            }
+            approved_hash = canonical_plan_sha256(plan)
+            plan["changes"][0]["after"] = "tampered-after-approval"
+            approval = {
+                "schema_version": "1.0",
+                "approval_id": "APR-LIVE-101",
+                "task_id": plan["task_id"],
+                "incident_id": plan["incident_id"],
+                "plan_id": plan["plan_id"],
+                "canonical_plan_sha256": approved_hash,
+                "run_id": plan["run_id"],
+                "decision": "APPROVED",
+                "approved_scope": ["eval_config.json:evaluation.preprocessing_profile"],
+                "allowed_side_effects": ["write sandbox output"],
+                "protected_resources": list(plan["forbidden_changes"]),
+                "resource_budget": dict(plan["budget"]),
+                "decided_by": "human-operator",
+                "approved_at": "2026-01-01T00:00:00Z",
+                "expires_at": "2030-01-01T00:00:00Z",
+                "nonce": "nonce-live-101",
+            }
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(root, output))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            payload = json.dumps({"experiment_plan": plan, "approval": approval}).encode("utf-8")
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{server.server_port}/v1/run",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            try:
+                with mock.patch("labops.runner_gateway.execute_runner_plan") as execute:
+                    with self.assertRaises(urllib.error.HTTPError) as caught:
+                        urllib.request.urlopen(request, timeout=2)
+                    response = json.loads(caught.exception.read())
+                self.assertEqual(caught.exception.code, 403)
+                self.assertEqual(response["code"], "APPROVAL_REQUIRED")
+                self.assertEqual(response["reason"], "PLAN_HASH_MISMATCH")
+                execute.assert_not_called()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+
+    def test_gateway_consumes_valid_grant_before_returning_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output = root / "runs"
+            plan = {
+                "task_id": "LABOPS-AT-004-EVAL-DRIFT",
+                "incident_id": "DEMO-EVAL-DRIFT-004",
+                "plan_id": "PLAN-LABOPS-AT-004-001",
+                "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-102",
+                "runtime": {"image": "labops/pytorch-cpu-runner:0.2.0"},
+                "changes": [{
+                    "file": "eval_config.json",
+                    "field": "evaluation.preprocessing_profile",
+                    "before": "train_augmented",
+                    "after": "eval_standard",
+                }],
+                "budget": {"max_runtime_seconds": 30, "device": "cpu", "network": False},
+                "forbidden_changes": ["metric.py", "validation_data.pt", "checkpoint"],
+                "success_criteria": {"minimum": 0.97},
+            }
+            approval = {
+                "schema_version": "1.0",
+                "approval_id": "APR-LIVE-102",
+                "task_id": plan["task_id"],
+                "incident_id": plan["incident_id"],
+                "plan_id": plan["plan_id"],
+                "canonical_plan_sha256": canonical_plan_sha256(plan),
+                "run_id": plan["run_id"],
+                "decision": "APPROVED",
+                "approved_scope": ["eval_config.json:evaluation.preprocessing_profile"],
+                "allowed_side_effects": ["write sandbox output"],
+                "protected_resources": list(plan["forbidden_changes"]),
+                "resource_budget": dict(plan["budget"]),
+                "decided_by": "human-operator",
+                "approved_at": "2026-01-01T00:00:00Z",
+                "expires_at": "2030-01-01T00:00:00Z",
+                "nonce": "nonce-live-102",
+            }
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(root, output))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{server.server_port}/v1/run",
+                data=json.dumps({"experiment_plan": plan, "approval": approval}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+            )
+            try:
+                with mock.patch(
+                    "labops.runner_gateway.execute_runner_plan",
+                    return_value={"status": "completed"},
+                ) as execute, mock.patch("labops.runner_gateway._read_outputs", return_value={}):
+                    response = json.loads(urllib.request.urlopen(request, timeout=2).read())
+                self.assertTrue(response["ok"])
+                execute.assert_called_once()
+                archived = json.loads(
+                    (output / plan["run_id"] / "gateway_request.json").read_text(encoding="utf-8")
+                )
+                self.assertEqual(archived["approval_binding"]["status"], "VALID")
+                self.assertEqual(archived["approval_consumption"]["status"], "CONSUMED")
+                ledger = json.loads((output / "approval_nonce_ledger.json").read_text(encoding="utf-8"))
+                self.assertEqual(ledger[0]["nonce"], "nonce-live-102")
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
 
 
 class TestIncidentIdentityRegression(unittest.TestCase):
