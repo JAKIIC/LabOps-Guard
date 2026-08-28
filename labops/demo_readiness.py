@@ -170,6 +170,17 @@ def _check_skills(root: Path) -> tuple[dict[str, Any], list[str]]:
         "runtime_event_emission": "NOT_IMPLEMENTED",
         "historical_at004_has_skill_usage_events": False,
         "live_visibility": "AGENTTEAMS_HOOK_REQUIRED",
+        "runtime_evidence_layers": {
+            "control-lab-action": {
+                "status": "GATEWAY_CONTRACT_READY",
+                "source": "new live Gateway gateway_request.json#tool_contract",
+            },
+            "remaining_skills": {
+                "status": "CONFIGURED",
+                "count": 6,
+                "runtime_visibility": "AGENTTEAMS_HOOK_REQUIRED",
+            },
+        },
     }, errors
 
 

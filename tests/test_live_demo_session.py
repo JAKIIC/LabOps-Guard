@@ -12,6 +12,7 @@ from pathlib import Path
 
 from labops.approval_grant import canonical_plan_sha256
 from labops.live_demo import HANDOFFS, prepare_session, verify_session
+from labops.runner_gateway import normalize_tool_contract
 from labops.trace import TraceLog
 from labops.cli import main as cli_main
 
@@ -191,15 +192,10 @@ class TestLiveDemoSession(unittest.TestCase):
                 "expires_at": "2026-08-31T12:05:00Z",
                 "nonce": "nonce-live-021",
             }
-            tool_contract = {
-                "task_id": plan["task_id"],
-                "incident_id": plan["incident_id"],
-                "run_id": plan["run_id"],
-                "approval_reference": approval["approval_id"],
-                "allowed_side_effects": list(approval["allowed_side_effects"]),
-                "protected_resources": list(approval["protected_resources"]),
-                "resource_budget": dict(approval["resource_budget"]),
-            }
+            tool_contract = normalize_tool_contract({
+                "experiment_plan": plan,
+                "approval": approval,
+            })
             write("approval_grant.json", approval)
             write("gateway_request.json", {
                 "experiment_plan": plan,
@@ -247,6 +243,17 @@ class TestLiveDemoSession(unittest.TestCase):
             result = verify_session(repo_root(), root, "20260831-021")
             self.assertEqual(result["status"], "VERIFIED", result["errors"])
             self.assertEqual(result["errors"], [])
+            self.assertEqual(
+                result["skill_runtime_evidence"]["control-lab-action"]["status"],
+                "VERIFIED",
+            )
+            self.assertEqual(
+                result["skill_runtime_evidence"]["remaining_skills"],
+                {
+                    "status": "CONFIGURED",
+                    "runtime_visibility": "AGENTTEAMS_HOOK_REQUIRED",
+                },
+            )
 
 
 if __name__ == "__main__":

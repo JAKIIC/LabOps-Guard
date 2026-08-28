@@ -57,6 +57,18 @@ class TestDemoReadiness(unittest.TestCase):
         self.assertEqual(report["skills"]["runtime_event_emission"], "NOT_IMPLEMENTED")
         self.assertFalse(report["skills"]["historical_at004_has_skill_usage_events"])
         self.assertEqual(report["skills"]["live_visibility"], "AGENTTEAMS_HOOK_REQUIRED")
+        self.assertEqual(
+            report["skills"]["runtime_evidence_layers"]["control-lab-action"]["status"],
+            "GATEWAY_CONTRACT_READY",
+        )
+        self.assertEqual(
+            report["skills"]["runtime_evidence_layers"]["remaining_skills"],
+            {
+                "status": "CONFIGURED",
+                "count": 6,
+                "runtime_visibility": "AGENTTEAMS_HOOK_REQUIRED",
+            },
+        )
         serialized = json.dumps(report, ensure_ascii=False)
         self.assertNotIn(str(ROOT), serialized)
 

@@ -195,6 +195,13 @@ Verification 与 Trace 另由领域 Schema、Policy 或 hash validator 深度验
 回填。状态明确为 `runtime_event_emission=NOT_IMPLEMENTED`、
 `live_visibility=AGENTTEAMS_HOOK_REQUIRED`。
 
+新 live run 有一个更窄且可核验的例外：Runner Gateway 在成功执行前会规范化并归档
+`gateway_request.json#tool_contract`。`live-demo verify` 会对完整契约做 fail-closed 核验，只有
+`safe-executor → control-lab-action → labops.runner.execute` 以及 task / incident / run /
+approval 全部一致时，才把 `control-lab-action` 标记为 `VERIFIED`。这证明的是
+Safe Executor Skill 与受控工具的实际绑定，不是通用 Skill telemetry，也不能外推为七个
+Skill 都有 runtime event。其余六个仍为 `CONFIGURED / AGENTTEAMS_HOOK_REQUIRED`。
+
 未来 event 必须由实际执行 Skill 的 Worker/AgentTeams hook 在调用时产生，使用真实时间、真实
 Matrix/AgentTeams event ID 和 Artifact SHA-256。Manager 事后补写或从角色名推断都不是证据。
 
@@ -221,15 +228,19 @@ Matrix/AgentTeams event ID 和 Artifact SHA-256。Manager 事后补写或从角�
 }
 ```
 
-若 live 部署没有 hook，只能表述“Registry 与 Skill 契约已配置”，不得说 runtime usage 已被证明。
+若 live 部署没有 hook，除上述 Gateway 绑定外，其余 Skill 只能表述“Registry 与 Skill
+契约已配置”，不得说 runtime usage 已被证明。历史 AT-004 仍不含 `skill_id`
+event，不回填。
 
 ## 9. PPT / README 可复用位置
 
 - 第 6 页 Identity + Skill Registry：七 Skill 总览、Agent/Skill/Tool 三层图。
-- 第 8 页 Tool Contract + Runner：Safe Executor 契约示例。
+- 第 8 页 Tool Contract + Runner：Safe Executor 契约示例，可引用新 live run 的
+  `gateway_request.json#tool_contract`，标注“仅 control-lab-action runtime binding”。
 - 第 10 页 Trace + Evidence：usage event 字段，标注“new live run only”。
 - 第 11 页 Trust Dashboard：Registry valid、7 Skills、hook required。
-- 答辩口径：历史 AT-004 无 `skill_id` event；新版只提供验证契约，真实发射依赖 live hook。
+- 答辩口径：历史 AT-004 无 `skill_id` event；新 live Gateway 证据可证明
+  `control-lab-action` 的工具绑定；其余六个的真实 event 发射仍依赖 live hook。
 
 ## 10. 成熟度结论
 

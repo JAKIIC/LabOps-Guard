@@ -53,11 +53,18 @@ Archived replay: immutable ZIP + manifest + Dashboard projection (no live execut
 
 现有 AT-004 正式 Evidence 中可复核六个 Matrix event ID、独立 human approval、Runner 请求/
 响应、五个原始输出、7-entry 哈希链和最终 `CHAIN_OK / ACCEPTED`。正式包没有单独的
-`skill_id` 调用事件，因此录制时应在 AgentTeams UI 展示 Worker 实际使用的 Skill；不得仅凭
-角色名称反推并宣称“Skill 调用已被 Trace 证明”。
+`skill_id` 调用事件，不得仅凭角色名称反推并宣称“七个 Skill 调用已被 Trace
+证明”。对于后续新 live run，Gateway 归档的 `gateway_request.json#tool_contract` 可以单独证明
+`safe-executor → control-lab-action → labops.runner.execute` 的真实绑定；这不改变历史包的
+语义。
 
 `demo-readiness` 会显示七 Skill、版本、Owner 和预期 pipeline，并明确返回
 `runtime_event_emission=NOT_IMPLEMENTED` 与 `live_visibility=AGENTTEAMS_HOOK_REQUIRED`。
+预检中 `control-lab-action=GATEWAY_CONTRACT_READY` 只表示 verifier 已就绪；只有新 live run 真实
+产生完整 Gateway request/response、Runner Artifact 并通过校验后，结果才会显示
+`control-lab-action=VERIFIED`。其余六个 Skill 继续显示
+`CONFIGURED / AGENTTEAMS_HOOK_REQUIRED`。
+
 若实际 AgentTeams 部署有真实 Worker invocation hook，可让 hook 产生符合
 `schemas/skill_usage_event.schema.json` 的新 live event，再执行：
 
@@ -67,6 +74,8 @@ python -B -m labops skills validate-event <event.json>
 
 该命令只验证 event，不生成、不持久化、不发送 Matrix 消息。若部署没有 hook，视频只能展示
 Skill Registry 与 Worker 配置，并明确它们是 `CONFIGURED`，不是 runtime invocation proof。
+录制时可在 verifier JSON 中展示 `skill_runtime_evidence`：只有
+`control-lab-action.status=VERIFIED`，`remaining_skills.status=CONFIGURED`。
 
 ## 3. 环境前置
 

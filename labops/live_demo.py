@@ -15,6 +15,7 @@ from pathlib import Path
 
 from labops.approval_grant import ApprovalBindingError, validate_approval_grant
 from labops.recovery import RecoveryError, load_recovery_overlay
+from labops.runner_gateway import normalize_tool_contract
 from labops.trace import TraceLog
 
 CLASSIFICATION = "NON_FORMAL_LIVE_DEMO"
@@ -210,8 +211,23 @@ def _verify_handoffs(evidence_root: Path, errors: list[str]) -> None:
             errors.append(f"Matrix event {event_id} lacks room/time evidence")
 
 
+def _skill_runtime_evidence(status: str = "BLOCKED") -> dict:
+    return {
+        "control-lab-action": {
+            "status": status,
+            "source": "evidence/gateway_request.json#tool_contract",
+        },
+        "remaining_skills": {
+            "status": "CONFIGURED",
+            "runtime_visibility": "AGENTTEAMS_HOOK_REQUIRED",
+        },
+    }
+
+
 def _verify_execution(evidence_root: Path, manifest: dict, effective_attempt: dict,
-                      recovery_active: bool, errors: list[str]) -> None:
+                      recovery_active: bool, errors: list[str]) -> dict:
+    skill_evidence = _skill_runtime_evidence()
+    execution_error_start = len(errors)
     approval = _load_evidence_json(evidence_root, "approval_grant.json", errors)
     request = _load_evidence_json(evidence_root, "gateway_request.json", errors)
     response = _load_evidence_json(evidence_root, "gateway_response.json", errors)
@@ -223,7 +239,22 @@ def _verify_execution(evidence_root: Path, manifest: dict, effective_attempt: di
     tool_contract = request.get("tool_contract")
     if not isinstance(plan, dict) or not isinstance(tool_contract, dict):
         errors.append("Gateway request lacks structured plan and Tool Contract")
-        return
+        return skill_evidence
+    try:
+        normalized_contract = normalize_tool_contract(request)
+    except (PermissionError, ValueError) as exc:
+        errors.append(f"Gateway Tool Contract failed closed: {exc}")
+        return skill_evidence
+    if tool_contract != normalized_contract:
+        errors.append("Gateway Tool Contract is not the complete normalized archive")
+        return skill_evidence
+    if (
+        tool_contract.get("tool_id") != "labops.runner.execute"
+        or tool_contract.get("caller_agent_id") != "safe-executor"
+        or tool_contract.get("skill_id") != "control-lab-action"
+    ):
+        errors.append("Gateway Tool Contract has the wrong Tool, Agent or Skill binding")
+        return skill_evidence
     if request.get("approval") != approval:
         errors.append("Gateway request ApprovalGrant differs from the human approval artifact")
     live_context = plan.get("live_context", {})
@@ -263,6 +294,9 @@ def _verify_execution(evidence_root: Path, manifest: dict, effective_attempt: di
         if not path.is_file() or record.get("sha256") != hashlib.sha256(path.read_bytes()).hexdigest():
             errors.append(f"Runner artifact hash mismatch: {name}")
 
+    if len(errors) == execution_error_start:
+        skill_evidence["control-lab-action"]["status"] = "VERIFIED"
+
     checks = verification.get("checks", {})
     if recovery_active and verification.get("attempt_id") != effective_attempt["attempt_id"]:
         errors.append("Auditor verification is not bound to the latest recovery attempt")
@@ -276,6 +310,7 @@ def _verify_execution(evidence_root: Path, manifest: dict, effective_attempt: di
         or not all(value is True for value in checks.values())
     ):
         errors.append("Independent Verification Auditor did not produce a complete PASS/RESOLVED decision")
+    return skill_evidence
 
 
 def _effective_attempt(session_root: Path, manifest: dict, errors: list[str]) -> tuple[dict, str]:
@@ -340,6 +375,7 @@ def verify_session(project_root: str | Path, sessions_root: str | Path, session_
     del project_root  # the session uses frozen repository contracts prepared above
     session_root = Path(sessions_root).resolve() / session_id
     errors: list[str] = []
+    skill_runtime_evidence = _skill_runtime_evidence()
     try:
         manifest = _read_json(session_root / "session.json")
     except (OSError, ValueError, json.JSONDecodeError) as exc:
@@ -348,6 +384,7 @@ def verify_session(project_root: str | Path, sessions_root: str | Path, session_
             "classification": CLASSIFICATION,
             "executes_agentteams": False,
             "archived_replay_is_live": False,
+            "skill_runtime_evidence": skill_runtime_evidence,
             "errors": [f"session.json: {type(exc).__name__}"],
         }
     if manifest != _session_manifest(session_id):
@@ -359,7 +396,7 @@ def verify_session(project_root: str | Path, sessions_root: str | Path, session_
             errors.append(f"missing live evidence: {relative}")
     if not errors:
         _verify_handoffs(evidence_root, errors)
-        _verify_execution(
+        skill_runtime_evidence = _verify_execution(
             evidence_root,
             manifest,
             effective_attempt,
@@ -384,6 +421,7 @@ def verify_session(project_root: str | Path, sessions_root: str | Path, session_
         "archived_replay_is_live": False,
         "effective_attempt_id": effective_attempt.get("attempt_id"),
         "recovery_status": recovery_status,
+        "skill_runtime_evidence": skill_runtime_evidence,
         "evidence_files": evidence_files,
         "evidence_digest": hashlib.sha256("\n".join(digests).encode("utf-8")).hexdigest(),
         "errors": errors,

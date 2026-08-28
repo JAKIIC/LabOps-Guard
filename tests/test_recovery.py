@@ -13,7 +13,7 @@ from pathlib import Path
 from labops.cli import main as cli_main
 from labops.approval_grant import canonical_plan_sha256
 from labops.live_demo import HANDOFFS, prepare_session, verify_session
-from labops.runner_gateway import RUN_ID_AT004
+from labops.runner_gateway import RUN_ID_AT004, normalize_tool_contract
 from labops.trace import TraceLog
 from labops.recovery import (
     RecoveryError,
@@ -119,15 +119,10 @@ class TestRecoveryOverlay(unittest.TestCase):
             "expires_at": "2026-08-31T13:50:00Z",
             "nonce": "nonce-recovery-031",
         }
-        tool_contract = {
-            "task_id": plan["task_id"],
-            "incident_id": plan["incident_id"],
-            "run_id": plan["run_id"],
-            "approval_reference": approval["approval_id"],
-            "allowed_side_effects": list(approval["allowed_side_effects"]),
-            "protected_resources": list(approval["protected_resources"]),
-            "resource_budget": dict(approval["resource_budget"]),
-        }
+        tool_contract = normalize_tool_contract({
+            "experiment_plan": plan,
+            "approval": approval,
+        })
         write("approval_grant.json", approval)
         write("gateway_request.json", {
             "experiment_plan": plan,
@@ -500,6 +495,57 @@ class TestRecoveryOverlay(unittest.TestCase):
         self.assertEqual(result["effective_attempt_id"], resumed["attempt"]["attempt_id"])
         self.assertEqual(result["recovery_status"], "VERIFIED")
         self.assertIn("recovery/recovery_trace.jsonl", result["evidence_files"])
+        self.assertEqual(
+            result["skill_runtime_evidence"]["control-lab-action"]["status"],
+            "VERIFIED",
+        )
+
+    def _write_initial_complete_evidence(self) -> None:
+        manifest = json.loads((self.session_root / "session.json").read_text(encoding="utf-8"))
+        self.write_complete_live_evidence({
+            "attempt_id": manifest["attempt_id"],
+            "run_id": manifest["run_id"],
+        })
+
+    def _mutate_gateway_tool_contract(self, field: str, value: str) -> dict:
+        request_path = self.session_root / "evidence" / "gateway_request.json"
+        request = json.loads(request_path.read_text(encoding="utf-8"))
+        request["tool_contract"][field] = value
+        request_path.write_text(json.dumps(request, indent=2), encoding="utf-8")
+        return verify_session(repo_root(), self.sessions_root, "20260831-031")
+
+    def test_live_verifier_rejects_forged_skill_binding(self) -> None:
+        self._write_initial_complete_evidence()
+        result = self._mutate_gateway_tool_contract("skill_id", "diagnose-lab-incident")
+        self.assertEqual(result["status"], "BLOCKED")
+        self.assertEqual(
+            result["skill_runtime_evidence"]["control-lab-action"]["status"],
+            "BLOCKED",
+        )
+        self.assertTrue(any("Tool Contract" in error for error in result["errors"]))
+
+    def test_live_verifier_rejects_non_executor_caller(self) -> None:
+        self._write_initial_complete_evidence()
+        result = self._mutate_gateway_tool_contract("caller_agent_id", "labops-manager")
+        self.assertEqual(result["status"], "BLOCKED")
+        self.assertTrue(any("Tool Contract" in error for error in result["errors"]))
+
+    def test_live_verifier_rejects_tool_contract_identity_mismatch(self) -> None:
+        self._write_initial_complete_evidence()
+        result = self._mutate_gateway_tool_contract("approval_reference", "APR-FORGED")
+        self.assertEqual(result["status"], "BLOCKED")
+        self.assertTrue(any("Tool Contract" in error for error in result["errors"]))
+
+    def test_live_verifier_rejects_reduced_gateway_archive(self) -> None:
+        self._write_initial_complete_evidence()
+        request_path = self.session_root / "evidence" / "gateway_request.json"
+        request = json.loads(request_path.read_text(encoding="utf-8"))
+        del request["tool_contract"]["input_schema_version"]
+        request_path.write_text(json.dumps(request, indent=2), encoding="utf-8")
+
+        result = verify_session(repo_root(), self.sessions_root, "20260831-031")
+        self.assertEqual(result["status"], "BLOCKED")
+        self.assertTrue(any("complete normalized archive" in error for error in result["errors"]))
 
     def test_cli_requires_explicit_human_confirmation_and_exposes_overlay(self) -> None:
         request = io.StringIO()
