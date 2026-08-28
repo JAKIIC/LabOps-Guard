@@ -357,6 +357,49 @@ def cmd_recovery(args) -> int:
     return 0
 
 
+def cmd_reviewer(args) -> int:
+    """Operate the local read-only Reviewer Edition lifecycle."""
+
+    from labops import reviewer
+
+    project_root = Path(__file__).resolve().parent.parent
+    sessions_root = (
+        Path(args.sessions_root)
+        if getattr(args, "sessions_root", None)
+        else project_root / "demo" / "live-sessions"
+    )
+    try:
+        if args.action == "preflight":
+            payload = reviewer.build_preflight(project_root, args.mode)
+        elif args.action == "start":
+            def emit_started(value: dict) -> None:
+                print(json.dumps(value, ensure_ascii=False, sort_keys=True), flush=True)
+
+            payload = reviewer.start_reviewer(
+                project_root,
+                sessions_root,
+                args.mode,
+                session_id=args.session,
+                host=args.host,
+                port=args.port,
+                gateway_host=args.gateway_host,
+                gateway_port=args.gateway_port,
+                open_browser=not args.no_browser,
+                on_started=emit_started,
+            )
+        elif args.action == "status":
+            payload = reviewer.reviewer_status(
+                sessions_root,
+                session_id=args.session,
+            )
+        else:
+            payload = reviewer.stop_reviewer(sessions_root)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        payload = {"status": "BLOCKED", "error": type(exc).__name__, "read_only": True}
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0 if payload.get("status") in {"READY", "RUNNING", "STOPPED", "STOP_REQUESTED", "NOT_RUNNING"} else 2
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="labops", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -541,6 +584,33 @@ def build_parser() -> argparse.ArgumentParser:
     recovery_resume.add_argument("--resume-point", required=True)
     recovery_resume.add_argument("--confirm", required=True, help="must exactly repeat takeover_id")
     recovery_resume.set_defaults(func=cmd_recovery)
+
+    sp = sub.add_parser("reviewer", help="run the local read-only Reviewer Edition")
+    reviewer_sub = sp.add_subparsers(dest="action", required=True)
+
+    reviewer_preflight = reviewer_sub.add_parser("preflight", help="check Quick or Live prerequisites")
+    reviewer_preflight.add_argument("--mode", choices=["quick", "live"], default="quick")
+    reviewer_preflight.set_defaults(func=cmd_reviewer)
+
+    reviewer_start = reviewer_sub.add_parser("start", help="start Reviewer Edition in the foreground")
+    reviewer_start.add_argument("--mode", choices=["quick", "live"], required=True)
+    reviewer_start.add_argument("--session", default=None, help="required for Live Mode: YYYYMMDD-NNN")
+    reviewer_start.add_argument("--sessions-root", default=None)
+    reviewer_start.add_argument("--host", default="127.0.0.1")
+    reviewer_start.add_argument("--port", type=int, default=18787)
+    reviewer_start.add_argument("--gateway-host", default="0.0.0.0")
+    reviewer_start.add_argument("--gateway-port", type=int, default=18103)
+    reviewer_start.add_argument("--no-browser", action="store_true")
+    reviewer_start.set_defaults(func=cmd_reviewer)
+
+    reviewer_status_parser = reviewer_sub.add_parser("status", help="read local Reviewer lifecycle status")
+    reviewer_status_parser.add_argument("--session", default=None)
+    reviewer_status_parser.add_argument("--sessions-root", default=None)
+    reviewer_status_parser.set_defaults(func=cmd_reviewer)
+
+    reviewer_stop = reviewer_sub.add_parser("stop", help="request graceful Reviewer shutdown")
+    reviewer_stop.add_argument("--sessions-root", default=None)
+    reviewer_stop.set_defaults(func=cmd_reviewer)
 
     return p
 
