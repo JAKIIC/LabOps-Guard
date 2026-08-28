@@ -13,6 +13,16 @@ Run from the repository root:
 ./scripts/verify_evidence.ps1
 ```
 
+## External runtime version record
+
+The source package pins the Python compatibility range and Runner image tags. Matrix/Element,
+MinIO and the AgentTeams deployment are supplied by the live recording environment, so their
+exact versions must be recorded during preflight rather than guessed in source. Use
+[`toolchain-compatibility-matrix.md`](toolchain-compatibility-matrix.md) for component roles,
+permissions and migration boundaries, and [`final-demo-guide.md`](final-demo-guide.md) for the
+recording-time readiness checks. Record only product/version/model identifiers; never copy Tokens,
+private room IDs or host credentials into evidence.
+
 ## Main and fallback runners
 
 - Main AT-004 image: `labops/pytorch-cpu-runner:0.2.0`.

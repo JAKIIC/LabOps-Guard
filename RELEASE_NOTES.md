@@ -29,6 +29,11 @@ Task 5B Final Submission Freeze 更新最终版本一致性报告、source-only 
 并把公开仓库同步、远端 CI/Pages、最终视频和比赛平台上传明确列为项目所有者门禁。源码归档必须
 由最终 Git commit 生成并单独登记 SHA-256，不把忽略目录、live session、Runner 镜像或凭据带入。
 
+Task 5C Official Alignment Closure 按官方 06/08/09/10/12 逐节收口：补充 MCP 等价 Tool
+Contract、Shared State + Trace 的非 RAG 合规路径、工具链版本/兼容/迁移矩阵、异常信号升级、
+Skill 发布/回滚/质量门禁，并对 18 页 PPT/PDF 做最小页级同步。未增加 Agent、Skill、MCP、RAG、
+OTel backend 或云组件，正式 Evidence 和核心运行语义保持不变。
+
 由于 Runner 镜像许可证/NOTICE 门禁仍未关闭，本文档不表示已创建 Git Tag、
 GitHub Release、Runner 镜像或镜像 tar。
 

@@ -19,6 +19,30 @@ Runner is the execution source, and the final evidence bundle is the portable re
 The dashboard is a read-only projection: it recomputes integrity checks and must never become
 an authority that can change incident state.
 
+## Failure signal and escalation mapping
+
+| Signal | Structured outcome | Escalation / recovery |
+|---|---|---|
+| Evidence incomplete | `EVIDENCE_INCOMPLETE`, incident remains `BLOCKED` | Request additional evidence and create a new attempt |
+| Worker timeout | `WORKER_TIMEOUT` | Same-role retry once; exhausted budget enters Human Takeover |
+| Capability missing | `CAPABILITY_MISSING` | Reassign only with real Worker/capability evidence; otherwise `REASSIGN_UNAVAILABLE → HUMAN_TAKEOVER` |
+| Policy violation | `POLICY_VIOLATION` | No retry; require rollback and independent audit |
+| Tool/runtime failure | `TOOL_FAILURE` / `RUNNER_TIMEOUT` | Retry once only when idempotent and safe; otherwise takeover |
+| Audit inconclusive | `AUDIT_INCONCLUSIVE` | Human Takeover; a human cannot directly set `RESOLVED` |
+| Trace/hash mismatch | `VERIFICATION_FAILED` | Fail closed; preserve artifacts for review and require Auditor again |
+
+The repository does not claim a deployed Alertmanager or online incident backend. Today these
+signals are durable Recovery/Trace events, CLI-visible states and read-only Dashboard evidence.
+A production notification adapter may subscribe to them, but notification delivery must not
+change incident state or evidence validity.
+
+## Offline evaluation feedback
+
+The Trust Evaluation Suite writes deterministic JSON and is exercised by CI. It verifies policy
+violation prevention, evidence completeness, false-resolution prevention and independent audit.
+It does not automatically rewrite prompts, Skill contracts or Oracle expectations; any version
+change remains a reviewed source change with tests and Git rollback.
+
 ## Current custom trace contract
 
 Each durable trace entry is a JSON object whose canonical serialization participates in the

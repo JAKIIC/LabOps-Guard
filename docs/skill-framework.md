@@ -248,3 +248,20 @@ event，不回填。
 核心 Skill 与 Policy/Gateway/Runner/Auditor 有代码绑定。尚未达到自动 runtime instrumentation、
 远程 Marketplace 或统一遥测平台，应表述为“Skill contract engineering + live-hook-ready
 validation”，不是“已部署 Skill telemetry”。
+
+## 11. Version, release, rollback and quality gates
+
+| Lifecycle concern | Current gate |
+|---|---|
+| Version | Each Registry entry and `SKILL.md` has an explicit version; I/O versions are validated |
+| Release | Registry, Owner, dependency and Schema references must resolve; unit/contract tests and sensitive-data checks must pass |
+| Rollback | Revert to the most recent verified Git commit and Registry version; there is no unreviewed dynamic rollback in a live incident |
+| Compatibility | The Trust Contract references the Registry; aliases are read-only compatibility metadata and never grant permission |
+| Quality evaluation | Schema/Policy/security tests, the 10-case Trust Evaluation Suite and Evidence verifier are independent gates |
+| Distribution | Seven repository-native Skills are open-source packages; this candidate does not claim a remote Marketplace |
+
+The AT-004 chain has no cloud-resource action, so adding an official cloud Skill would introduce
+credentials and reproducibility risk without improving the governed execution proof. A future
+official Skill is treated as a Tool dependency adapter: it must preserve the same I/O, permission,
+Approval and audit boundaries and cannot bypass the Verification Auditor. Toolchain versions and
+migration costs are recorded in [`toolchain-compatibility-matrix.md`](toolchain-compatibility-matrix.md).

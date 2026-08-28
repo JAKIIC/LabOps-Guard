@@ -8,6 +8,8 @@ Trust State Machine v1，把六个职责隔离角色的身份、策略、执行�
 
 - 🌐 **Public Evidence Demo**：<https://jakiic.github.io/LabOps-Guard/>
 - 💻 **Source**：<https://github.com/JAKIIC/LabOps-Guard>
+- 📋 **Official requirement mapping**：[`docs/competition-mapping.md`](docs/competition-mapping.md)
+- 🔧 **Toolchain and compatibility disclosure**：[`docs/toolchain-compatibility-matrix.md`](docs/toolchain-compatibility-matrix.md)
 
 一个模型昨天的评测准确率是 97.8%，今天降到 71.9%。值班工程师需要判断问题来自模型、
 数据、评测代码还是配置。LabOps Guard 让六个权限隔离的 Agent 收集证据、提出可证伪假设、

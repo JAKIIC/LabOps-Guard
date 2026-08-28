@@ -2,8 +2,8 @@
 
 更新时间：2026-08-28
 权威仓库：本文档所在 Git 仓库
-当前阶段：Phase 9 Final Submission Freeze；工程候选已收口，等待公开 `main`、远端 CI/Pages、
-视频与比赛平台上传的项目所有者门禁；正式 Release/Tag 保持冻结
+当前阶段：Phase 9 Official Alignment Closure；工程候选已按官方 06/08/09/10/12 收口，等待
+公开 `main`、远端 CI/Pages、视频与比赛平台上传的项目所有者门禁；正式 Release/Tag 保持冻结
 
 ## Semifinal Trust Contract
 
@@ -20,6 +20,17 @@ Python 包版本为 `1.0.0rc1`，材料版本为 `v1.0-rc1`。当前候选版已
   Policy/Approval、Execution、Evidence/Trace 和 Audit 六个信任域。
 
 原 Phase 6 初赛证据、版本和发布冻结记录作为历史基线继续保留。
+
+## Official semifinal alignment
+
+- 复赛材料、AgentTeams 完整链路、样例 I/O、Trace/Log/Metrics、评测与 verifier 对齐官方 06；
+- 六 Agent Identity、上下文交接、审批、恢复、工具调用和独立审计对齐官方 08；
+- 七 Skill 生命周期、MCP 等价 Tool Contract、Shared State + Trace 非 RAG 路径和本地可观测
+  边界对齐官方 09；
+- 工具链版本、外部依赖、官方工具取舍、权限和迁移成本集中记录在
+  `docs/toolchain-compatibility-matrix.md`；不以工具数量换取展示效果；
+- 五个评分域均有明确源码、测试、Evidence 或材料入口。视频、公开 `main` 与平台上传仍是
+  项目所有者门禁，不属于已完成事实。
 
 ## Phase 7 Trust Dashboard
 

@@ -31,6 +31,18 @@ Python 包版本：`1.0.0rc1`
 - [x] Skill 运行时证据不外推：历史 Trace 不补写 `skill_id`
 - [x] Runner 镜像许可证门禁保持关闭，不随提交包分发
 
+## B2. 官方 06 / 08 / 09 / 10 / 12 对齐
+
+- [x] 06：PPT/PDF、可执行源码入口、依赖/配置、样例 I/O、Trace/Log/Metrics、评测和自动 verifier 齐全
+- [x] 08：六 Agent Identity、AgentTeams 编排、上下文交接、工具调用、审批、回滚、恢复和 Auditor 闭环可核验
+- [x] 09.1：七 Skill 的版本、I/O、调用条件、工具权限、失败、安全、复用、验证与生命周期已记录
+- [x] 09.2：未声明 MCP Server；等价 Tool Contract 覆盖协议、权限、Schema、错误、重试、幂等、审计与降级
+- [x] 09.3：Trace/Log/Metrics/Artifact/Approval、异常升级、离线评测与只读 OTel adapter 边界已说明
+- [x] 09.4：明确不使用 RAG；Shared State + Trace Observability 满足非 RAG 替代路径
+- [x] 10：工具链版本、入口、Agent/Skill 关系、权限、官方工具取舍和迁移成本已形成矩阵
+- [x] 12：五个评分维度均可追溯到源码、测试、Evidence、Demo 或文档
+- [ ] 最终视频与平台提交表单由项目所有者完成
+
 ## C. 本地候选验证
 
 从仓库根目录执行：
@@ -65,14 +77,14 @@ git archive --format=zip --prefix=LabOps-Guard-v1.0-rc1/ `
 标准安装命令为 `python -m pip install --no-deps .`；完全离线安装需预先提供
 `setuptools>=68`，不要误用缺少构建后端的 `--no-build-isolation` 环境。
 
-- [x] 源码包由最终 Task 5B commit 生成
+- [ ] 源码包在本次官方对齐提交后重新生成
 - [x] 解压后可安装 `1.0.0rc1` 并运行 CLI
 - [x] 源码包内没有 `release/`、`.git/`、`.env`、密钥、私有 room ID、绝对路径或 Runner 镜像
-- [x] `release/FINAL_CANDIDATE_MANIFEST.txt` 已登记 commit 与源码包 SHA-256
+- [ ] `release/FINAL_CANDIDATE_MANIFEST.txt` 在最终附件阶段重新登记 commit 与源码包 SHA-256
 
 ## E. 公开仓库与上传门禁
 
-- [ ] Task 5B 候选已合入并推送公开 `main`
+- [ ] 最终官方对齐候选已合入并推送公开 `main`
 - [ ] `git ls-remote origin refs/heads/main` 等于最终登记 SHA
 - [ ] GitHub Actions Windows/Linux、Python 3.9/3.12 全部通过
 - [ ] Pages 从最终 `main` 重新部署并返回 HTTP 200

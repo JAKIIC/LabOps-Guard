@@ -3,6 +3,24 @@
 核对日期：2026-08-28
 官方入口：<https://www.goaihz.com/tracks?track=infra>
 
+## 复赛官方条款逐节核对
+
+| 官方章节 | 状态 | 当前实现与核验证据 | 剩余门禁 |
+|---|---|---|---|
+| 06 Demo 实现与工程验证 | READY | 更新版 18 页 PPT/PDF；六角色真实 AgentTeams/Matrix 运行手册；样例 I/O、Trace、Log、Metrics、Runner Artifact、Auditor、Evaluation 与自动 verifier 齐全 | 最终视频由项目所有者录制；公开 `main` 同步后再次核验 URL/SHA |
+| 08.1 Agent 数量与身份 | DONE | 六个不同职能 Agent，Identity/Owner/权限边界均有 Schema 和代码校验 | 无技术缺口 |
+| 08.2 AgentTeams 协作 | DONE | Manager + 5 Worker、Matrix handoff、MinIO 共享 Artifact、Runner Gateway、Auditor 独占终态 | 录制机器执行一次 live preflight |
+| 08.3 完整闭环 | DONE | Input → decomposition → context → tool → verification → evidence；Approval、Rollback、Recovery/Human Takeover 与 Case Memory 均有准确边界 | 无技术缺口 |
+| 09.1 Skill 工程 | DONE | 7 个 Skill 均有版本、Owner、I/O、调用条件、工具权限、失败、安全、复用、验证和生命周期门禁 | 其余六 Skill 的通用 runtime hook 不作已实现声明 |
+| 09.2 MCP / Tool | DONE WITH EQUIVALENT CONTRACT | 未部署 MCP Server；HTTP/JSON Tool Contract 覆盖协议、输入输出、权限、错误、重试、幂等、审计和降级，迁移为单适配器 | 生产 mTLS/OIDC 属路线图 |
+| 09.3 可观测 | DONE WITH LOCAL-FIRST BOUNDARY | Trace、Log、Metrics、Artifact、Approval 五类信号；Recovery/escalation 映射、Dashboard、离线评测和只读 OTel adapter 设计 | 不宣称已部署 OTel/Alertmanager backend |
+| 09.4 RAG / Context | DONE WITHOUT RAG | 明确不使用 RAG；以 Shared State + Trace Observability 满足非 RAG 的二选门槛，Case Memory 不计入该门槛 | 无需为关键词增加向量数据库 |
+| 10 工具链与资源 | DONE WITH DISCLOSURE | 组件版本、入口、Agent/Skill 关系、权限、外部依赖、官方工具取舍与迁移成本见兼容矩阵 | live 环境版本在录制 preflight 登记 |
+| 12 评审标准 | READY | 场景价值、多 Agent、Skill、工程安全、开源五个评分域均有源码、测试、Evidence 和材料索引 | 视频与平台最终上传属于项目所有者门禁 |
+
+官方推荐工具不按数量计分。AT-004 不需要云资源动作，因此本候选不为展示而增加 MCP、RAG、
+云 Skill 或 OTel backend；所有未实现能力均以等价契约或明确路线图表述，不作为完成能力宣传。
+
 ## 初赛交付
 
 | 要求 | LabOps Guard 交付 | 当前状态 |
@@ -27,6 +45,8 @@
 | Skill 工程 | 7 个 Skill 包；五个主流程 Skill + Commander 的打包/记忆能力 | `docs/skill-integration-matrix.md` |
 | 共享状态/轨迹 | Matrix + MinIO 共享状态、两类哈希链与 Dashboard 投影 | 三个独立证据包 |
 | 治理评测 | 10 案例 Trust Evaluation Suite，输入与 Oracle 分离 | `docs/trust-evaluation-report-v1.0.md` |
+| 非 RAG 上下文门槛 | Shared State + Trace Observability；Case Memory 不计入二选门槛 | `docs/tool-and-context-equivalence.md` |
+| 工具链版本与兼容 | 本地/外部组件入口、版本、权限、取舍与迁移成本 | `docs/toolchain-compatibility-matrix.md` |
 
 ## 评委优化意见收口
 
