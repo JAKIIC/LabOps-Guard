@@ -100,6 +100,9 @@ AgentTeams 负责角色编排和上下文交接；LabOps Guard 的 Schema、Poli
 ## 快速验证
 
 要求 Python 3.9+；完整 Runner 复现另需 Docker Desktop 和已构建或离线加载的固定镜像。
+源码目录可直接运行下列命令；如需安装 CLI，使用标准 PEP 517 命令
+`python -m pip install --no-deps .`。完全离线安装时需预先提供 `setuptools>=68`，项目不在
+source-only 提交包中复制构建工具。
 
 ```powershell
 python -B -m unittest discover -s tests -p "test_*.py" -v

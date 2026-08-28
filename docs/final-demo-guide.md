@@ -80,6 +80,8 @@ Skill Registry 与 Worker 配置，并明确它们是 `CONFIGURED`，不是 runt
 ## 3. 环境前置
 
 - Python 3.9+；
+- 源码可直接运行；安装 CLI 时使用 `python -m pip install --no-deps .`。完全离线环境需预先
+  提供 `setuptools>=68`；
 - Docker Desktop / Docker Engine；
 - 本地构建的 `labops/pytorch-cpu-runner:0.2.0`（项目不分发 Runner 镜像）；
 - 已部署并配置好的 HiClaw / AgentTeams；

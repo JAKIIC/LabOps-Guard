@@ -2,8 +2,8 @@
 
 更新时间：2026-08-28
 权威仓库：本文档所在 Git 仓库
-当前阶段：Phase 9 Judge Feedback Patch 与场景价值材料收口已完成，等待项目所有者确认；
-正式 Release/Tag 保持冻结
+当前阶段：Phase 9 Final Submission Freeze；工程候选已收口，等待公开 `main`、远端 CI/Pages、
+视频与比赛平台上传的项目所有者门禁；正式 Release/Tag 保持冻结
 
 ## Semifinal Trust Contract
 
@@ -56,6 +56,8 @@ Python 包版本为 `1.0.0rc1`，材料版本为 `v1.0-rc1`。当前候选版已
   `CONFIGURED / AGENTTEAMS_HOOK_REQUIRED`，历史 Trace 不回填事件。
 - 真实实验室 Before/After、责任、返工来源和受控收益已同步到 README、18 页 PPT/PDF、FAQ 与
   演示脚本；不把受控结果宣传为生产 ROI。
+- Final Submission Freeze 使用 source-only 清单和 Git 归档约束提交包；公开 `main` 未包含最终
+  候选提交时明确保持未完成状态，不用 Pages Replay 代替源码同步。
 
 ## 已验证主线
 

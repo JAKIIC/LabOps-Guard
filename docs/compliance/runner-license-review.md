@@ -32,6 +32,7 @@ release bundle containing the image remains blocked until the four release gates
 
 ## Decision
 
-Do not create `v0.3.0-rc1`, do not publish a GitHub Release, and do not export/push the Runner image
-while any gate is blocked. This is a distribution boundary, not a runtime defect: the local,
+Do not create the current `v1.0-rc1` Tag/Release, and do not export or push the Runner image while
+any gate is blocked. The earlier `v0.3.0-rc1` label is historical; the four image redistribution
+gates remain unchanged. This is a distribution boundary, not a runtime defect: the local,
 network-disabled competition demo remains valid.

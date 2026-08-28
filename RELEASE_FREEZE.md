@@ -1,4 +1,10 @@
-# Phase 5 release freeze
+# Phase 5 release freeze (historical baseline)
+
+> Current addendum (2026-08-28): the active candidate is `v1.0-rc1` / `1.0.0rc1`. The frozen
+> AgentTeams/Evidence boundaries below remain valid. Approval strong binding, non-formal live
+> sessions, Recovery/Human Takeover and Gateway Skill binding were added without modifying the
+> formal AT-002/003/004 Evidence. The candidate remains source-only; no Tag, Release or Runner image
+> is published while the four image redistribution gates remain open.
 
 冻结日期：2026-08-06
 目标：保持 AT-004 真实闭环不变，只完成工程化、文档、开源治理和发布前审计。

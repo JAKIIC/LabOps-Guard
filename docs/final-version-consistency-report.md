@@ -1,61 +1,81 @@
 # Final Version Consistency Report
 
-审查日期：2026-08-25  
-目标版本：LabOps-Guard v1.0-rc1  
+审查日期：2026-08-28
+
+目标版本：LabOps-Guard v1.0-rc1
+
 最终定位：**Trust Infrastructure for Production Agent Systems**
 
-## 1. 审查范围
+## 1. 冻结范围
 
-本次只检查并收口以下比赛交付面，不扩展系统能力：
+本报告只核对比赛交付一致性，不扩展系统能力：
 
-- 本地候选分支与 `origin/main`；
-- GitHub 公开仓库与 GitHub Pages Public Evidence Replay；
-- README、当前状态、Release Notes 和提交说明；
-- Phase 6 Trust Contract、Phase 7 Trust Dashboard、Phase 8 Trust Evaluation Suite；
-- 18 页复赛 PPT、对应 PDF、二维码旁显示地址与 SHA-256 清单；
-- AT-002、AT-003、AT-004 正式 Evidence Bundle 的不可变性。
+- 本地候选分支、公开 `main` 与 GitHub Pages；
+- Phase 6–9 的 Trust Contract、Dashboard、Evaluation、Approval、Live Demo、Recovery 与 Skill binding；
+- README、运行手册、18 页 PPT/PDF、提交清单和 SHA-256；
+- AT-002、AT-003、AT-004 正式 Evidence 的不可变性；
+- source-only 交付边界、许可证、NOTICE、SBOM 与敏感信息。
 
-## 2. 审查前发现
+## 2. 当前一致性状态
 
-| 项目 | 审查前状态 | 风险 |
+| 交付面 | 当前状态 | 事实边界 |
 |---|---|---|
-| 公开 `main` / Pages | 公开版本尚未包含 Phase 6–8 三个候选提交 | 评委看到旧定位、旧 Dashboard 和旧说明 |
-| 产品定位 | README、Dashboard、演示材料与 PPT 首页仍使用上一版长定位 | 对外口径不唯一 |
-| 包元数据 | `pyproject.toml` 的项目描述仍为上一版定位 | 构建发行元数据与 README 不一致 |
-| AT-004 Manager Prompt | Task Contract 使用活动状态机，Prompt 仍引用历史状态机文件 | 代码包内部引用不一致 |
-| 测试口径 | 提交清单写成“117 项通过，2 项跳过” | 把收集数误写为通过数 |
-| PPT/PDF | 结构和链接正确，但首页英文定位未采用最终口径 | 材料与 README 不完全一致 |
+| 产品定位 | READY | README、PPT/PDF、GitHub About 与 Pages 均使用最终定位 |
+| Trust Contract / State Machine | FROZEN | 对外均称 Trust Contract v1 / Trust State Machine v1，历史内部版本不作为产品口径 |
+| AgentTeams | READY | 六 Agent 不变；真实 live execution、确定性本地验证和 Archived Replay 明确区分 |
+| Skill | READY WITH BOUNDARY | 七 Skill Registry/Schema 可校验；只有新 live Gateway 证据可证明 `control-lab-action` 的运行时绑定 |
+| Approval | READY | ApprovalGrant v1 绑定计划哈希、范围、预算、时效和单次 nonce，Gateway fail closed |
+| Recovery / Takeover | READY | append-only attempt overlay；Human Approval 与 Human Takeover 分离，最终仍由 Auditor 裁决 |
+| Dashboard | READY | 只读展示 Identity → Policy → Execution → Evidence → Audit；无 Trust Score 或写入口 |
+| Evaluation | READY | 10 个固定治理案例，输入与 Oracle 分离；不称通用 Benchmark |
+| PPT / PDF | READY | 均为 18 页，版本、指标、链接与能力边界一致 |
+| 正式 Evidence | FROZEN | AT-002/003/004 不修改、不重建、不回填事件 |
+| Runner 发布 | SOURCE ONLY | 镜像再分发四项许可证门禁未关闭，不提交镜像或 tar，不创建 Tag/Release |
 
-## 3. 收口结果
+## 3. 测试与证据口径
 
-| 交付面 | 最终状态 | 核验依据 |
-|---|---|---|
-| Phase 6 | 已同步 | Trust Contract v1、Trust State Machine v1、六 Agent Identity、七 Skill Registry 与 Tool Contract 均保留 |
-| Phase 7 | 已同步 | 动态 Dashboard 与 Public Evidence Replay 均展示只读 Trust Layer；无执行、修改或审批入口 |
-| Phase 8 | 已同步 | 名称统一为 Trust Evaluation Suite；固定 10 个治理案例，输入与 Oracle 分离，不称 Benchmark |
-| README / 文档 | 已统一 | 对外定位统一为 `Trust Infrastructure for Production Agent Systems`，内部兼容版本号不作为产品口径 |
-| AT-004 Prompt | 已统一 | Manager Prompt 与 Task Contract 均引用当前活动状态机；历史案例文件保留只读兼容 |
-| PPT / PDF | 已统一 | 18 页结构、数据、二维码和链接未变；首页定位更新并重新导出 PDF |
-| 测试描述 | 已纠正并在 Task 5 复核 | 最终共 127 个测试；CI 口径为 125 通过、2 个可选 PyTorch 跳过；比赛机器 127 个全部通过 |
-| 包元数据 | 已统一 | `pyproject.toml` 与 README、Dashboard、PPT/PDF 使用同一英文定位 |
-| SHA-256 | 已更新 | PPT/PDF 新摘要写入 `submission/SHA256SUMS.txt`，Evaluation Suite 摘要保持不变 |
-| 正式 Evidence | 未修改 | AT-002、AT-003、AT-004 已验证 Bundle 不重新生成、不改写 |
+- 当前完整测试口径为 **167 项全部通过**，覆盖既有闭环以及 Approval strong binding、live session
+  隔离、Recovery/Human Takeover 和 Gateway Skill binding。
+- Trust Evaluation Suite v1.0 固定为 10 个治理案例；结果只能表述为“与预设 Oracle 一致”，
+  不能表述为“通用 Benchmark”或“100% 安全”。
+- Public Demo 是静态 Archived Evidence Replay，不是实时 AgentTeams 控制台。
+- 新 live run 产物必须写入 `demo/live-sessions/` 的独立命名空间，不进入正式 Evidence。
 
-## 4. 公开交付状态
+正式 Evidence Bundle SHA-256：
 
-- `origin/main`：本报告所在冻结提交包含 Phase 6、Phase 7、Phase 8 与本次一致性收口。
-- GitHub Pages：由 `pages-public-demo.yml` 从 `main` 的 `docs/public-demo/` 手动发布；发布后只提供静态、无脚本、无网络请求的 Evidence Replay。
-- Task 1 截止状态：公开 `main` 已同步；Pages 仍需项目所有者在 GitHub Actions 手动运行一次
-  `Deploy public evidence replay`，线上页在该运行成功前不得视为已同步。
-- GitHub 仓库的 `About` 简介仍是初赛表述；该字段不在 Git 中，需项目所有者登录仓库后
-  手动改为 `Trust Infrastructure for Production Agent Systems`。
-- PPT 中公开地址：
-  - GitHub：`https://github.com/JAKIIC/LabOps-Guard`
-  - Demo：`https://jakiic.github.io/LabOps-Guard/`
-- 本轮不创建 Tag/Release，不发布 Runner 镜像或镜像 tar；许可证门禁保持有效。
+```text
+AT-002  1a957940bed0ef6c01745273854a2d08946ab191198441a80b7fa102df8f9365
+AT-003  630bc18ed92f4f094ffc5fcb5a6ea7337408fbee87fe549450e1df420dbd1703
+AT-004  4092b43f39df52db3847caa28ca01e4321129a1c17ec7ca5efd2029ab1fb77cd
+```
 
-## 5. 一致性结论
+## 4. 公开版本核验
 
-Task 1 收口后，源码、README、Trust Dashboard、Public Demo 构建产物、PPT、PDF 和提交清单采用同一产品定位与 Phase 6–8 能力口径。正式 Evidence Bundle 与 AT-004 主结果均未改变。
+2026-08-28 实际网络检查：
 
-进入下一任务前仍应保持冻结纪律：Task 2 只允许封装已有 AgentTeams 能力形成最小稳定入口，不得重写协作链或重新生成正式 Evidence。
+- GitHub：`https://github.com/JAKIIC/LabOps-Guard` 返回 HTTP 200，About 已使用最终定位；
+- Pages：`https://jakiic.github.io/LabOps-Guard/` 返回 HTTP 200，页面使用最终定位，保持无脚本并含
+  `connect-src 'none'`；
+- 公开 `main` SHA：`86c263bd50c58aa52b2fc8b9e8965007422773c4`；
+- Task 5B 开始时本地候选基线：`e905301f6d3447352c0aca70d0625d31bf68d944`。
+
+本地候选比公开 `main` 多 5 个已验证提交：Approval strong binding、Live Demo Session、
+Recovery/Human Takeover、Gateway Skill binding 和比赛材料收口。因此，**在项目所有者把候选提交
+合入并推送公开 `main` 之前，不能宣称 GitHub 公开源码等于最终提交候选**。推送后还必须重新运行
+Pages workflow，并用公开 SHA 完成最终提交登记。
+
+## 5. 最终人工门禁
+
+以下动作必须在最终上传前由项目所有者完成：
+
+1. 将 Task 5B 候选提交合入并推送公开 `main`；
+2. 确认 GitHub Actions 的 Windows/Linux 测试通过；
+3. 重新部署 Pages，并核对公开页面与候选版本一致；
+4. 录制、逐帧检查并登记最终 MP4 SHA-256；
+5. 在比赛平台上传 PPT、PDF、源码包、视频和链接后逐项回读；
+6. 记录最终 `main` SHA、源码包 SHA、视频 SHA 和上传时间。
+
+## 6. 结论
+
+仓库内工程和比赛材料已经形成一致的 source-only 候选；剩余门禁是公开分支同步、远端 CI/Pages
+复核和视频/平台上传。它们属于发布操作，不应通过新增 Agent、Skill 或基础设施组件解决。

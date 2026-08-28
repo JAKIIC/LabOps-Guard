@@ -25,4 +25,5 @@ Before any image distribution, build a machine-readable and human-readable notic
 ## Current decision
 
 NOTICE coverage is sufficient for the public source repository, but incomplete for Runner image
-redistribution. `v0.3.0-rc1` remains frozen. No image archive is part of the competition submission.
+redistribution. The current `v1.0-rc1` remains a source-only candidate; the earlier `v0.3.0-rc1`
+label is historical. No image archive is part of the competition submission.

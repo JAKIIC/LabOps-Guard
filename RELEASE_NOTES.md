@@ -25,6 +25,10 @@ Agent、Trust Contract v1、Trust State Machine v1 和正式 Evidence 均不变�
 真实实验室 Before/After、责任边界、返工来源和受控收益口径已同步到 README、18 页 PPT/PDF、
 答辩 FAQ 与演示脚本，不虚构生产 ROI，也不补写历史 Skill event。
 
+Task 5B Final Submission Freeze 更新最终版本一致性报告、source-only 提交清单与镜像发布边界，
+并把公开仓库同步、远端 CI/Pages、最终视频和比赛平台上传明确列为项目所有者门禁。源码归档必须
+由最终 Git commit 生成并单独登记 SHA-256，不把忽略目录、live session、Runner 镜像或凭据带入。
+
 由于 Runner 镜像许可证/NOTICE 门禁仍未关闭，本文档不表示已创建 Git Tag、
 GitHub Release、Runner 镜像或镜像 tar。
 
