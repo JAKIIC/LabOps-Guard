@@ -9,6 +9,7 @@ __pycache__/
 /artifacts/
 demo/output/
 demo/live-sessions/
+.superpowers/
 .pytest_cache/
 .coverage
 release/
