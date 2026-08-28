@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/reviewer_status.schema.json",
+  "title": "ReviewerEditionStatus",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "mode",
+    "read_only",
+    "source_summary",
+    "sources",
+    "session",
+    "incident",
+    "agents",
+    "approval",
+    "timeline",
+    "tool_contract",
+    "recovery",
+    "runner",
+    "audit",
+    "limitations",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["1.0"]},
+    "mode": {"type": "string", "enum": ["QUICK", "LIVE"]},
+    "read_only": {"type": "boolean", "enum": [true]},
+    "source_summary": {
+      "type": "string",
+      "enum": ["REPLAY", "LIVE", "LIVE_PARTIAL", "STALE", "DISCONNECTED"]
+    },
+    "sources": {
+      "type": "object",
+      "properties": {
+        "archived_evidence": {
+          "type": "object",
+          "required": ["status", "source", "freshness_mode"],
+          "properties": {
+            "status": {"type": "string", "enum": ["VERIFIED", "BLOCKED"]},
+            "source": {"type": "string"},
+            "freshness_mode": {"type": "string", "enum": ["IMMUTABLE_ARCHIVE"]}
+          },
+          "additionalProperties": false
+        },
+        "matrix": {
+          "type": "object",
+          "required": ["status", "connected", "last_success_at", "live_threshold_seconds", "disconnect_threshold_seconds"],
+          "properties": {
+            "status": {"type": "string", "enum": ["LIVE", "STALE", "DISCONNECTED"]},
+            "connected": {"type": "boolean"},
+            "last_success_at": {"type": ["string", "null"]},
+            "live_threshold_seconds": {"type": "integer", "minimum": 0},
+            "disconnect_threshold_seconds": {"type": "integer", "minimum": 0}
+          },
+          "additionalProperties": false
+        },
+        "live_evidence": {
+          "type": "object",
+          "required": ["status", "evidence_digest"],
+          "properties": {
+            "status": {"type": "string", "enum": ["VERIFIED", "BLOCKED"]},
+            "evidence_digest": {"type": ["string", "null"]}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "session": {"type": "object"},
+    "incident": {
+      "type": "object",
+      "required": [
+        "task_id",
+        "incident_id",
+        "attempt_id",
+        "run_id",
+        "workflow_state",
+        "current_owner",
+        "last_active_agent",
+        "last_event",
+        "last_event_at"
+      ]
+    },
+    "agents": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "required": [
+          "agent_id",
+          "role_name",
+          "workflow_state",
+          "evidence_state",
+          "runtime_identity"
+        ],
+        "properties": {
+          "agent_id": {"type": "string"},
+          "role_name": {"type": "string"},
+          "workflow_state": {"type": "string"},
+          "evidence_state": {
+            "type": "string",
+            "enum": ["NOT_OBSERVED", "CONFIGURED", "OBSERVED", "VERIFIED", "BLOCKED"]
+          },
+          "runtime_identity": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "approval": {"type": "object"},
+    "timeline": {
+      "type": "array",
+      "minItems": 16,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "workflow_from",
+          "workflow_to",
+          "evidence_state",
+          "source",
+          "event_id",
+          "timestamp",
+          "actor",
+          "artifact_refs",
+          "hash_refs"
+        ],
+        "properties": {
+          "kind": {"type": "string"},
+          "workflow_from": {"type": "string"},
+          "workflow_to": {"type": "string"},
+          "evidence_state": {
+            "type": "string",
+            "enum": ["NOT_OBSERVED", "CONFIGURED", "OBSERVED", "VERIFIED", "BLOCKED"]
+          },
+          "source": {"type": "string"},
+          "event_id": {"type": ["string", "null"]},
+          "timestamp": {"type": ["string", "null"]},
+          "actor": {"type": ["string", "null"]},
+          "artifact_refs": {"type": "array", "maxItems": 8, "items": {"type": "string"}},
+          "hash_refs": {"type": "array", "maxItems": 8, "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "tool_contract": {"type": "object"},
+    "recovery": {"type": "object"},
+    "runner": {"type": "object"},
+    "audit": {"type": "object"},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "updated_at": {"type": "string"}
+  },
+  "additionalProperties": false
+}
