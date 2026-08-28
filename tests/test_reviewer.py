@@ -188,6 +188,40 @@ class ReviewerLifecycleTests(unittest.TestCase):
 
         self.assertEqual(result, {"status": "BLOCKED", "error": "INVALID_REVIEWER_PORT"})
 
+    def test_container_bind_uses_bridge_wildcard_but_keeps_public_url_local(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            events: list[str] = []
+            observed_options: list[dict] = []
+            started: list[dict] = []
+
+            def factory(kind: str, **options):
+                observed_options.append(options)
+                return _FakeComponent(kind, events)
+
+            def wait(_seconds: float) -> None:
+                raise KeyboardInterrupt
+
+            result = start_reviewer(
+                ROOT,
+                Path(tmp),
+                "quick",
+                container_bind=True,
+                component_factory=factory,
+                preflight_builder=lambda *_args, **_kwargs: _ready("quick"),
+                wait_fn=wait,
+                open_browser=False,
+                on_started=started.append,
+            )
+            lifecycle = json.loads(
+                (Path(tmp) / ".reviewer/lifecycle.json").read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(result["status"], "STOPPED")
+        self.assertEqual(observed_options[0]["host"], "0.0.0.0")
+        self.assertEqual(started[0]["url"], "http://127.0.0.1:18787/reviewer")
+        self.assertEqual(lifecycle["host"], "127.0.0.1")
+        self.assertEqual(lifecycle["bind_scope"], "CONTAINER_BRIDGE")
+
     def test_quick_start_refuses_to_write_lifecycle_inside_formal_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp)

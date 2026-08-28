@@ -64,6 +64,7 @@ class SubmissionBundleTests(unittest.TestCase):
                 "submission/LabOps-Guard-GOAI-复赛方案-v1.0-rc1.pdf": b"pdf",
                 "submission/复赛提交清单.md": b"checklist",
                 "submission/复赛视频录制检查表.md": b"video checklist",
+                "docs/reviewer-edition.md": b"reviewer runbook",
                 "docs/final-demo-guide.md": b"guide",
                 "docs/final-demo-recording-runbook.md": b"runbook",
                 "docs/final-demo-video-script.md": b"script",
@@ -114,6 +115,7 @@ class SubmissionBundleTests(unittest.TestCase):
                 names = set(archive.namelist())
                 self.assertIn(prefix + "01_项目方案/LabOps-Guard-GOAI-复赛方案-v1.0-rc1.pdf", names)
                 self.assertIn(prefix + "02_代码包/LabOps-Guard-v1.0-rc1-" + commit[:7] + "-source.zip", names)
+                self.assertIn(prefix + "03_演示与运行/reviewer-edition.md", names)
                 self.assertIn(prefix + "04_正式证据/LABOPS-AT-004-EVAL-DRIFT-evidence-bundle.zip", names)
                 self.assertIn(prefix + "FINAL_CANDIDATE_MANIFEST.json", names)
                 self.assertIn(prefix + "SHA256SUMS.txt", names)

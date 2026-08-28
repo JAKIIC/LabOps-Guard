@@ -382,6 +382,7 @@ def cmd_reviewer(args) -> int:
                 session_id=args.session,
                 host=args.host,
                 port=args.port,
+                container_bind=args.container_bind,
                 gateway_host=args.gateway_host,
                 gateway_port=args.gateway_port,
                 open_browser=not args.no_browser,
@@ -598,6 +599,11 @@ def build_parser() -> argparse.ArgumentParser:
     reviewer_start.add_argument("--sessions-root", default=None)
     reviewer_start.add_argument("--host", default="127.0.0.1")
     reviewer_start.add_argument("--port", type=int, default=18787)
+    reviewer_start.add_argument(
+        "--container-bind",
+        action="store_true",
+        help="bind inside a container; the host port must still publish to loopback only",
+    )
     reviewer_start.add_argument("--gateway-host", default="0.0.0.0")
     reviewer_start.add_argument("--gateway-port", type=int, default=18103)
     reviewer_start.add_argument("--no-browser", action="store_true")

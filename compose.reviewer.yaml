@@ -1,0 +1,68 @@
+{
+  "name": "labops-guard-reviewer",
+  "services": {
+    "reviewer-quick": {
+      "build": {
+        "context": "."
+      },
+      "image": "labops-guard:local",
+      "container_name": "labops-guard-reviewer-quick",
+      "init": true,
+      "read_only": true,
+      "ports": [
+        "127.0.0.1:18787:18787"
+      ],
+      "tmpfs": [
+        "/tmp:size=64m,mode=1777"
+      ],
+      "volumes": [
+        "./labops:/app/labops:ro",
+        "./agentteams:/app/agentteams:ro",
+        "./skills:/app/skills:ro",
+        "./schemas:/app/schemas:ro",
+        "./scripts:/app/scripts:ro",
+        "./demo/output-agentteams-at002:/app/demo/output-agentteams-at002:ro",
+        "./demo/output-agentteams-at003:/app/demo/output-agentteams-at003:ro",
+        "./demo/output-agentteams-at004:/app/demo/output-agentteams-at004:ro",
+        "./demo/live-sessions:/live-sessions:ro"
+      ],
+      "command": [
+        "python",
+        "-B",
+        "-m",
+        "labops",
+        "reviewer",
+        "start",
+        "--mode",
+        "quick",
+        "--container-bind",
+        "--sessions-root",
+        "/tmp/reviewer-sessions",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "18787",
+        "--no-browser"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18787/api/reviewer/preflight', timeout=2)"
+        ],
+        "interval": "10s",
+        "timeout": "3s",
+        "start_period": "5s",
+        "retries": 3
+      },
+      "restart": "no"
+    }
+  }
+}

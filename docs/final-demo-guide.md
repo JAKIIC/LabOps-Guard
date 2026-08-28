@@ -34,6 +34,11 @@ Local deterministic: contracts / policy / runner / verifier tests (no six-Agent 
 Archived replay: immutable ZIP + manifest + Dashboard projection (no live execution)
 ```
 
+第三方评委应先按 [`reviewer-edition.md`](reviewer-edition.md) 启动只读 Reviewer Edition：
+Quick Mode 用于稳定复核归档 Evidence；Live Mode 仅在外部 AgentTeams、Matrix、Docker Runner
+与六角色 room map 真实可用时启动。Reviewer Workbench 是观察面，不发送任务、不进行审批，
+也不能替代下面的真人 Element 操作和 `live-demo verify`。
+
 ## 2. 当前真实运行链路
 
 1. 参赛者把 `agentteams/prompts/eval_drift_task.md` 的完整文本发送到已配置的 AgentTeams

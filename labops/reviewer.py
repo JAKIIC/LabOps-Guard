@@ -459,6 +459,7 @@ def start_reviewer(
     session_id: str | None = None,
     host: str = "127.0.0.1",
     port: int = 18787,
+    container_bind: bool = False,
     gateway_host: str = "0.0.0.0",
     gateway_port: int = 18103,
     environment: dict[str, str] | None = None,
@@ -488,6 +489,7 @@ def start_reviewer(
         }
     if host not in {"127.0.0.1", "localhost", "::1"}:
         return {"status": "BLOCKED", "error": "REVIEWER_HOST_MUST_BE_LOCAL"}
+    bind_host = "0.0.0.0" if container_bind else host
     if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:
         return {"status": "BLOCKED", "error": "INVALID_REVIEWER_PORT"}
     if normalized == "live" and gateway_host not in {"127.0.0.1", "localhost", "::1", "0.0.0.0"}:
@@ -535,6 +537,7 @@ def start_reviewer(
         "status": "RUNNING",
         "url": url,
         "read_only": True,
+        "bind_scope": "CONTAINER_BRIDGE" if container_bind else "LOCAL_LOOPBACK",
     }
     preflight_context = {
         "status": "READY",
@@ -554,7 +557,7 @@ def start_reviewer(
         "project_root": root,
         "sessions_root": sessions,
         "session_root": session_root,
-        "host": host,
+        "host": bind_host,
         "port": port,
         "gateway_host": gateway_host,
         "gateway_port": gateway_port,

@@ -126,9 +126,29 @@ Trust Dashboard 只投影已归档证据，服务端会重新验证 Identity、P
 ZIP member set、artifact manifest 和 Trace。页面不提供执行、修改或审批入口；所有写方法
 统一返回 `405`。公网 Public Evidence Replay 仍是无脚本、无网络请求的构建时静态页面。
 
+### Reviewer Edition：第三方本地验证
+
+Reviewer Edition 提供只读动态工作台和明确的 Quick/Live 两级入口。Quick Mode 读取已验证的
+归档 Evidence，适合评委首次本地验证；Live Mode 只在真实 HiClaw/AgentTeams、Matrix、六角色、
+Docker Runner 与本地凭证全部可用时启动，不会用脚本模拟 Agent 消息。
+
+```powershell
+# Windows：Quick Replay
+powershell -ExecutionPolicy Bypass -File scripts/start_reviewer_demo.ps1 -Mode quick
+
+# 仅检查 Live 前置条件
+python -B -m labops reviewer preflight --mode live
+```
+
+启动后打开 `http://127.0.0.1:18787/reviewer`。可选
+`compose.reviewer.yaml` 仅包装 Quick Replay；完整 Live Mode 必须使用宿主环境。安装、真实 room
+map、人工操作、状态标签和降级步骤见
+[`docs/reviewer-edition.md`](docs/reviewer-edition.md)。
+
 ## 证据与复现入口
 
-复赛录制与第三方操作从 `docs/final-demo-guide.md` 开始。该 Runbook 明确区分真实
+第三方快速验证从 `docs/reviewer-edition.md` 开始；复赛录制与完整人工操作从
+`docs/final-demo-guide.md` 开始。两份 Runbook 均明确区分真实
 AgentTeams live execution、本地确定性控制面和 Archived Evidence Replay，并提供只读
 `python -B -m labops demo-readiness` 预检入口。最终四分钟视频按
 `docs/final-demo-recording-runbook.md` 执行；它根据实机彩排明确采用 Strategy C，并要求画面标注
