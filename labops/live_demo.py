@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 from labops.approval_grant import ApprovalBindingError, validate_approval_grant
+from labops.recovery import RecoveryError, load_recovery_overlay
 from labops.trace import TraceLog
 
 CLASSIFICATION = "NON_FORMAL_LIVE_DEMO"
@@ -209,7 +210,8 @@ def _verify_handoffs(evidence_root: Path, errors: list[str]) -> None:
             errors.append(f"Matrix event {event_id} lacks room/time evidence")
 
 
-def _verify_execution(evidence_root: Path, manifest: dict, errors: list[str]) -> None:
+def _verify_execution(evidence_root: Path, manifest: dict, effective_attempt: dict,
+                      recovery_active: bool, errors: list[str]) -> None:
     approval = _load_evidence_json(evidence_root, "approval_grant.json", errors)
     request = _load_evidence_json(evidence_root, "gateway_request.json", errors)
     response = _load_evidence_json(evidence_root, "gateway_response.json", errors)
@@ -230,7 +232,7 @@ def _verify_execution(evidence_root: Path, manifest: dict, errors: list[str]) ->
         "session_id": manifest["session_id"],
         "task_instance_id": manifest["task_instance_id"],
         "incident_instance_id": manifest["incident_instance_id"],
-        "attempt_id": manifest["attempt_id"],
+        "attempt_id": effective_attempt["attempt_id"],
         "storage_namespace": manifest["storage_namespace"],
     }
     if live_context != expected_context:
@@ -246,7 +248,7 @@ def _verify_execution(evidence_root: Path, manifest: dict, errors: list[str]) ->
     if request.get("approval_consumption", {}).get("status") != "CONSUMED":
         errors.append("Gateway request lacks a consumed one-time approval record")
 
-    run_id = manifest["run_id"]
+    run_id = effective_attempt["run_id"]
     if response.get("ok") is not True or response.get("run_id") != run_id:
         errors.append("Gateway response does not prove a successful bound run")
     if run_result.get("run_id") != run_id or run_result.get("status") != "completed":
@@ -262,6 +264,8 @@ def _verify_execution(evidence_root: Path, manifest: dict, errors: list[str]) ->
             errors.append(f"Runner artifact hash mismatch: {name}")
 
     checks = verification.get("checks", {})
+    if recovery_active and verification.get("attempt_id") != effective_attempt["attempt_id"]:
+        errors.append("Auditor verification is not bound to the latest recovery attempt")
     if (
         verification.get("verified_by") != "verification-auditor"
         or verification.get("run_id") != run_id
@@ -272,6 +276,35 @@ def _verify_execution(evidence_root: Path, manifest: dict, errors: list[str]) ->
         or not all(value is True for value in checks.values())
     ):
         errors.append("Independent Verification Auditor did not produce a complete PASS/RESOLVED decision")
+
+
+def _effective_attempt(session_root: Path, manifest: dict, errors: list[str]) -> tuple[dict, str]:
+    base = {
+        "attempt_id": manifest["attempt_id"],
+        "run_id": manifest["run_id"],
+        "required_final_actor": "verification-auditor",
+    }
+    recovery_path = session_root / "recovery" / "recovery_trace.jsonl"
+    if not recovery_path.is_file():
+        return base, "ABSENT"
+    try:
+        overlay = load_recovery_overlay(session_root)
+    except RecoveryError as exc:
+        errors.append(f"Recovery overlay failed closed: {exc}")
+        return base, "BLOCKED"
+    if overlay.get("pending_takeover") is not None:
+        errors.append("Human Takeover is still pending or accepted but not resumed")
+        recovery_status = "BLOCKED"
+    else:
+        recovery_status = "VERIFIED"
+    attempts = overlay.get("attempts")
+    if not isinstance(attempts, list) or not attempts:
+        errors.append("Recovery overlay has no effective attempt")
+        return base, "BLOCKED"
+    effective = attempts[-1]
+    if effective.get("required_final_actor") != "verification-auditor":
+        errors.append("Recovery attempt does not preserve Auditor terminal authority")
+    return effective, recovery_status
 
 
 def _verify_trace(evidence_root: Path, errors: list[str]) -> None:
@@ -319,17 +352,28 @@ def verify_session(project_root: str | Path, sessions_root: str | Path, session_
         }
     if manifest != _session_manifest(session_id):
         errors.append("session.json differs from the prepared deterministic envelope")
+    effective_attempt, recovery_status = _effective_attempt(session_root, manifest, errors)
     evidence_root = session_root / "evidence"
     for relative in EVIDENCE_FILES:
         if not (evidence_root / relative).is_file():
             errors.append(f"missing live evidence: {relative}")
     if not errors:
         _verify_handoffs(evidence_root, errors)
-        _verify_execution(evidence_root, manifest, errors)
+        _verify_execution(
+            evidence_root,
+            manifest,
+            effective_attempt,
+            recovery_status == "VERIFIED",
+            errors,
+        )
         _verify_trace(evidence_root, errors)
     digests = []
-    for relative in EVIDENCE_FILES:
-        path = evidence_root / relative
+    evidence_files = list(EVIDENCE_FILES)
+    recovery_relative = "recovery/recovery_trace.jsonl"
+    if (session_root / recovery_relative).is_file():
+        evidence_files.append(recovery_relative)
+    for relative in evidence_files:
+        path = session_root / relative if relative == recovery_relative else evidence_root / relative
         if path.is_file():
             digests.append(f"{relative}:{hashlib.sha256(path.read_bytes()).hexdigest()}")
     return {
@@ -338,6 +382,9 @@ def verify_session(project_root: str | Path, sessions_root: str | Path, session_
         "session_id": session_id,
         "executes_agentteams": False,
         "archived_replay_is_live": False,
+        "effective_attempt_id": effective_attempt.get("attempt_id"),
+        "recovery_status": recovery_status,
+        "evidence_files": evidence_files,
         "evidence_digest": hashlib.sha256("\n".join(digests).encode("utf-8")).hexdigest(),
         "errors": errors,
     }

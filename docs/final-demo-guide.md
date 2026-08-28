@@ -271,6 +271,59 @@ AT-002 用于解释异常处理，建议重放正式证据而不是现场制造�
 必须明确：这是隔离 fixture 的治理案例，不能描述为真实资源已被越权修改，也不能说系统先
 篡改了生产指标再恢复。Archived Evidence Replay 不是当前 live execution。
 
+## 6.1 新 Live Run 的 Recovery 与 Human Takeover
+
+`Human Approval` 和 `Human Takeover` 是两种不同责任：Approval 在正常高风险执行前授权一份
+精确绑定的计划；Takeover 只在异常恢复时由真人接管 ownership，不能批准自己、不能直接写入
+终态，也不能绕过 Verification Auditor。
+
+恢复机制仅适用于 `NON_FORMAL_LIVE_DEMO` session。它不修改 Trust State Machine，而是在
+`recovery/recovery_trace.jsonl` 中追加 attempt/ownership 事件，并使用 SHA-256 哈希链防止静默
+改写。首先记录真实失败证据，例如 Auditor 的 `INCONCLUSIVE` 输出：
+
+```powershell
+python -B -m labops recovery request `
+  --session 20260831-001 `
+  --failure-type AUDIT_INCONCLUSIVE `
+  --requested-by verification-auditor `
+  --source-ref evidence/verification.json
+```
+
+命令返回 `TAKEOVER_PENDING` 后，由真人在录制画面中显式接受。`--confirm` 必须逐字重复
+`takeover_id`：
+
+```powershell
+python -B -m labops recovery accept `
+  --session 20260831-001 `
+  --takeover-id TAKEOVER-20260831-001-01 `
+  --accepted-by human-operator `
+  --confirm TAKEOVER-20260831-001-01
+```
+
+人工补充证据或完成安全处置后，将任务交还 AgentTeams 的非终态恢复点：
+
+```powershell
+python -B -m labops recovery resume `
+  --session 20260831-001 `
+  --takeover-id TAKEOVER-20260831-001-01 `
+  --resumed-by human-operator `
+  --resume-point VERIFYING `
+  --confirm TAKEOVER-20260831-001-01
+```
+
+恢复会创建新的 `attempt_id/run_id`，原 attempt 保持 `BLOCKED`。恢复后的 Plan、ApprovalGrant、
+Gateway、Runner 和 Auditor Evidence 必须绑定新 attempt；最终仍只有 `verification-auditor` 可以
+裁决。运行 `labops recovery show` 可只读检查恢复链，`live-demo verify` 会把已验证的最新 attempt
+作为核验目标。pending takeover、Trace 篡改或缺失 Auditor 都返回 `BLOCKED`。
+
+固定策略：Evidence 不完整、Worker timeout 和安全幂等 Tool failure 最多自动重试一次；Policy
+violation 只允许 rollback；Audit inconclusive 与重试预算耗尽进入 Human Takeover。Capability
+missing 只有在 Matrix event 和 session 内 capability artifact 同时证明真实备用 Worker 时才能
+`REASSIGN`。没有真实备用 Worker 时必须展示
+`REASSIGN_UNAVAILABLE → HUMAN_TAKEOVER`，不得模拟成功重派。
+
+Recovery Trace 属于本次新 live session，不得写入或回填 AT-002/003/004 正式 Evidence。
+
 ## 7. 录制窗口与镜头顺序
 
 1. **Matrix/AgentTeams Manager room**：任务接收、Manager 编排和角色交接；
@@ -296,6 +349,8 @@ AT-002 用于解释异常处理，建议重放正式证据而不是现场制造�
 | approval 缺失或晚于运行 | Runner 必须拒绝；Auditor 不得 `RESOLVED` |
 | plan hash/scope/budget/expiry/nonce 不匹配 | Gateway 返回 `APPROVAL_REQUIRED` 和结构化原因；Runner 不启动 |
 | Trace/Hash 失败 | 展示失败并保持 `BLOCKED / INCONCLUSIVE` |
+| 自动重试预算耗尽 | 进入 `HUMAN_TAKEOVER`；真人接受后才能创建恢复 attempt |
+| 备用 Worker 无真实 Matrix/capability 证据 | 记录 `REASSIGN_UNAVAILABLE`，不得宣称重派成功 |
 | Dashboard 不可用 | 用 `scripts/verify_evidence.py` 和正式包复核；不影响 live Matrix 事实 |
 
 ## 9. 录制前最终检查
@@ -307,6 +362,7 @@ AT-002 用于解释异常处理，建议重放正式证据而不是现场制造�
 - [ ] Gateway 输出目录全新且不在三个正式 Evidence 目录中；
 - [ ] Runner image 为 `0.2.0`，CPU、`network=none`；
 - [ ] Matrix handoff、Gateway 请求、Runner Artifact、Auditor 结论均能入镜；
+- [ ] 若展示异常恢复，Human Takeover 由真人接受，恢复后仍由 Auditor 裁决；
 - [ ] `live-demo verify` 对本次新 run 返回 `VERIFIED`；
 - [ ] Dashboard 被称为只读 Archived Evidence Replay；
 - [ ] AT-002 被称为隔离 fixture 风险案例；

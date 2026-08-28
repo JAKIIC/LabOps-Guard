@@ -295,6 +295,68 @@ def cmd_live_demo(args) -> int:
     return 0 if payload["status"] in {"PREPARED", "VERIFIED"} else 2
 
 
+def cmd_recovery(args) -> int:
+    """Operate the live-session recovery overlay without running AgentTeams."""
+
+    from labops.recovery import (
+        RecoveryError,
+        accept_human_takeover,
+        load_recovery_overlay,
+        request_recovery,
+        resume_human_takeover,
+    )
+
+    project_root = Path(__file__).resolve().parent.parent
+    sessions_root = (
+        Path(args.sessions_root)
+        if args.sessions_root
+        else project_root / "demo" / "live-sessions"
+    )
+    session_root = sessions_root / args.session
+    try:
+        if args.action == "show":
+            payload = load_recovery_overlay(session_root)
+        elif args.action == "request":
+            alternate = None
+            if args.alternate_worker_evidence:
+                alternate = json.loads(
+                    Path(args.alternate_worker_evidence).read_text(encoding="utf-8")
+                )
+            payload = request_recovery(
+                session_root,
+                failure_type=args.failure_type,
+                requested_by=args.requested_by,
+                source_refs=args.source_ref,
+                failed_role=args.failed_role,
+                failed_worker_id=args.failed_worker_id,
+                alternate_worker_evidence=alternate,
+                idempotent=args.idempotent,
+                safe_to_retry=args.safe_to_retry,
+            )
+        elif args.action == "accept":
+            if args.confirm != args.takeover_id:
+                raise RecoveryError("explicit confirmation must equal takeover_id")
+            payload = accept_human_takeover(
+                session_root,
+                takeover_id=args.takeover_id,
+                accepted_by=args.accepted_by,
+            )
+        else:
+            if args.confirm != args.takeover_id:
+                raise RecoveryError("explicit confirmation must equal takeover_id")
+            payload = resume_human_takeover(
+                session_root,
+                takeover_id=args.takeover_id,
+                resumed_by=args.resumed_by,
+                resume_point=args.resume_point,
+            )
+    except (RecoveryError, OSError, ValueError, json.JSONDecodeError) as exc:
+        print(json.dumps({"status": "BLOCKED", "error": str(exc)}, ensure_ascii=False, indent=2))
+        return 2
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="labops", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -434,6 +496,51 @@ def build_parser() -> argparse.ArgumentParser:
             help="session storage root (default: demo/live-sessions)",
         )
         live.set_defaults(func=cmd_live_demo)
+
+    sp = sub.add_parser("recovery", help="inspect or operate a governed live-session recovery overlay")
+    recovery_sub = sp.add_subparsers(dest="action", required=True)
+
+    recovery_show = recovery_sub.add_parser("show", help="verify and display the recovery overlay")
+    recovery_show.add_argument("--session", required=True)
+    recovery_show.add_argument("--sessions-root", default=None)
+    recovery_show.set_defaults(func=cmd_recovery)
+
+    recovery_request = recovery_sub.add_parser("request", help="record a governed recovery request")
+    recovery_request.add_argument("--session", required=True)
+    recovery_request.add_argument("--sessions-root", default=None)
+    recovery_request.add_argument("--failure-type", required=True, choices=[
+        "EVIDENCE_INCOMPLETE",
+        "WORKER_TIMEOUT",
+        "CAPABILITY_MISSING",
+        "TOOL_FAILURE",
+        "POLICY_VIOLATION",
+        "AUDIT_INCONCLUSIVE",
+    ])
+    recovery_request.add_argument("--requested-by", required=True)
+    recovery_request.add_argument("--source-ref", action="append", required=True)
+    recovery_request.add_argument("--failed-role", default=None)
+    recovery_request.add_argument("--failed-worker-id", default=None)
+    recovery_request.add_argument("--alternate-worker-evidence", default=None)
+    recovery_request.add_argument("--idempotent", action="store_true")
+    recovery_request.add_argument("--safe-to-retry", action="store_true")
+    recovery_request.set_defaults(func=cmd_recovery)
+
+    recovery_accept = recovery_sub.add_parser("accept", help="accept a pending Human Takeover")
+    recovery_accept.add_argument("--session", required=True)
+    recovery_accept.add_argument("--sessions-root", default=None)
+    recovery_accept.add_argument("--takeover-id", required=True)
+    recovery_accept.add_argument("--accepted-by", required=True)
+    recovery_accept.add_argument("--confirm", required=True, help="must exactly repeat takeover_id")
+    recovery_accept.set_defaults(func=cmd_recovery)
+
+    recovery_resume = recovery_sub.add_parser("resume", help="return accepted work to AgentTeams")
+    recovery_resume.add_argument("--session", required=True)
+    recovery_resume.add_argument("--sessions-root", default=None)
+    recovery_resume.add_argument("--takeover-id", required=True)
+    recovery_resume.add_argument("--resumed-by", required=True)
+    recovery_resume.add_argument("--resume-point", required=True)
+    recovery_resume.add_argument("--confirm", required=True, help="must exactly repeat takeover_id")
+    recovery_resume.set_defaults(func=cmd_recovery)
 
     return p
 

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/recovery_overlay.schema.json",
+  "title": "RecoveryOverlay",
+  "type": "object",
+  "required": ["schema_version", "classification", "session_id", "attempts", "retry_counters", "pending_takeover", "last_decision", "recovery_trace"],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["1.0"]},
+    "classification": {"type": "string", "enum": ["NON_FORMAL_LIVE_DEMO"]},
+    "session_id": {"type": "string", "pattern": "^[0-9]{8}-[0-9]{3}$"},
+    "attempts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["attempt_id", "parent_attempt_id", "run_id", "start_state", "resume_point", "owner_id", "status", "failure_type", "assigned_worker_id", "alternate_worker_evidence", "required_final_actor"],
+        "properties": {
+          "attempt_id": {"type": "string", "pattern": "^LIVE-ATTEMPT-[0-9]{8}-[0-9]{3}-[0-9]{2}$"},
+          "parent_attempt_id": {"type": ["string", "null"]},
+          "run_id": {"type": "string", "pattern": "^RUN-LABOPS-AT-004-AGENTTEAMS-[0-9]{3}$"},
+          "start_state": {"type": "string", "enum": ["RECEIVED"]},
+          "resume_point": {"type": "string"},
+          "owner_id": {"type": "string", "enum": ["labops-manager"]},
+          "status": {"type": "string", "enum": ["ACTIVE", "PENDING", "BLOCKED"]},
+          "failure_type": {"type": ["string", "null"]},
+          "assigned_worker_id": {"type": ["string", "null"]},
+          "alternate_worker_evidence": {"type": ["object", "null"]},
+          "required_final_actor": {"type": "string", "enum": ["verification-auditor"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "retry_counters": {"type": "object"},
+    "pending_takeover": {"type": ["object", "null"]},
+    "last_decision": {"type": ["string", "null"]},
+    "recovery_trace": {
+      "type": "object",
+      "required": ["path", "status", "event_count"],
+      "properties": {
+        "path": {"type": "string", "enum": ["recovery/recovery_trace.jsonl"]},
+        "status": {"type": "string", "enum": ["ABSENT", "VERIFIED"]},
+        "event_count": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
