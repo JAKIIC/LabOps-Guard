@@ -56,3 +56,29 @@ AgentTeams 素材 + 当前 live verifier 与只读 Dashboard，并明确标注 a
 Identity 接到组织 IAM/KMS，把 Gateway 接到受控执行集群，把 Evidence 接到不可变对象存储与组织审计，
 并增加密钥轮换、隔离租户、灾备和长期可观测后端。现有 Trust Contract、Tool Contract、Policy、
 Runner 和 Auditor 提供可迁移的治理边界。
+
+## 10. 真实实验室原来怎么处理，成本在哪里？
+
+典型流程是值班人员发现异常、工程师跨系统找日志/配置/版本、研究员讨论根因、负责人审批、
+工程师修改重跑、独立人员复核，再把聊天、日志和结论分散归档。成本不只来自算力，还来自人工
+接触、消息往返、等待审批、重复运行、证据整理和错误关闭后的返工。项目只报告可核验的受控指标，
+不把 AT-004 外推为生产 ROI；完整口径见 `docs/lab-workflow-value.md`。
+
+## 11. Human Approval 与 Human Takeover 有什么区别？
+
+Approval 是正常高风险路径的授权：真人批准一个强绑定计划、范围、预算与有效期。Human Takeover
+是异常恢复路径：证据不完整、timeout、能力缺失、工具失败、审计不确定或重试预算耗尽后，由真人
+接受 ownership 并恢复新 attempt。接管者不能直接写 `RESOLVED`，最终仍由 Auditor 裁决。
+
+## 12. 七个 Skill 都有运行时调用证据吗？
+
+没有过度宣称。七个 Skill 的 Registry、Schema 和版本化工程契约均可验证；新 live run 中只有
+`safe-executor → control-lab-action → labops.runner.execute` 可以通过 Gateway 归档 Tool Contract
+独立证明 runtime binding。其余六个在没有可靠 AgentTeams Worker hook 时准确标记为
+`CONFIGURED / AGENTTEAMS_HOOK_REQUIRED`，历史 Trace 不回填 `skill_id`。
+
+## 13. 异常告警、发布回滚与持续运维是否完成？
+
+当前已有结构化失败码、BLOCKED、Recovery/Takeover、策略回滚、版本化 Schema/Skill、CI、compose、
+Evidence verifier 和只读 Dashboard。生产级 Alertmanager、IAM/KMS、HA、多租户、不可变远端存储和
+OTel backend 是明确路线图，不包装成已部署能力；比赛版本优先保证真实 AgentTeams 闭环可核验。

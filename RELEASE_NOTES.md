@@ -18,6 +18,13 @@ Phase 8 增加 Trust Evaluation Suite v1.0。10 个输入案例与独立 Oracle 
 治理规则验证，不宣称通用 Agent 推理能力。复赛 README、18 页 PPT/PDF、视频脚本与提交
 清单已统一；AgentTeams 核心执行链和 AT-002/003/004 正式证据保持不变。
 
+Phase 9 Judge Feedback Patch 增加 ApprovalGrant v1 强绑定、隔离 live demo session、append-only
+Recovery / Human Takeover overlay，以及新 live run 中
+`safe-executor → control-lab-action → labops.runner.execute` 的 Gateway 证据校验。七 Skill、六
+Agent、Trust Contract v1、Trust State Machine v1 和正式 Evidence 均不变。当前 167 项测试通过；
+真实实验室 Before/After、责任边界、返工来源和受控收益口径已同步到 README、18 页 PPT/PDF、
+答辩 FAQ 与演示脚本，不虚构生产 ROI，也不补写历史 Skill event。
+
 由于 Runner 镜像许可证/NOTICE 门禁仍未关闭，本文档不表示已创建 Git Tag、
 GitHub Release、Runner 镜像或镜像 tar。
 

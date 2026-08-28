@@ -1,6 +1,6 @@
 # GOAI Agent Infra requirement mapping
 
-核对日期：2026-08-25
+核对日期：2026-08-28
 官方入口：<https://www.goaihz.com/tracks?track=infra>
 
 ## 初赛交付
@@ -28,6 +28,20 @@
 | 共享状态/轨迹 | Matrix + MinIO 共享状态、两类哈希链与 Dashboard 投影 | 三个独立证据包 |
 | 治理评测 | 10 案例 Trust Evaluation Suite，输入与 Oracle 分离 | `docs/trust-evaluation-report-v1.0.md` |
 
+## 评委优化意见收口
+
+| 关注点 | 当前答卷 | 证据或准确边界 |
+|---|---|---|
+| 真实流程、风险与返工成本 | 补充引入前跨角色人工流程、责任人与返工来源，不虚构生产金额或节省比例 | `docs/lab-workflow-value.md` |
+| 任务、上下文与状态 | task / incident / attempt、Schema 化 artifact、Matrix event 与状态交接 | AT-004 handoff / Trace；新 live session verifier |
+| 审批触发与责任 | 真人 Approval；ApprovalGrant v1 强绑定计划哈希、范围、预算、时效与 nonce | Approval Schema、Gateway fail-closed tests |
+| Retry / Reassign / Recovery | append-only attempt overlay；有限重试；真实备用 Worker 证据；无证据则 takeover | `labops/recovery.py`、recovery tests |
+| Human Takeover | 与 Approval 分离；真人 accept/resume，不能直接 resolved，Auditor 仍最终裁决 | Recovery CLI、Trace 与 live verifier |
+| 七 Skill 工程 | Registry、版本、I/O、调用条件、权限、失败、安全和验证均完整 | `docs/skill-framework.md` |
+| Skill runtime 证据 | 新 live Gateway 可验证 `control-lab-action`；其余六个不伪造 invocation event | `skill_runtime_evidence` 输出 |
+| 可观测与工具审计 | Matrix、Gateway I/O、Runner Artifact、hash-chained Trace、Evidence 与 Dashboard | `docs/observability.md` |
+| 版本、回滚、部署与运维 | Schema/Skill 版本、策略回滚、Docker/compose/CI 已实现；生产告警、IAM、HA 是路线图 | `KNOWN_LIMITATIONS.md`、deployment/compliance docs |
+
 ## 工具契约与迁移边界
 
 Runner Gateway 当前是本地 HTTP 适配层，不宣称已经实现 MCP Server：
@@ -38,6 +52,10 @@ Runner Gateway 当前是本地 HTTP 适配层，不宣称已经实现 MCP Server
 | 权限 | 固定任务、事件、镜像、命令、路径和 run-id 白名单 | 工作负载身份、细粒度授权、mTLS/OIDC |
 | 失败 | 结构化 4xx/5xx；能力不足保持 BLOCKED | 队列、重试策略与持久化幂等键 |
 | 审计 | request、response、Runner manifest、Trace | 未来 OTel adapter 只读导出，不改证据 |
+
+ApprovalGrant v1 进一步把计划 SHA-256、批准范围、副作用、保护资源、资源预算、有效期和 nonce
+绑定到 incident/plan/run；任何不一致或重放都在 Gateway 前 fail closed。Recovery 与状态机分层：
+原 attempt 不覆盖，恢复创建新 attempt；真人接管不能直接设置终态。
 
 ## 评分维度答卷
 

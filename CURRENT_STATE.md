@@ -1,8 +1,8 @@
 # LabOps Guard current state
 
-更新时间：2026-08-25
+更新时间：2026-08-28
 权威仓库：本文档所在 Git 仓库
-当前阶段：Phase 8 Evaluation & Submission Freeze 已完成，等待项目所有者确认；
+当前阶段：Phase 9 Judge Feedback Patch 与场景价值材料收口已完成，等待项目所有者确认；
 正式 Release/Tag 保持冻结
 
 ## Semifinal Trust Contract
@@ -42,6 +42,20 @@ Python 包版本为 `1.0.0rc1`，材料版本为 `v1.0-rc1`。当前候选版已
 - 该 Suite 只评估固定治理规则，不宣称覆盖全部 MLOps 场景或通用 Agent 推理能力。
 - 复赛 README、PPT/PDF、视频脚本与提交清单统一使用 v1.0-rc1 口径；没有改动
   AgentTeams 核心执行链或三套正式 Evidence。
+
+## Phase 9 Judge Feedback Patch
+
+- ApprovalGrant v1 强绑定 incident、plan hash、run、范围、副作用、保护资源、预算、时效和 nonce；
+  不一致、过期或重放均在 Gateway 前 fail closed，Agent 不能自行批准。
+- 非正式 live demo session 为 task / incident / attempt / run 提供隔离命名空间；Helper 只做预检、
+  任务文本生成与结果验证，不发送 Matrix 消息、不批准、不执行或模拟 Worker。
+- Recovery / Human Takeover 使用 append-only attempt/ownership overlay；重试有预算，Reassign
+  必须有真实备用 Worker 与 Matrix/capability 证据，接管后仍由 Auditor 最终裁决。
+- 新 live run 只有 `safe-executor → control-lab-action → labops.runner.execute` 可由 Gateway
+  Tool Contract 独立证明 runtime binding；其余六 Skill 保持
+  `CONFIGURED / AGENTTEAMS_HOOK_REQUIRED`，历史 Trace 不回填事件。
+- 真实实验室 Before/After、责任、返工来源和受控收益已同步到 README、18 页 PPT/PDF、FAQ 与
+  演示脚本；不把受控结果宣传为生产 ROI。
 
 ## 已验证主线
 
@@ -114,6 +128,11 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
 
 ## 最近验证
 
+- Phase 9 场景价值材料收口后全量 167 tests 通过；Approval、Session、Recovery/Takeover 与
+  Skill binding 回归均通过。
+- 最新 18 页 PPT 通过无溢出与模板保真检查；PDF 18 页由 PowerPoint 导出并逐页渲染复核。
+- Trust Evaluation Suite 10/10、Public Replay stale check、敏感信息扫描与三套正式 Evidence
+  均通过；AT-002/003/004 SHA 保持冻结值。
 - Phase 9 Task 1 全量回归为 119 tests，其中 117 通过、2 个可选 PyTorch 测试跳过；失败为 0。
 - Phase 8 全量回归为 117 tests，其中 115 通过、2 个可选 PyTorch 测试跳过；失败为 0。
 - 三套正式 Evidence、Public Replay stale check、18 页 PPT/PDF 渲染与提交文件校验通过；

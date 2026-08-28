@@ -14,6 +14,12 @@ Trust State Machine v1，把六个职责隔离角色的身份、策略、执行�
 申请最小修改，并在断网沙箱中执行获批方案。独立 Auditor 检查原始运行产物和保护文件哈希，
 通过后才允许关闭事故。
 
+真实实验室通常需要值班人员发现异常、工程师跨系统找证据、研究员讨论根因、负责人审批、
+工程师修改重跑、独立人员复核，再把分散记录归档。返工成本来自人工接触、消息往返、重复运行、
+等待审批、证据整理和错误关闭后的再次调查。LabOps Guard 不替代这些责任，而是把它们转成
+可核验的结构化交接与证据链；完整 Before/After、责任矩阵和受控收益口径见
+[`docs/lab-workflow-value.md`](docs/lab-workflow-value.md)。
+
 ```text
 Identity → Policy → Execution → Evidence → Audit
    Trust Contract v1 · Trust State Machine v1 · read-only Trust Dashboard
@@ -78,12 +84,18 @@ AgentTeams 负责角色编排和上下文交接；LabOps Guard 的 Schema、Poli
 
 - Planner 每个计划只允许一个被证据支持的变量变化，并定义预算、成功条件与回滚；
 - 人工批准时间必须早于 Runner 启动；禁止动作不能因人工批准而降级放行；
+- ApprovalGrant v1 强绑定 incident、计划哈希、run、批准范围、副作用、保护资源、预算、时效与
+  nonce；哈希、范围、预算、时效或重放不一致时 Gateway fail closed；
 - Agent Worker 不安装 PyTorch、不持有 Docker socket；Runner 非 root、只读根文件系统、
   限制 CPU/内存/PID 且实验期断网；
 - metric、数据、checkpoint、评测协议和原始工作区受保护；
 - Executor 的结论不能作为验证证据；Verification Auditor 独占 `RESOLVED / ROLLED_BACK / BLOCKED` 终态裁决权；
 - Incident Commander 只能在 Auditor 裁决后发布状态、封包证据并沉淀 Case Memory，不得改变终态；
 - 证据不足、运行依赖缺失或链路异常都必须显式 `BLOCKED`。
+
+异常恢复与正常审批严格分离：Recovery 使用 append-only attempt/ownership overlay；自动重试有
+预算，Reassign 必须有真实备用 Worker 与 Matrix/capability 证据，否则转入真人 Human Takeover。
+接管者不能直接写终态，恢复后的新 attempt 最终仍由 Verification Auditor 裁决。
 
 ## 快速验证
 
