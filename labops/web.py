@@ -8,11 +8,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
+from labops.live_demo import ROLE_ORDER, SESSION_ID
+from labops.reviewer_state import EVENT_KINDS
 from labops.trace import TraceLog
 
 
@@ -1026,18 +1030,255 @@ def run_bundled_demo(workspace: str | Path, project_root: str | Path) -> int:
     )
 
 
+class _ReviewerAPIError(ValueError):
+    def __init__(self, http_status: int, code: str) -> None:
+        super().__init__(code)
+        self.http_status = http_status
+        self.code = code
+
+
+def _reviewer_session_root(sessions_root: Path, session_id: str) -> Path:
+    if SESSION_ID.fullmatch(session_id) is None:
+        raise _ReviewerAPIError(400, "INVALID_SESSION")
+    root = sessions_root.resolve()
+    candidate = (root / session_id).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError as exc:
+        raise _ReviewerAPIError(400, "INVALID_SESSION") from exc
+    if not candidate.is_dir() or not (candidate / "session.json").is_file():
+        raise _ReviewerAPIError(404, "SESSION_NOT_FOUND")
+    return candidate
+
+
+def _read_reviewer_json(path: Path, *, maximum_bytes: int = 2 * 1024 * 1024) -> dict:
+    try:
+        if path.stat().st_size > maximum_bytes:
+            raise _ReviewerAPIError(503, "REVIEWER_SOURCE_INVALID")
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except _ReviewerAPIError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise _ReviewerAPIError(503, "REVIEWER_SOURCE_INVALID") from exc
+    if not isinstance(value, dict):
+        raise _ReviewerAPIError(503, "REVIEWER_SOURCE_INVALID")
+    return value
+
+
+def _read_reviewer_events(path: Path, *, maximum_bytes: int = 2 * 1024 * 1024) -> list[dict]:
+    try:
+        if path.stat().st_size > maximum_bytes:
+            raise _ReviewerAPIError(503, "REVIEWER_SOURCE_INVALID")
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return []
+    except _ReviewerAPIError:
+        raise
+    except (OSError, UnicodeError) as exc:
+        raise _ReviewerAPIError(503, "REVIEWER_SOURCE_INVALID") from exc
+    if len(lines) > 4096:
+        raise _ReviewerAPIError(503, "REVIEWER_SOURCE_INVALID")
+    events: list[dict] = []
+    seen: set[str] = set()
+    for line in lines:
+        if not line:
+            continue
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise _ReviewerAPIError(503, "REVIEWER_SOURCE_INVALID") from exc
+        room_id = item.get("room_id") if isinstance(item, dict) else None
+        actor = item.get("actor") if isinstance(item, dict) else None
+        artifact_refs = item.get("artifact_refs") if isinstance(item, dict) else None
+        hash_refs = item.get("hash_refs") if isinstance(item, dict) else None
+        valid_artifacts = isinstance(artifact_refs, list) and len(artifact_refs) <= 8 and all(
+            isinstance(ref, str)
+            and 0 < len(ref) <= 512
+            and not PurePosixPath(ref.replace("\\", "/")).is_absolute()
+            and ".." not in PurePosixPath(ref.replace("\\", "/")).parts
+            and re.match(r"^[A-Za-z]:/", ref.replace("\\", "/")) is None
+            for ref in artifact_refs
+        )
+        valid_hashes = isinstance(hash_refs, list) and len(hash_refs) <= 8 and all(
+            isinstance(ref, str) and re.fullmatch(r"[0-9a-fA-F]{64}", ref) is not None
+            for ref in hash_refs
+        )
+        if (
+            not isinstance(item, dict)
+            or item.get("classification") != "NON_AUTHORITATIVE_UI_PROJECTION"
+            or not isinstance(item.get("event_id"), str)
+            or not item["event_id"].startswith("$")
+            or not isinstance(item.get("kind"), str)
+            or item["kind"] not in EVENT_KINDS
+            or not isinstance(room_id, str)
+            or not room_id.startswith("!")
+            or actor not in set(ROLE_ORDER) | {"human-approver"}
+            or not isinstance(item.get("workflow_from"), str)
+            or not isinstance(item.get("workflow_to"), str)
+            or item.get("evidence_state") != "OBSERVED"
+            or not valid_artifacts
+            or not valid_hashes
+        ):
+            raise _ReviewerAPIError(503, "REVIEWER_SOURCE_INVALID")
+        if item["event_id"] in seen:
+            continue
+        seen.add(item["event_id"])
+        events.append({
+            "classification": "NON_AUTHORITATIVE_UI_PROJECTION",
+            "event_id": item["event_id"],
+            "actor": actor,
+            "kind": item["kind"],
+            "timestamp": item.get("timestamp") if isinstance(item.get("timestamp"), str) else None,
+            "workflow_from": item["workflow_from"],
+            "workflow_to": item["workflow_to"],
+            "evidence_state": "OBSERVED",
+            "artifact_refs": list(artifact_refs),
+            "hash_refs": [str(ref).lower() for ref in hash_refs],
+        })
+    return events
+
+
+def _load_reviewer_snapshot(session_root: Path) -> dict:
+    source_path = session_root / "observer" / "source_status.json"
+    event_path = session_root / "observer" / "normalized_events.jsonl"
+    source = _read_reviewer_json(source_path)
+    events = _read_reviewer_events(event_path)
+    if source and source.get("classification") != "NON_AUTHORITATIVE_UI_PROJECTION":
+        raise _ReviewerAPIError(503, "REVIEWER_SOURCE_INVALID")
+    source_status = source.get("source_status")
+    connected = source.get("connected") is True and source_status in {"LIVE", "STALE"}
+    return {
+        "connected": connected,
+        "last_success_at": source.get("last_success_at") if isinstance(source.get("last_success_at"), str) else None,
+        "events": events,
+    }
+
+
+def _timeline_api_item(item: dict, *, sequence: int | None = None) -> dict:
+    summary = {
+        "kind": item.get("kind"),
+        "timestamp": item.get("timestamp"),
+        "actor": item.get("actor"),
+        "workflow_from": item.get("workflow_from"),
+        "workflow_to": item.get("workflow_to"),
+        "evidence_state": item.get("evidence_state"),
+        "source": item.get("source", "MATRIX"),
+        "details": {
+            "event_id": item.get("event_id"),
+            "artifact_refs": item.get("artifact_refs") if isinstance(item.get("artifact_refs"), list) else [],
+            "hash_refs": item.get("hash_refs") if isinstance(item.get("hash_refs"), list) else [],
+            "state_transition": {
+                "from": item.get("workflow_from"),
+                "to": item.get("workflow_to"),
+            },
+        },
+    }
+    if sequence is not None:
+        summary["sequence"] = sequence
+    return summary
+
+
+def _reviewer_status_payload(context: dict, session_id: str | None) -> dict:
+    from labops.reviewer_state import build_reviewer_state
+
+    mode = str(context["mode"]).lower()
+    project_root = Path(context["project_root"]).resolve()
+    sessions_root = Path(context["sessions_root"]).resolve()
+    snapshot = None
+    if mode == "live":
+        if session_id is None:
+            raise _ReviewerAPIError(400, "SESSION_REQUIRED")
+        session_root = _reviewer_session_root(sessions_root, session_id)
+        snapshot = _load_reviewer_snapshot(session_root)
+    state = build_reviewer_state(
+        project_root,
+        sessions_root,
+        session_id if mode == "live" else None,
+        mode,
+        snapshot,
+    )
+    state["timeline"] = [
+        _timeline_api_item(item) for item in state.get("timeline", []) if isinstance(item, dict)
+    ]
+    return state
+
+
+def _preflight_payload(context: dict) -> dict:
+    configured = context.get("preflight")
+    if callable(configured):
+        configured = configured()
+    configured = configured if isinstance(configured, dict) else {}
+    status = configured.get("status")
+    if status not in {"READY", "PARTIAL", "BLOCKED", "NOT_CHECKED"}:
+        status = "NOT_CHECKED"
+    requirements = configured.get("requirements")
+    safe_requirements: dict[str, Any] = {}
+    if isinstance(requirements, dict):
+        for name, value in requirements.items():
+            if isinstance(name, str) and isinstance(value, (bool, int)) and not isinstance(value, str):
+                safe_requirements[name] = value
+            elif isinstance(name, str) and value in {"READY", "BLOCKED", "MISSING", "NOT_CHECKED"}:
+                safe_requirements[name] = value
+    return {
+        "read_only": True,
+        "mode": str(context["mode"]).upper(),
+        "status": status,
+        "requirements": safe_requirements,
+    }
+
+
+def _reviewer_events_payload(context: dict, session_id: str | None, after: int) -> dict:
+    if after < 0:
+        raise _ReviewerAPIError(400, "INVALID_CURSOR")
+    mode = str(context["mode"]).lower()
+    if mode == "quick":
+        state = _reviewer_status_payload(context, None)
+        source_events = state.get("timeline", [])
+        events = [dict(item) for item in source_events if isinstance(item, dict)]
+    else:
+        if session_id is None:
+            raise _ReviewerAPIError(400, "SESSION_REQUIRED")
+        session_root = _reviewer_session_root(Path(context["sessions_root"]), session_id)
+        _read_reviewer_json(session_root / "observer" / "source_status.json")
+        raw_events = _read_reviewer_events(session_root / "observer" / "normalized_events.jsonl")
+        events = [_timeline_api_item(item, sequence=index) for index, item in enumerate(raw_events, 1)]
+    page = [item for index, item in enumerate(events, 1) if index > after][:100]
+    if mode == "quick":
+        for index, item in enumerate(page, after + 1):
+            item["sequence"] = index
+    next_after = page[-1]["sequence"] if page else after
+    return {
+        "read_only": True,
+        "mode": mode.upper(),
+        "session_id": session_id if mode == "live" else None,
+        "events": page,
+        "next_after": next_after,
+        "has_more": next_after < len(events),
+    }
+
+
 def make_handler(
     workspace: str | Path,
     checkpoint_workspace: str | Path | None = None,
     agentteams_v2_workspace: str | Path | None = None,
     agentteams_v3_workspace: str | Path | None = None,
     at004_workspace: str | Path | None = None,
+    reviewer_context: dict | None = None,
 ):
     workspace = Path(workspace).resolve()
     checkpoint_workspace = Path(checkpoint_workspace).resolve() if checkpoint_workspace else None
     agentteams_v2_workspace = Path(agentteams_v2_workspace).resolve() if agentteams_v2_workspace else None
     agentteams_v3_workspace = Path(agentteams_v3_workspace).resolve() if agentteams_v3_workspace else None
     at004_workspace = Path(at004_workspace).resolve() if at004_workspace else None
+    if reviewer_context is not None:
+        required = {"project_root", "sessions_root", "mode"}
+        if not isinstance(reviewer_context, dict) or not required.issubset(reviewer_context):
+            raise ValueError("reviewer_context requires project_root, sessions_root and mode")
+        if str(reviewer_context["mode"]).lower() not in {"quick", "live"}:
+            raise ValueError("Reviewer mode must be quick or live")
+        reviewer_context = dict(reviewer_context)
     dashboard_html = Path(__file__).with_name("dashboard.html")
 
     class DashboardHandler(BaseHTTPRequestHandler):
@@ -1062,7 +1303,8 @@ def make_handler(
             self._send(status, "application/json; charset=utf-8", body)
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
-            path = self.path.split("?", 1)[0]
+            target = urlsplit(self.path)
+            path = target.path
             if path == "/":
                 try:
                     body = dashboard_html.read_bytes()
@@ -1075,6 +1317,36 @@ def make_handler(
             elif path == "/healthz":
                 state = build_dashboard_state(workspace, checkpoint_workspace, agentteams_v2_workspace, agentteams_v3_workspace, at004_workspace)
                 self._json(200 if state["ready"] else 503, {"ok": state["ready"], "service": "labops-guard"})
+            elif reviewer_context is not None and path == "/api/reviewer/preflight":
+                self._json(200, _preflight_payload(reviewer_context))
+            elif reviewer_context is not None and path in {"/api/reviewer/status", "/api/reviewer/events"}:
+                try:
+                    query = parse_qs(target.query, keep_blank_values=True)
+                    sessions = query.get("session", [])
+                    if len(sessions) > 1:
+                        raise _ReviewerAPIError(400, "INVALID_SESSION")
+                    session_id = sessions[0] if sessions else None
+                    if path == "/api/reviewer/status":
+                        payload = _reviewer_status_payload(reviewer_context, session_id)
+                    else:
+                        cursors = query.get("after", ["0"])
+                        if len(cursors) != 1:
+                            raise _ReviewerAPIError(400, "INVALID_CURSOR")
+                        try:
+                            after = int(cursors[0])
+                        except (TypeError, ValueError) as exc:
+                            raise _ReviewerAPIError(400, "INVALID_CURSOR") from exc
+                        payload = _reviewer_events_payload(reviewer_context, session_id, after)
+                except _ReviewerAPIError as exc:
+                    error = {
+                        "read_only": True,
+                        "status": "BLOCKED",
+                        "error": exc.code,
+                        "archived_replay_used": False,
+                    }
+                    self._json(exc.http_status, error)
+                    return
+                self._json(200, payload)
             else:
                 self._json(404, {"ok": False, "error": "not found"})
 
