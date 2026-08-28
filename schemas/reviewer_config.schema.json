@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/reviewer_config.schema.json",
+  "title": "ReviewerEditionRoomMap",
+  "type": "object",
+  "required": ["schema_version", "rooms"],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["1.0"]},
+    "rooms": {"type": "object"}
+  },
+  "additionalProperties": false
+}

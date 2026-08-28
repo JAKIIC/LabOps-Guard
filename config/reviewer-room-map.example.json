@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "rooms": {
+    "!manager-room:example.invalid": "labops-manager",
+    "!collector-room:example.invalid": "evidence-collector",
+    "!rca-room:example.invalid": "rca-analyst",
+    "!planner-room:example.invalid": "experiment-planner",
+    "!executor-room:example.invalid": "safe-executor",
+    "!auditor-room:example.invalid": "verification-auditor"
+  }
+}
