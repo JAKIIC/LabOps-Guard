@@ -105,6 +105,9 @@ AgentTeams 负责角色编排和上下文交接；LabOps Guard 的 Schema、Poli
 源码目录可直接运行下列命令；如需安装 CLI，使用标准 PEP 517 命令
 `python -m pip install --no-deps .`。完全离线安装时需预先提供 `setuptools>=68`，项目不在
 source-only 提交包中复制构建工具。
+Skill Registry、Trust Contract、Demo readiness 和 Evidence verifier 属于仓库原生能力，
+必须从解压后的源码根目录运行，使其能读取随代码包提供的 `skills/`、`schemas/`、
+`agentteams/` 与 `demo/` 资产；不宣称脱离这些资产的孤立 wheel 可独立复现完整比赛链路。
 
 ```powershell
 python -B -m unittest discover -s tests -p "test_*.py" -v
@@ -130,6 +133,11 @@ AgentTeams live execution、本地确定性控制面和 Archived Evidence Replay
 `python -B -m labops demo-readiness` 预检入口。最终四分钟视频按
 `docs/final-demo-recording-runbook.md` 执行；它根据实机彩排明确采用 Strategy C，并要求画面标注
 `LIVE CHECK` 或 `ARCHIVED VERIFIED RUN`。
+
+最终收尾 commit 完成且工作树干净后，可使用
+`python -B scripts/build_submission_bundle.py --output-dir release` 生成 commit-bound、自验证、
+不含视频和 Runner 镜像的复赛附件。该附件显式标记 `VIDEO_PENDING`，不是最终视频成片。
+最终 MP4 通过隐私复核后，使用同一命令加 `--video <MP4>` 重建校验和，不手工改写 ZIP。
 
 | 案例 | 角色 | 结果 | 入口 |
 |---|---:|---|---|

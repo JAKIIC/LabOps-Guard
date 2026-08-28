@@ -31,11 +31,13 @@
 | PPT / PDF | READY | 均为 18 页，版本、指标、链接与能力边界一致 |
 | 正式 Evidence | FROZEN | AT-002/003/004 不修改、不重建、不回填事件 |
 | Runner 发布 | SOURCE ONLY | 镜像再分发四项许可证门禁未关闭，不提交镜像或 tar，不创建 Tag/Release |
+| 提交附件 | READY TO BUILD | 专用构建器从最终干净 commit 生成内层源码包与外层无视频 ZIP，并自动复核成员和 SHA-256 |
 
 ## 3. 测试与证据口径
 
-- 当前完整测试口径为 **167 项全部通过**，覆盖既有闭环以及 Approval strong binding、live session
-  隔离、Recovery/Human Takeover 和 Gateway Skill binding。
+- 最终本地门禁口径为 **167 项原有测试 + 2 项提交附件测试**，覆盖既有闭环以及
+  Approval strong binding、live session 隔离、Recovery/Human Takeover、Gateway Skill binding 与
+  commit-bound source-only 打包/校验。
 - Trust Evaluation Suite v1.0 固定为 10 个治理案例；结果只能表述为“与预设 Oracle 一致”，
   不能表述为“通用 Benchmark”或“100% 安全”。
 - Public Demo 是静态 Archived Evidence Replay，不是实时 AgentTeams 控制台。
@@ -57,12 +59,13 @@ AT-004  4092b43f39df52db3847caa28ca01e4321129a1c17ec7ca5efd2029ab1fb77cd
 - Pages：`https://jakiic.github.io/LabOps-Guard/` 返回 HTTP 200，页面使用最终定位，保持无脚本并含
   `connect-src 'none'`；
 - 公开 `main` SHA：`86c263bd50c58aa52b2fc8b9e8965007422773c4`；
-- Task 5B 开始时本地候选基线：`e905301f6d3447352c0aca70d0625d31bf68d944`。
+- 最终收尾开始时本地候选基线：`04113d1048f0f3a9a62f6442425bf307bd5d956f`。
 
-本地候选比公开 `main` 多 5 个已验证提交：Approval strong binding、Live Demo Session、
-Recovery/Human Takeover、Gateway Skill binding 和比赛材料收口。因此，**在项目所有者把候选提交
+本地候选已包含 Approval strong binding、Live Demo Session、Recovery/Human Takeover、Gateway
+Skill binding、官方要求材料收口与最终附件构建门禁。因此，**在项目所有者把候选提交
 合入并推送公开 `main` 之前，不能宣称 GitHub 公开源码等于最终提交候选**。推送后还必须重新运行
-Pages workflow，并用公开 SHA 完成最终提交登记。
+Pages workflow，并用公开 SHA 完成最终提交登记。最终精确 commit 与 ZIP SHA 由忽略的
+`release/FINAL_CANDIDATE_MANIFEST.txt` 记录，避免用会改变 commit 的跟踪文件做自引用。
 
 ## 5. 最终人工门禁
 
@@ -71,9 +74,11 @@ Pages workflow，并用公开 SHA 完成最终提交登记。
 1. 将 Task 5B 候选提交合入并推送公开 `main`；
 2. 确认 GitHub Actions 的 Windows/Linux 测试通过；
 3. 重新部署 Pages，并核对公开页面与候选版本一致；
-4. 录制、逐帧检查并登记最终 MP4 SHA-256；
-5. 在比赛平台上传 PPT、PDF、源码包、视频和链接后逐项回读；
-6. 记录最终 `main` SHA、源码包 SHA、视频 SHA 和上传时间。
+4. 从公开最终 commit 重新生成并自验证无视频附件 ZIP；
+5. 录制、逐帧检查并登记最终 MP4 SHA-256；
+6. 将最终 MP4 纳入上传附件并重新计算外层 SHA-256；
+7. 在比赛平台上传 PPT、PDF、源码包、视频和链接后逐项回读；
+8. 记录最终 `main` SHA、源码包 SHA、视频 SHA 和上传时间。
 
 ## 6. 结论
 

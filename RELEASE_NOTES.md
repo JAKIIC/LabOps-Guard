@@ -21,7 +21,8 @@ Phase 8 增加 Trust Evaluation Suite v1.0。10 个输入案例与独立 Oracle 
 Phase 9 Judge Feedback Patch 增加 ApprovalGrant v1 强绑定、隔离 live demo session、append-only
 Recovery / Human Takeover overlay，以及新 live run 中
 `safe-executor → control-lab-action → labops.runner.execute` 的 Gateway 证据校验。七 Skill、六
-Agent、Trust Contract v1、Trust State Machine v1 和正式 Evidence 均不变。当前 167 项测试通过；
+Agent、Trust Contract v1、Trust State Machine v1 和正式 Evidence 均不变。最终本地门禁为
+167 项原有测试 + 2 项提交附件测试；
 真实实验室 Before/After、责任边界、返工来源和受控收益口径已同步到 README、18 页 PPT/PDF、
 答辩 FAQ 与演示脚本，不虚构生产 ROI，也不补写历史 Skill event。
 
@@ -33,6 +34,11 @@ Task 5C Official Alignment Closure 按官方 06/08/09/10/12 逐节收口：补�
 Contract、Shared State + Trace 的非 RAG 合规路径、工具链版本/兼容/迁移矩阵、异常信号升级、
 Skill 发布/回滚/质量门禁，并对 18 页 PPT/PDF 做最小页级同步。未增加 Agent、Skill、MCP、RAG、
 OTel backend 或云组件，正式 Evidence 和核心运行语义保持不变。
+
+Final Competition Closure 增加 commit-bound、source-only 的复赛附件构建器，把最终
+PPT/PDF、Git source archive、三份冻结 Evidence、Evaluation 与合规材料收入同一无视频 ZIP。
+构建器拒绝脏工作树、Evidence 哈希不匹配、同名覆盖和禁止成员，并为外层与内层归档
+执行 SHA-256 自验证。附件在项目所有者录制前显式标记 `VIDEO_PENDING`。
 
 由于 Runner 镜像许可证/NOTICE 门禁仍未关闭，本文档不表示已创建 Git Tag、
 GitHub Release、Runner 镜像或镜像 tar。

@@ -17,6 +17,7 @@ Python 包版本：`1.0.0rc1`
 - [x] Trust Evaluation Suite v1.0 结果与方法报告
 - [x] GitHub URL：`https://github.com/JAKIIC/LabOps-Guard`
 - [x] Public Demo URL：`https://jakiic.github.io/LabOps-Guard/`
+- [ ] 从最终干净 commit 生成并验证无视频复赛附件 ZIP
 - [ ] 最终 Demo 视频 MP4（项目所有者录制并逐帧检查）
 - [ ] 比赛平台所需的个人/团队信息及最终表单（项目所有者填写）
 
@@ -56,7 +57,7 @@ python -B scripts/scan_sensitive.py --repo-root .
 python -B -m labops demo-readiness
 ```
 
-- [x] 167 项测试通过
+- [x] 167 项原有测试 + 2 项最终附件测试通过
 - [x] AT-002/003/004 Evidence verifier 通过且 SHA 不变
 - [x] 10 个治理案例评测通过
 - [x] Public Demo stale/CSP/无脚本检查通过
@@ -64,22 +65,24 @@ python -B -m labops demo-readiness
 - [x] PPT/PDF 18 页且逐页无溢出
 - [x] `submission/SHA256SUMS.txt` 与 PPT/PDF、评测 JSON 和评测报告一致
 
-## D. Source Package
+## D. Commit-bound Submission Attachment
 
-最终代码提交后，使用 Git 归档生成源码包，避免把 `.git`、忽略目录、live session 或本机缓存带入：
+最终代码提交后，使用专用构建器同时生成内层 Git source archive 和外层无视频比赛附件。
+构建器必须在干净工作树上运行，不覆盖同名候选，并自动验证成员、校验和冻结 Evidence：
 
 ```powershell
-$shortSha = git rev-parse --short=7 HEAD
-git archive --format=zip --prefix=LabOps-Guard-v1.0-rc1/ `
-  -o "release/LabOps-Guard-v1.0-rc1-$shortSha-source.zip" HEAD
+python -B scripts/build_submission_bundle.py --output-dir release
 ```
 
 标准安装命令为 `python -m pip install --no-deps .`；完全离线安装需预先提供
 `setuptools>=68`，不要误用缺少构建后端的 `--no-build-isolation` 环境。
+解压后的比赛验证必须在源码根目录执行；Skill、Trust、Demo readiness 和 Evidence 命令
+依赖同包中的仓库原生契约与归档资产，不把孤立 wheel 宣称为完整比赛运行包。
 
-- [ ] 源码包在本次官方对齐提交后重新生成
-- [x] 解压后可安装 `1.0.0rc1` 并运行 CLI
+- [ ] 源码包与无视频复赛附件在最终收尾 commit 后重新生成
+- [x] 解压后可安装 `1.0.0rc1`；从源码根可运行 CLI、七 Skill 查询与 Demo readiness
 - [x] 源码包内没有 `release/`、`.git/`、`.env`、密钥、私有 room ID、绝对路径或 Runner 镜像
+- [x] 外层附件显式标记 `NO-VIDEO / VIDEO_PENDING`，不把历史 Replay 当作 live run
 - [ ] `release/FINAL_CANDIDATE_MANIFEST.txt` 在最终附件阶段重新登记 commit 与源码包 SHA-256
 
 ## E. 公开仓库与上传门禁
@@ -92,6 +95,7 @@ git archive --format=zip --prefix=LabOps-Guard-v1.0-rc1/ `
 - [ ] PPT/PDF 二维码及可见 URL 均可访问
 - [ ] 最终视频无 Token、通知、私有 room、桌面路径或个人隐私
 - [ ] 视频 SHA-256 已登记
+- [ ] 使用 `--video` 构建并验证 `COMPLETE_WITH_VIDEO` 最终附件，未手工改写 ZIP
 - [ ] 比赛平台上传后重新下载/打开全部文件复核
 - [ ] 最终提交时间、公开 SHA、源码包 SHA、视频 SHA 已离线留档
 

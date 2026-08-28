@@ -141,8 +141,8 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
 
 ## 最近验证
 
-- Phase 9 场景价值材料收口后全量 167 tests 通过；Approval、Session、Recovery/Takeover 与
-  Skill binding 回归均通过。
+- 最终收尾门禁为 167 项原有测试 + 2 项提交附件测试；Approval、Session、
+  Recovery/Takeover、Skill binding 与 commit-bound source-only 打包回归均通过。
 - 最新 18 页 PPT 通过无溢出与模板保真检查；PDF 18 页由 PowerPoint 导出并逐页渲染复核。
 - Trust Evaluation Suite 10/10、Public Replay stale check、敏感信息扫描与三套正式 Evidence
   均通过；AT-002/003/004 SHA 保持冻结值。

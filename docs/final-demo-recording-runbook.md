@@ -3,26 +3,82 @@
 本 Runbook 以 2026-08-26 比赛机器实测为依据。推荐 **Strategy C：Verified Replay + Live
 Verification**。目标成片 3:40–4:20，不超过 5 分钟。
 
-## 录制前固定事实
+## 录制前固定事实与当日门禁
 
-- 当前 HiClaw v1.1.2、Matrix/Element、MinIO、Manager 和五个 Worker 在线；Runner Gateway 与
-  Dashboard 可在本机启动。
+- 历史 AgentTeams 实机环境使用 HiClaw v1.1.2；每次正式录制仍必须当日重新核对
+  Matrix/Element、MinIO、Manager、五个 Worker、Gateway 和 Dashboard，不得把上次在线
+  状态当成当前事实。
 - 固定 AT-004 task/run ID 已在当前运行环境中 `RESOLVED`。再次发送 Prompt 会被 Manager 的
   防重复执行检查拦截，不应删除状态或换 ID 来制造新 run。
 - 2026-08-04 真实 AgentTeams 运行的七条 Trace 从 16:52:40 至 17:13:50，约 21 分 10 秒。
-- 当前机器尚未安装 OBS、FFmpeg、pywinauto 或 Playwright Python 包。安装并完成 30 秒试录前，
-  “Demo 视频录制”门禁保持 `BLOCKED`。
+- 2026-08-28 只读复核时，Docker daemon 和 Runner image 可用，Element 可打开
+  `Worker: controlled-executor` 历史执行房间；Gateway `18103` 和 Dashboard `8787` 未启动，
+  其他 AgentTeams/MinIO 状态仍需人工核对。这是本次复核快照，不是正式录制日的在线证明。
+- 不预设 OBS 或其他录制器已安装。正式录制前必须完成 30 秒画面、声音、
+  字体和编码试录；未通过时门禁保持 `BLOCKED`。
+
+## 首先选择录制路线
+
+### 推荐：Strategy C — Verified Replay + Live Verification
+
+适用于当前冻结的 AT-004：展示 2026-08-04 真实 Matrix/AgentTeams 历史素材，同时在
+录制日实时运行 Evidence verifier、Evaluation Suite 和只读 Dashboard。不重置
+`RESOLVED` 状态，不更换固定 task/run ID，不重放历史审批。
+
+### 可选：新的 NON_FORMAL_LIVE_DEMO
+
+只有当 Manager、五 Worker、Matrix、MinIO、Gateway 和 Runner 全部在录制前彩排通过时
+才使用。新 run 必须用 `live-demo prepare` 生成独立 session，并有新的真人 Approval、
+Matrix events、Runner Artifact 和 Auditor 裁决。任何环节不稳定时立即回到 Strategy C，
+不在正式录制中调试。
 
 ## 窗口与标签
 
 1. PPT 全屏窗口：定位、Trust Layer、AgentTeams、AT-002、AT-004、Evaluation。
-2. Element：只保留 Manager 和五个 Worker 演示房间，隐藏其他私人/管理房间。
+2. Element：只保留 Manager 和五个 Worker 演示房间，隐藏其他私人/管理房间；
+   不录制地址栏和完整私有 room ID。
 3. PowerShell A：仓库根目录，字体至少 20 pt，只运行白名单命令。
 4. PowerShell B：Gateway/服务日志，只展示脱敏状态，不展示容器环境变量。
 5. Trust Dashboard：`http://127.0.0.1:8787/`。
 6. Public Demo：`https://jakiic.github.io/LabOps-Guard/`。
 
 录制中禁止运行无字段过滤的 `docker inspect`；它会把容器环境变量和凭据带入画面。
+
+## 正式录制日操作顺序
+
+1. 关闭 Windows 通知、邮件、私人聊天和自动补全弹窗；在 Element 中只保留比赛房间。
+2. 打开最终 PPT、Element、PowerShell、Dashboard 和 Public Demo，按 Shot 01–12 排序。
+3. 在仓库根目录启动只读 Dashboard：
+
+   ```powershell
+   docker compose up -d --build
+   Invoke-RestMethod http://127.0.0.1:8787/healthz
+   ```
+
+4. 运行当日预检：
+
+   ```powershell
+   python -B -m labops demo-readiness
+   python -B scripts/verify_evidence.py
+   python -B scripts/run_semifinal_eval.py
+   ```
+
+   Strategy C 允许 Gateway 不启动，但必须在视频中明确说明本次是 Archived Verified Run
+   + Live Verification；Evidence verifier 必须 PASS。如果宣称当前 Gateway 可用，则先启动
+   Gateway，再运行 `demo-readiness --service-checks`，且 `18103/healthz` 必须当日实际 PASS。
+5. 完成 30 秒试录，回放检查声音、字幕、光标、字体及是否出现个人路径。
+6. 依次录制 Shot 01–12；任何关键门禁失败时废弃该 take，不在成片中解释调试。
+7. 录制后逐帧检查 Token、room ID、地址栏、用户名、本机路径和系统通知，然后
+   计算 MP4 SHA-256。
+8. 不手工编辑已生成的 ZIP。使用隐私复核后的 MP4 重新构建完整附件：
+
+   ```powershell
+   python -B scripts/build_submission_bundle.py --output-dir release `
+     --video "C:\path\LabOps-Guard-final-demo.mp4"
+   ```
+
+   输出必须为 `WITH-VIDEO`，Manifest 必须为 `COMPLETE_WITH_VIDEO`，内部不得再有
+   `VIDEO_PENDING.txt`。
 
 ## Shot 计划
 
@@ -54,7 +110,10 @@ Verification**。目标成片 3:40–4:20，不超过 5 分钟。
 ## 录制命令与预期输出
 
 ```powershell
-# 只读 readiness；Docker 不在 PATH 时，先在当前终端加入 Docker Desktop 的 bin 目录。
+# Strategy C 的只读契约/Evidence readiness；不会运行 AgentTeams。
+python -B -m labops demo-readiness
+
+# 只有当 Gateway 和 Dashboard 都已启动、且要展示实时服务时才运行：
 python -B -m labops demo-readiness --service-checks --show-prompt
 
 # 三个正式 Evidence Bundle 独立验证。
@@ -64,8 +123,9 @@ python -B scripts/verify_evidence.py
 python -B scripts/run_semifinal_eval.py
 ```
 
-预期：readiness 为 `LOCAL_READY` 且 Docker/Gateway/Dashboard 通过；Evidence verifier 三包 PASS；
-Evaluation Suite 报告 10 个固定案例结果。`LOCAL_READY` 不等于产生了新 AgentTeams run。
+预期：不带 service checks 的 readiness 为 `LOCAL_READY`；带 service checks 时只有
+Docker/Gateway/Dashboard 都通过才是 `LOCAL_READY`；Evidence verifier 三包 PASS；Evaluation Suite
+报告 10 个固定案例结果。`LOCAL_READY` 不等于产生了新 AgentTeams run。
 
 ## 状态驱动等待点
 
