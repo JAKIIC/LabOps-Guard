@@ -1280,6 +1280,7 @@ def make_handler(
             raise ValueError("Reviewer mode must be quick or live")
         reviewer_context = dict(reviewer_context)
     dashboard_html = Path(__file__).with_name("dashboard.html")
+    reviewer_html = Path(__file__).with_name("reviewer.html")
 
     class DashboardHandler(BaseHTTPRequestHandler):
         server_version = "LabOpsGuard/1.0"
@@ -1310,6 +1311,13 @@ def make_handler(
                     body = dashboard_html.read_bytes()
                 except OSError as exc:
                     self._json(500, {"ok": False, "error": str(exc)})
+                    return
+                self._send(200, "text/html; charset=utf-8", body)
+            elif reviewer_context is not None and path == "/reviewer":
+                try:
+                    body = reviewer_html.read_bytes()
+                except OSError:
+                    self._json(500, {"ok": False, "error": "reviewer page unavailable"})
                     return
                 self._send(200, "text/html; charset=utf-8", body)
             elif path == "/api/status":

@@ -10,6 +10,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
@@ -19,6 +20,30 @@ from labops.web import make_handler, run_bundled_demo
 
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+class _VisibleHTMLParser(HTMLParser):
+    """Collect visible text and interactive elements from the served page."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.hidden_depth = 0
+        self.text: list[str] = []
+        self.interactive_tags: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in {"script", "style"}:
+            self.hidden_depth += 1
+        if tag in {"button", "form", "input", "select", "textarea"}:
+            self.interactive_tags.append(tag)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in {"script", "style"} and self.hidden_depth:
+            self.hidden_depth -= 1
+
+    def handle_data(self, data: str) -> None:
+        if not self.hidden_depth and data.strip():
+            self.text.append(data.strip())
 
 
 class ReviewerWebTests(unittest.TestCase):
@@ -96,11 +121,75 @@ class ReviewerWebTests(unittest.TestCase):
             self.assertEqual(response.headers.get_content_type(), "application/json")
             return json.load(response)
 
+    def _html(self, path: str) -> tuple[str, str]:
+        with urllib.request.urlopen(self.base + path, timeout=3) as response:
+            self.assertEqual(response.headers.get_content_type(), "text/html")
+            html = response.read().decode("utf-8")
+        parser = _VisibleHTMLParser()
+        parser.feed(html)
+        return html, " ".join(parser.text)
+
     def test_existing_dashboard_routes_remain_compatible(self) -> None:
         html = urllib.request.urlopen(self.base + "/", timeout=3).read().decode("utf-8")
         self.assertIn("LabOps Guard", html)
         self.assertTrue(self._json("/api/status")["ready"])
         self.assertTrue(self._json("/healthz")["ok"])
+
+    def test_reviewer_page_serves_frozen_read_only_semantics(self) -> None:
+        html, visible_text = self._html("/reviewer")
+        self.assertEqual(html, (ROOT / "labops" / "reviewer.html").read_text(encoding="utf-8"))
+        for marker in (
+            "Human Approval Gate",
+            "Current Directive",
+            "Configured Policy",
+            "Workflow State",
+            "Evidence State",
+            "Last Active Agent",
+            "Last Event",
+            "Protected Resources",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, visible_text)
+        parser = _VisibleHTMLParser()
+        parser.feed(html)
+        self.assertEqual(parser.interactive_tags, [])
+        self.assertNotIn("LIVE MODE", visible_text)
+        self.assertIn("Read-only", visible_text)
+
+    def test_reviewer_page_polls_only_read_only_reviewer_apis(self) -> None:
+        html, _ = self._html("/reviewer")
+        self.assertIn('fetch(`/api/reviewer/status', html)
+        self.assertIn('fetch(`/api/reviewer/events', html)
+        self.assertIn("setInterval(poll, 1000)", html)
+        self.assertNotIn("method:", html)
+        self.assertNotIn("/api/status", html)
+
+    def test_reviewer_page_keeps_green_for_verified_and_resolved_only(self) -> None:
+        html, _ = self._html("/reviewer")
+        self.assertIn(".is-verified", html)
+        self.assertIn(".is-resolved", html)
+        for selector in (
+            ".is-active",
+            ".is-observed",
+            ".is-waiting",
+            ".is-configured",
+            ".is-unverified",
+            ".is-not-started",
+            ".is-blocked",
+            ".is-rejected",
+        ):
+            with self.subTest(selector=selector):
+                self.assertIn(selector, html)
+        self.assertIn("ACTIVE: 'is-active'", html)
+        self.assertIn("OBSERVED: 'is-observed'", html)
+        self.assertIn("WAITING: 'is-waiting'", html)
+        self.assertIn("UNVERIFIED: 'is-unverified'", html)
+        self.assertIn("NOT_STARTED: 'is-not-started'", html)
+        self.assertNotIn("ACTIVE: 'is-verified'", html)
+        self.assertNotIn("OBSERVED: 'is-verified'", html)
+        self.assertNotIn("WAITING: 'is-verified'", html)
+        self.assertNotIn("UNVERIFIED: 'is-verified'", html)
+        self.assertNotIn("NOT_STARTED: 'is-verified'", html)
 
     def test_preflight_and_status_are_read_only_and_truthful(self) -> None:
         preflight = self._json("/api/reviewer/preflight")
@@ -151,6 +240,7 @@ class ReviewerWebTests(unittest.TestCase):
 
     def test_reviewer_endpoints_reject_every_write_method(self) -> None:
         paths = [
+            "/reviewer",
             "/api/reviewer/preflight",
             f"/api/reviewer/status?session={self.SESSION_ID}",
             f"/api/reviewer/events?session={self.SESSION_ID}&after=0",

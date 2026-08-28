@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LabOps Guard · Reviewer Edition</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #06111b;
+      --surface: #0b1c2a;
+      --surface-2: #102536;
+      --line: #234359;
+      --text: #edf7fb;
+      --muted: #8eacbd;
+      --green: #5ee2ba;
+      --green-bg: #0b3129;
+      --blue: #78cdf4;
+      --blue-bg: #0b2b43;
+      --cyan: #67d9e8;
+      --cyan-bg: #0a303b;
+      --yellow: #ffd071;
+      --yellow-bg: #322512;
+      --grey: #a0b0ba;
+      --grey-bg: #18232c;
+      --red: #ff8a8a;
+      --red-bg: #391a20;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { min-width: 0; overflow-x: hidden; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% -15%, #123b55 0, var(--page) 46%);
+      color: var(--text);
+    }
+
+    .shell { width: min(1480px, 100%); margin: 0 auto; padding: 22px; }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand { font-size: 1.35rem; font-weight: 800; letter-spacing: -.02em; }
+    .subtitle { margin-top: 4px; color: var(--muted); font-size: .82rem; }
+    .badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 27px;
+      padding: 4px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--grey-bg);
+      color: var(--grey);
+      font-size: .7rem;
+      font-weight: 800;
+      letter-spacing: .04em;
+      overflow-wrap: anywhere;
+    }
+
+    .is-verified, .is-resolved { color: var(--green); background: var(--green-bg); border-color: #28725f; }
+    .is-active { color: var(--blue); background: var(--blue-bg); border-color: #327ba1; }
+    .is-observed { color: var(--cyan); background: var(--cyan-bg); border-color: #2b7985; }
+    .is-waiting { color: var(--yellow); background: var(--yellow-bg); border-color: #856329; }
+    .is-configured, .is-unverified, .is-not-started { color: var(--grey); background: var(--grey-bg); border-color: #465661; }
+    .is-blocked, .is-rejected { color: var(--red); background: var(--red-bg); border-color: #8b3f4a; }
+
+    .grid { display: grid; gap: 12px; }
+    .summary { grid-template-columns: minmax(260px, 1.45fr) repeat(3, minmax(170px, .75fr)); margin-top: 16px; }
+    .ids { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 12px; }
+    .main { grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr); margin-top: 12px; }
+    .pair { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 12px; }
+
+    .card {
+      min-width: 0;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: linear-gradient(145deg, var(--surface-2), var(--surface));
+      box-shadow: 0 15px 34px #0003;
+    }
+
+    .card h2 { margin: 0 0 10px; font-size: .95rem; }
+    .label { color: #7399ad; font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .value { margin-top: 6px; font-size: .95rem; font-weight: 750; overflow-wrap: anywhere; }
+    .muted { margin-top: 5px; color: var(--muted); font-size: .75rem; line-height: 1.5; overflow-wrap: anywhere; }
+
+    .id-card code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .short-id { display: block; margin-top: 7px; color: #bdd6e2; font-size: .76rem; overflow-wrap: anywhere; }
+
+    details { margin-top: 8px; color: var(--muted); font-size: .72rem; }
+    summary { cursor: pointer; color: #8fc6e2; }
+    pre {
+      margin: 7px 0 0;
+      padding: 9px;
+      max-width: 100%;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      border: 1px solid #1e3d51;
+      border-radius: 9px;
+      background: #071721;
+      color: #a9c4d1;
+      line-height: 1.55;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 14px;
+    }
+
+    .agent-node {
+      position: relative;
+      min-width: 0;
+      padding: 13px 8px;
+      text-align: center;
+      border: 1px solid #43545f;
+      border-radius: 13px;
+      background: #111b24;
+    }
+
+    .agent-node:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      z-index: 2;
+      top: 27px;
+      right: -11px;
+      color: #58778a;
+    }
+
+    .agent-node.gate { border-style: dashed; border-color: #856329; background: #2a2113; }
+    .node-index { color: #7895a5; font: .68rem ui-monospace, monospace; }
+    .node-name { margin-top: 7px; font-size: .78rem; font-weight: 800; overflow-wrap: anywhere; }
+    .state-row { display: flex; flex-direction: column; align-items: center; gap: 5px; margin-top: 9px; }
+    .state-row .badge { width: 100%; justify-content: center; font-size: .61rem; }
+    .state-label { color: #718f9f; font-size: .58rem; letter-spacing: .06em; text-transform: uppercase; }
+
+    .timeline { max-height: 540px; overflow-y: auto; padding-right: 5px; }
+    .event { padding: 11px 0; border-top: 1px solid #1d3b4f; }
+    .event:first-child { border-top: 0; }
+    .event-head { display: grid; grid-template-columns: 86px minmax(0, 1fr) auto; align-items: center; gap: 9px; }
+    .event-time { color: #789aac; font: .68rem ui-monospace, monospace; }
+    .event-title { font-size: .78rem; font-weight: 700; overflow-wrap: anywhere; }
+
+    .approval-card { border-color: #765a2a; background: linear-gradient(145deg, #2c2315, var(--surface)); }
+    .approval-card .value { color: var(--yellow); }
+    .read-only-note { margin-top: 12px; padding-top: 9px; border-top: 1px solid #725725; color: #c4af7e; font-size: .72rem; }
+
+    .kv-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .kv { min-width: 0; padding-top: 8px; border-top: 1px solid #1e3c50; }
+    .kv span { display: block; color: #7495a7; font-size: .66rem; }
+    .kv strong { display: block; margin-top: 4px; color: #c4d8e1; font: .7rem/1.45 ui-monospace, monospace; overflow-wrap: anywhere; }
+
+    .recovery-card { border-color: #59476a; background: linear-gradient(145deg, #21172b, var(--surface)); }
+    .directive { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 9px 0; border-top: 1px solid #40314c; }
+    .directive:first-of-type { border-top: 0; }
+    .policy-list { display: grid; gap: 7px; margin-top: 9px; }
+    .policy { padding: 8px; border: 1px solid #3c3048; border-radius: 9px; color: #c4aed0; font-size: .7rem; overflow-wrap: anywhere; }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 15px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      color: #708fa0;
+      font-size: .66rem;
+    }
+
+    .empty { padding: 16px; color: var(--muted); font-size: .76rem; text-align: center; }
+
+    @media (max-width: 1100px) {
+      .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .flow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .agent-node::after { display: none; }
+      .main, .pair { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .shell { padding: 12px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .badges { justify-content: flex-start; }
+      .summary, .ids, .flow, .kv-grid { grid-template-columns: 1fr; }
+      .event-head { grid-template-columns: 72px minmax(0, 1fr); }
+      .event-head .badge { grid-column: 2; justify-self: start; }
+      .footer { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <div class="brand">LabOps Guard · Reviewer Edition</div>
+        <div class="subtitle">Trust Infrastructure for Production Agent Systems · local detailed evidence</div>
+      </div>
+      <div class="badges" aria-live="polite">
+        <span id="source-badge" class="badge is-configured">CONNECTING</span>
+        <span id="mode-badge" class="badge is-configured">MODE NOT LOADED</span>
+        <span class="badge is-configured">Read-only</span>
+      </div>
+    </header>
+
+    <section class="grid summary" aria-label="Incident summary">
+      <article class="card">
+        <div class="label">Current Incident</div>
+        <div id="incident-summary" class="value">Waiting for an allowlisted Reviewer session</div>
+        <div id="workflow-summary" class="muted">Workflow projection is not loaded.</div>
+      </article>
+      <article class="card">
+        <div class="label">Current Owner</div>
+        <div id="current-owner" class="value">—</div>
+        <div class="muted">Decision responsibility at the observed workflow state</div>
+      </article>
+      <article class="card">
+        <div class="label">Last Active Agent</div>
+        <div id="last-agent" class="value">—</div>
+        <details><summary>Runtime identity</summary><pre id="last-agent-runtime">Not observed</pre></details>
+      </article>
+      <article class="card">
+        <div class="label">Last Event / Last Updated</div>
+        <div id="last-event" class="value">—</div>
+        <div id="last-updated" class="muted">No source update observed</div>
+      </article>
+    </section>
+
+    <section id="identity-grid" class="grid ids" aria-label="Session identifiers"></section>
+
+    <section aria-labelledby="flow-title">
+      <h2 id="flow-title" class="label" style="margin-top:16px">AgentTeams + Human Approval Gate</h2>
+      <div class="muted">Each node reports Workflow State and Evidence State separately.</div>
+      <div id="agent-flow" class="flow"></div>
+    </section>
+
+    <section class="grid main">
+      <article class="card">
+        <h2>AgentTeams Timeline · read-only drill-down</h2>
+        <div id="timeline" class="timeline"><div class="empty">No timeline projection loaded.</div></div>
+      </article>
+      <article class="card approval-card">
+        <div class="label">Human Approval Gate</div>
+        <div id="approval-state" class="value">NOT OBSERVED</div>
+        <div id="approval-summary" class="muted">A human decision must be observed before controlled execution.</div>
+        <details><summary>Approval evidence</summary><pre id="approval-details">No approval artifact observed.</pre></details>
+        <div class="read-only-note">Human Approval happens in Element. This Workbench cannot approve, execute, retry, reassign, take over, or change state.</div>
+      </article>
+    </section>
+
+    <section class="grid pair">
+      <article class="card">
+        <h2>Tool Contract</h2>
+        <div id="tool-grid" class="kv-grid"></div>
+        <details><summary>Full binding and Protected Resources</summary><pre id="tool-details">No Gateway contract observed.</pre></details>
+      </article>
+      <article class="card recovery-card">
+        <h2>Recovery / Escalation</h2>
+        <div class="directive">
+          <span class="label">Current Directive</span>
+          <span id="current-directive" class="badge is-configured">NONE</span>
+        </div>
+        <div id="resume-condition" class="muted">No recovery fact has been observed.</div>
+        <div class="label" style="margin-top:14px">Configured Policy</div>
+        <div id="configured-policy" class="policy-list"></div>
+        <details><summary>Attempt / ownership evidence</summary><pre id="recovery-details">No recovery trace observed.</pre></details>
+      </article>
+    </section>
+
+    <section class="grid pair">
+      <article class="card">
+        <div class="label">Sandbox Runner</div>
+        <div id="runner-state" class="value">NOT OBSERVED</div>
+        <details><summary>Runner evidence</summary><pre id="runner-details">No Runner artifact observed.</pre></details>
+      </article>
+      <article class="card">
+        <div class="label">Independent Audit</div>
+        <div id="audit-state" class="value">UNVERIFIED</div>
+        <details><summary>Auditor evidence</summary><pre id="audit-details">No Auditor decision observed.</pre></details>
+      </article>
+    </section>
+
+    <section class="card" style="margin-top:12px">
+      <div class="label">Evidence limitations</div>
+      <div id="limitations" class="muted">No limitations loaded.</div>
+    </section>
+
+    <footer class="footer">
+      <span>GREEN ONLY FOR VERIFIED / RESOLVED</span>
+      <span>LOCAL DETAILS · PUBLIC DEMO REMAINS REDACTED</span>
+      <span>ALL WRITE METHODS → 405</span>
+    </footer>
+  </main>
+
+  <script>
+    'use strict';
+
+    const STATUS_CLASS = Object.freeze({
+      VERIFIED: 'is-verified',
+      RESOLVED: 'is-resolved',
+      ACTIVE: 'is-active',
+      LIVE: 'is-active',
+      OBSERVED: 'is-observed',
+      WAITING: 'is-waiting',
+      APPROVAL_PENDING: 'is-waiting',
+      LIVE_PARTIAL: 'is-waiting',
+      STALE: 'is-waiting',
+      CONFIGURED: 'is-configured',
+      REPLAY: 'is-configured',
+      UNVERIFIED: 'is-unverified',
+      NOT_OBSERVED: 'is-unverified',
+      NOT_STARTED: 'is-not-started',
+      BLOCKED: 'is-blocked',
+      DISCONNECTED: 'is-blocked',
+      REJECTED: 'is-rejected',
+      POLICY_VIOLATION: 'is-rejected'
+    });
+
+    const session = new URLSearchParams(window.location.search).get('session') || '';
+    let cursor = 0;
+    let polling = false;
+    let incrementalEvents = [];
+
+    function byId(id) { return document.getElementById(id); }
+    function text(value, fallback = '—') {
+      return value === null || value === undefined || value === '' ? fallback : String(value);
+    }
+    function label(value) { return text(value).replaceAll('_', ' '); }
+    function statusClass(value) { return STATUS_CLASS[text(value, 'CONFIGURED')] || 'is-configured'; }
+    function short(value, length = 20) {
+      const raw = text(value, 'Not observed');
+      return raw.length <= length ? raw : `${raw.slice(0, length)}…`;
+    }
+    function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+    function make(tag, className, content) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (content !== undefined) node.textContent = content;
+      return node;
+    }
+    function setBadge(node, value) {
+      const normalized = text(value, 'CONFIGURED');
+      node.className = `badge ${statusClass(normalized)}`;
+      node.textContent = label(normalized);
+    }
+    function json(value) { return JSON.stringify(value ?? {}, null, 2); }
+
+    function detailsNode(summaryText, value) {
+      const details = make('details');
+      details.appendChild(make('summary', '', summaryText));
+      details.appendChild(make('pre', '', typeof value === 'string' ? value : json(value)));
+      return details;
+    }
+
+    function renderIdentifiers(state) {
+      const target = byId('identity-grid');
+      clear(target);
+      const incident = state.incident || {};
+      const rows = [
+        ['Incident ID', incident.incident_id],
+        ['Task ID', incident.task_id],
+        ['Attempt ID', incident.attempt_id],
+        ['Run ID', incident.run_id]
+      ];
+      rows.forEach(([name, value]) => {
+        const card = make('article', 'card id-card');
+        card.appendChild(make('div', 'label', name));
+        card.appendChild(make('code', 'short-id', short(value)));
+        card.appendChild(detailsNode(`Full ${name}`, text(value, 'Not observed')));
+        target.appendChild(card);
+      });
+    }
+
+    function renderAgents(state) {
+      const target = byId('agent-flow');
+      clear(target);
+      const agents = Array.isArray(state.agents) ? state.agents : [];
+      agents.forEach((agent, index) => {
+        const node = make('article', 'agent-node');
+        node.appendChild(make('div', 'node-index', String(index + 1).padStart(2, '0')));
+        node.appendChild(make('div', 'node-name', text(agent.role_name, 'Unknown role')));
+        const states = make('div', 'state-row');
+        states.appendChild(make('div', 'state-label', 'Workflow State'));
+        const workflow = make('span');
+        setBadge(workflow, agent.workflow_state);
+        states.appendChild(workflow);
+        states.appendChild(make('div', 'state-label', 'Evidence State'));
+        const evidence = make('span');
+        setBadge(evidence, agent.evidence_state);
+        states.appendChild(evidence);
+        node.appendChild(states);
+        node.appendChild(detailsNode('Runtime identity', text(agent.runtime_identity || agent.agent_id, 'Not observed')));
+        target.appendChild(node);
+
+        if (agent.agent_id === 'experiment-planner') {
+          const approval = state.approval || {};
+          const gate = make('article', 'agent-node gate');
+          gate.appendChild(make('div', 'node-index', 'H'));
+          gate.appendChild(make('div', 'node-name', 'Human Approval Gate'));
+          gate.appendChild(make('div', 'muted', 'Human responsibility · not an Agent'));
+          const gateStates = make('div', 'state-row');
+          gateStates.appendChild(make('div', 'state-label', 'Workflow State'));
+          const gateWorkflow = make('span');
+          setBadge(gateWorkflow, (state.incident || {}).workflow_state === 'APPROVAL_PENDING' ? 'WAITING' : approval.status);
+          gateStates.appendChild(gateWorkflow);
+          gateStates.appendChild(make('div', 'state-label', 'Evidence State'));
+          const gateEvidence = make('span');
+          setBadge(gateEvidence, approval.status);
+          gateStates.appendChild(gateEvidence);
+          gate.appendChild(gateStates);
+          target.appendChild(gate);
+        }
+      });
+    }
+
+    function renderTimeline(state) {
+      const target = byId('timeline');
+      clear(target);
+      const timeline = Array.isArray(state.timeline) ? state.timeline : [];
+      if (!timeline.length) {
+        target.appendChild(make('div', 'empty', 'No timeline projection loaded.'));
+        return;
+      }
+      timeline.forEach((event) => {
+        const row = make('article', 'event');
+        const head = make('div', 'event-head');
+        const timeValue = event.timestamp ? new Date(event.timestamp).toISOString().slice(11, 19) : 'configured';
+        head.appendChild(make('span', 'event-time', timeValue));
+        head.appendChild(make('span', 'event-title', `${label(event.kind)} · ${label(event.workflow_from)} → ${label(event.workflow_to)}`));
+        const proof = make('span');
+        setBadge(proof, event.evidence_state);
+        head.appendChild(proof);
+        row.appendChild(head);
+        row.appendChild(detailsNode('event ID · artifact · hash · state transition', event.details || {}));
+        target.appendChild(row);
+      });
+    }
+
+    function addKV(target, name, value) {
+      const box = make('div', 'kv');
+      box.appendChild(make('span', '', name));
+      box.appendChild(make('strong', '', text(value, 'Not observed')));
+      target.appendChild(box);
+    }
+
+    function renderApproval(state) {
+      const approval = state.approval || {};
+      byId('approval-state').textContent = label(approval.status || 'NOT_OBSERVED');
+      byId('approval-state').className = `value ${statusClass(approval.status)}`;
+      byId('approval-summary').textContent = approval.decision
+        ? `Decision ${text(approval.decision)} by ${text(approval.decided_by, 'human approver')}`
+        : 'A human decision must be observed before controlled execution.';
+      byId('approval-details').textContent = json(approval);
+    }
+
+    function renderToolContract(state) {
+      const tool = state.tool_contract || {};
+      const grid = byId('tool-grid');
+      clear(grid);
+      addKV(grid, 'Status', label(tool.status));
+      addKV(grid, 'Skill / version', tool.skill);
+      addKV(grid, 'Caller', tool.caller);
+      addKV(grid, 'Tool', tool.tool_id);
+      addKV(grid, 'Plan hash', tool.plan_hash);
+      addKV(grid, 'Approval binding', tool.approval_binding);
+      addKV(grid, 'Protected Resources', tool.protected_resource_count);
+      addKV(grid, 'Resource budget', json(tool.resource_budget));
+      byId('tool-details').textContent = json(tool.details || {});
+    }
+
+    function renderRecovery(state) {
+      const recovery = state.recovery || {};
+      const directive = recovery.current_directive || 'NONE';
+      setBadge(byId('current-directive'), directive === 'NONE' ? 'CONFIGURED' : recovery.status);
+      byId('current-directive').textContent = label(directive);
+      byId('resume-condition').textContent = recovery.resume_condition
+        ? `Resume condition: ${recovery.resume_condition}`
+        : 'No recovery fact has been observed. Current Directive is NONE.';
+      const policies = byId('configured-policy');
+      clear(policies);
+      const configured = recovery.configured_policy || {};
+      Object.entries(configured).forEach(([failure, policy]) => {
+        const decision = policy.decision || policy.first_failure || 'CONFIGURED';
+        const condition = policy.resume_condition || policy.budget_exhausted || '';
+        policies.appendChild(make('div', 'policy', `${label(failure)} · ${label(decision)} · ${condition}`));
+      });
+      if (!Object.keys(configured).length) policies.appendChild(make('div', 'empty', 'No configured recovery policy loaded.'));
+      byId('recovery-details').textContent = json({
+        status: recovery.status,
+        trace_status: recovery.trace_status,
+        latest_attempt: recovery.latest_attempt,
+        pending_takeover: recovery.pending_takeover,
+        errors: recovery.errors
+      });
+    }
+
+    function renderRunnerAudit(state) {
+      const runner = state.runner || {};
+      const audit = state.audit || {};
+      byId('runner-state').textContent = label(runner.status || 'NOT_OBSERVED');
+      byId('runner-state').className = `value ${statusClass(runner.status)}`;
+      byId('runner-details').textContent = json(runner);
+      byId('audit-state').textContent = label(audit.status || 'UNVERIFIED');
+      byId('audit-state').className = `value ${statusClass(audit.status)}`;
+      byId('audit-details').textContent = json(audit);
+    }
+
+    function render(state) {
+      setBadge(byId('source-badge'), state.source_summary || 'DISCONNECTED');
+      setBadge(byId('mode-badge'), state.mode || 'CONFIGURED');
+      const incident = state.incident || {};
+      byId('incident-summary').textContent = incident.incident_id
+        ? `Observed incident ${short(incident.incident_id)}`
+        : 'No incident evidence observed';
+      byId('workflow-summary').textContent = `Workflow State: ${label(incident.workflow_state)} · Evidence source: ${label(state.source_summary)}`;
+      byId('current-owner').textContent = text(incident.current_owner);
+      byId('last-agent').textContent = text(incident.last_active_agent);
+      const lastAgent = (state.agents || []).find((agent) => agent.role_name === incident.last_active_agent);
+      byId('last-agent-runtime').textContent = text(lastAgent && lastAgent.runtime_identity, 'Not observed');
+      byId('last-event').textContent = text(incident.last_event, 'No observed event');
+      byId('last-updated').textContent = `Event: ${text(incident.last_event_at, 'not timestamped')} · Projection: ${text(state.updated_at, 'not updated')}`;
+      renderIdentifiers(state);
+      renderAgents(state);
+      renderTimeline(state);
+      renderApproval(state);
+      renderToolContract(state);
+      renderRecovery(state);
+      renderRunnerAudit(state);
+      const limitations = Array.isArray(state.limitations) ? state.limitations : [];
+      byId('limitations').textContent = limitations.length ? limitations.join(' · ') : 'No additional limitations reported by the projection.';
+    }
+
+    function renderConnectionFailure(error) {
+      setBadge(byId('source-badge'), 'DISCONNECTED');
+      byId('last-event').textContent = 'Reviewer source unavailable';
+      byId('last-updated').textContent = text(error && error.message, 'Read-only source request failed');
+    }
+
+    async function poll() {
+      if (polling) return;
+      polling = true;
+      try {
+        const suffix = session ? `?session=${encodeURIComponent(session)}` : '';
+        const statusResponse = await fetch(`/api/reviewer/status${suffix}`, {cache: 'no-store'});
+        if (!statusResponse.ok) throw new Error(`status source returned ${statusResponse.status}`);
+        const state = await statusResponse.json();
+        const eventQuery = session
+          ? `?session=${encodeURIComponent(session)}&after=${cursor}`
+          : `?after=${cursor}`;
+        const eventResponse = await fetch(`/api/reviewer/events${eventQuery}`, {cache: 'no-store'});
+        if (!eventResponse.ok) throw new Error(`event source returned ${eventResponse.status}`);
+        const page = await eventResponse.json();
+        if (Array.isArray(page.events)) incrementalEvents = incrementalEvents.concat(page.events).slice(-100);
+        cursor = Number.isInteger(page.next_after) ? page.next_after : cursor;
+        render(state);
+      } catch (error) {
+        renderConnectionFailure(error);
+      } finally {
+        polling = false;
+      }
+    }
+
+    fetch('/api/reviewer/preflight', {cache: 'no-store'})
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('preflight unavailable')))
+      .then((preflight) => setBadge(byId('mode-badge'), preflight.mode || 'CONFIGURED'))
+      .catch(renderConnectionFailure)
+      .finally(poll);
+    setInterval(poll, 1000);
+  </script>
+</body>
+</html>
