@@ -332,6 +332,7 @@
     let cursor = 0;
     let polling = false;
     let incrementalEvents = [];
+    let lastRenderFingerprint = '';
 
     function byId(id) { return document.getElementById(id); }
     function text(value, fallback = '—') {
@@ -542,6 +543,33 @@
       byId('limitations').textContent = limitations.length ? limitations.join(' · ') : 'No additional limitations reported by the projection.';
     }
 
+    function captureOpenDetails() {
+      return new Set(Array.from(document.querySelectorAll('details'))
+        .map((details, index) => details.open ? index : -1)
+        .filter((index) => index >= 0));
+    }
+
+    function restoreOpenDetails(openDetails) {
+      Array.from(document.querySelectorAll('details')).forEach((details, index) => {
+        details.open = openDetails.has(index);
+      });
+    }
+
+    function renderFingerprint(state) {
+      const stableState = {...state};
+      delete stableState.updated_at;
+      return JSON.stringify({state: stableState, incrementalEvents});
+    }
+
+    function renderIfChanged(state) {
+      const fingerprint = renderFingerprint(state);
+      if (fingerprint === lastRenderFingerprint) return;
+      const openDetails = captureOpenDetails();
+      render(state);
+      restoreOpenDetails(openDetails);
+      lastRenderFingerprint = fingerprint;
+    }
+
     function renderConnectionFailure(error) {
       setBadge(byId('source-badge'), 'DISCONNECTED');
       byId('last-event').textContent = 'Reviewer source unavailable';
@@ -564,7 +592,7 @@
         const page = await eventResponse.json();
         if (Array.isArray(page.events)) incrementalEvents = incrementalEvents.concat(page.events).slice(-100);
         cursor = Number.isInteger(page.next_after) ? page.next_after : cursor;
-        render(state);
+        renderIfChanged(state);
       } catch (error) {
         renderConnectionFailure(error);
       } finally {

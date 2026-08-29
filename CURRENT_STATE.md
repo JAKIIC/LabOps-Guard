@@ -1,9 +1,22 @@
 # LabOps Guard current state
 
-更新时间：2026-08-28
+更新时间：2026-08-29
 权威仓库：本文档所在 Git 仓库
 当前阶段：Phase 9 Official Alignment Closure；工程候选已按官方 06/08/09/10/12 收口，等待
 公开 `main`、远端 CI/Pages、视频与比赛平台上传的项目所有者门禁；正式 Release/Tag 保持冻结
+
+## Reviewer Edition freeze candidate
+
+- Reviewer Edition 提供本地只读 Workbench：Quick Mode 使用冻结 Evidence 回放，Live Mode 只观察
+  外部真实 AgentTeams / Matrix、Gateway、Runner 与 Auditor 证据，不发送消息、不批准、不执行；
+- 当前机器 Quick Mode preflight 为 `READY` 并完成实际启动与浏览器检查；Live Mode preflight 为
+  `BLOCKED`，缺少 Matrix homeserver、access token 和 room map，Docker 与 Runner image 已就绪；
+- `REPLAY / LIVE / STALE / DISCONNECTED` 由真实来源健康状态和时间戳计算，页面不存在固定 Live 标签；
+- 桌面 1440px、1024px 与移动端约 390px 均无页面级横向溢出，且不存在审批、执行、重试或状态修改控件；
+- Timeline、Tool Contract、Recovery、ID/Hash 只读 drill-down 在轮询期间保持展开；完整 Evidence
+  只在本地 Reviewer Edition 展示，Public Demo 继续脱敏；
+- 本阶段未执行新的 AgentTeams live run，未生成或修改 AT-002/003/004 正式 Evidence，也不把
+  Quick Mode 描述为实时执行。
 
 ## Semifinal Trust Contract
 
@@ -141,6 +154,10 @@ Safe Executor → Verification Auditor。人工审批单独记录，不计作 Ag
 
 ## 最近验证
 
+- Reviewer Edition 冻结前全量回归为 215 项通过、1 项可选测试跳过；Reviewer Web/State
+  21 项通过，数据源分类受控验证覆盖 `REPLAY / LIVE / STALE / DISCONNECTED`；
+- Quick Mode 实机 preflight/启动/浏览器检查通过，Live Mode 在缺少外部 Matrix 配置时按设计
+  fail closed，并明确回退到 Quick Mode；
 - 最终收尾门禁为 167 项原有测试 + 2 项提交附件测试；Approval、Session、
   Recovery/Takeover、Skill binding 与 commit-bound source-only 打包回归均通过。
 - 最新 18 页 PPT 通过无溢出与模板保真检查；PDF 18 页由 PowerPoint 导出并逐页渲染复核。

@@ -40,6 +40,15 @@ PPT/PDF、Git source archive、三份冻结 Evidence、Evaluation 与合规材�
 构建器拒绝脏工作树、Evidence 哈希不匹配、同名覆盖和禁止成员，并为外层与内层归档
 执行 SHA-256 自验证。附件在项目所有者录制前显式标记 `VIDEO_PENDING`。
 
+Reviewer Edition freeze candidate 增加第三方可运行的 Quick/Live 双模式只读工作台和独立生命周期
+命令。Quick Mode 明确标记为冻结 Evidence Replay；Live Mode 仅观察外部真实 AgentTeams，外部
+Matrix 前置不满足时 fail closed，不模拟 Worker。Workbench 展示 Human Approval Gate、六 Agent
+Workflow/Evidence 双状态、Tool Contract、Recovery/Escalation、Runner 与独立审计；来源状态
+`REPLAY / LIVE / STALE / DISCONNECTED` 由数据驱动。冻结检查覆盖 1440px、1024px 和约 390px，
+无横向溢出、无写操作控件，轮询不会关闭已展开的 event/artifact/hash 只读详情。当前机器验证了
+Quick Mode；Live Mode 因缺少 Matrix homeserver、token 和 room map 保持 `BLOCKED`，未宣称完成
+新的 live run。
+
 由于 Runner 镜像许可证/NOTICE 门禁仍未关闭，本文档不表示已创建 Git Tag、
 GitHub Release、Runner 镜像或镜像 tar。
 
