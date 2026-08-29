@@ -25,6 +25,17 @@ RUNNER_LABELS = {
     "io.labops.runner.torch": "2.5.1+cpu",
     "io.labops.runner.network-runtime": "none",
 }
+REAL_ROOM_MAP = {
+    "schema_version": "1.0",
+    "rooms": {
+        "!manager:matrix-local.hiclaw.io": "labops-manager",
+        "!collector:matrix-local.hiclaw.io": "evidence-collector",
+        "!rca:matrix-local.hiclaw.io": "rca-analyst",
+        "!planner:matrix-local.hiclaw.io": "experiment-planner",
+        "!executor:matrix-local.hiclaw.io": "safe-executor",
+        "!auditor:matrix-local.hiclaw.io": "verification-auditor",
+    },
+}
 
 
 class RuntimeLockTests(unittest.TestCase):
@@ -123,10 +134,7 @@ class ReproducibilityReportTests(unittest.TestCase):
     def test_live_pack_check_accepts_only_pinned_runner_and_six_canonical_rooms(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             room_map = Path(tmp) / "room-map.json"
-            room_map.write_text(
-                (ROOT / "config/reviewer-room-map.example.json").read_text(encoding="utf-8"),
-                encoding="utf-8",
-            )
+            room_map.write_text(json.dumps(REAL_ROOM_MAP), encoding="utf-8")
             environment = {
                 "LABOPS_MATRIX_HOMESERVER": "http://127.0.0.1:18080",
                 "LABOPS_MATRIX_ACCESS_TOKEN": "private-reviewer-token",
@@ -147,6 +155,12 @@ class ReproducibilityReportTests(unittest.TestCase):
                     "agentteams_version": "v1.1.2",
                     "docker_server_version": "29.6.2",
                 },
+                matrix_probe=lambda _homeserver, _token, roles: {
+                    "connected": True,
+                    "all_joined": True,
+                    "rooms_expected": len(roles),
+                    "error": None,
+                },
             )
 
         self.assertEqual(report["status"], "READY")
@@ -157,6 +171,41 @@ class ReproducibilityReportTests(unittest.TestCase):
         self.assertNotIn("private-reviewer-token", rendered)
         self.assertNotIn(str(room_map), rendered)
         self.assertNotIn("!manager-room:example.invalid", rendered)
+
+    def test_live_pack_check_blocks_unjoined_rooms_even_when_map_is_well_formed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            room_map = Path(tmp) / "room-map.json"
+            room_map.write_text(json.dumps(REAL_ROOM_MAP), encoding="utf-8")
+            report = build_pack_report(
+                ROOT,
+                "live",
+                LOCK,
+                environment={
+                    "LABOPS_MATRIX_HOMESERVER": "http://127.0.0.1:18080",
+                    "LABOPS_MATRIX_ACCESS_TOKEN": "secret",
+                    "LABOPS_MATRIX_ROOM_MAP": str(room_map),
+                },
+                docker_probe=lambda _root, _lock: {
+                    "docker": True,
+                    "runner_image": True,
+                    "runner_labels": dict(RUNNER_LABELS),
+                    "agentteams_controller": True,
+                    "agentteams_manager": True,
+                    "agentteams_workers": 5,
+                    "agentteams_version": "v1.1.2",
+                    "docker_server_version": "29.6.2",
+                },
+                matrix_probe=lambda _homeserver, _token, roles: {
+                    "connected": True,
+                    "all_joined": False,
+                    "rooms_expected": len(roles),
+                    "error": "MATRIX_ROOM_MAP_UNJOINED",
+                },
+            )
+
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertIn("MATRIX_ROOM_MAP_UNJOINED", report["missing_requirements"])
+        self.assertEqual(report["checks"]["matrix_room_membership"]["status"], "FAIL")
 
     def test_live_pack_check_blocks_a_runner_with_drifted_labels(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

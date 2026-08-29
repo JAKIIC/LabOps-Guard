@@ -12,7 +12,7 @@ from typing import Any, Callable
 
 from labops.contracts import ContractError, validate_document
 from labops.live_demo import ROLE_ORDER
-from labops.matrix_observer import load_room_map
+from labops.matrix_observer import load_room_map, probe_joined_rooms
 from labops.reviewer import build_preflight
 
 
@@ -152,6 +152,7 @@ def build_pack_report(
     *,
     environment: dict[str, str] | None = None,
     docker_probe: Callable[[Path, dict[str, Any]], dict[str, Any]] | None = None,
+    matrix_probe: Callable[[str, str, dict[str, str]], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build a deterministic reproduction report without returning private values."""
 
@@ -230,11 +231,29 @@ def build_pack_report(
         room_map_value = env.get("LABOPS_MATRIX_ROOM_MAP", "").strip()
         homeserver_ready = homeserver.startswith(("http://", "https://"))
         room_map_ready, room_count = _room_map_status(env)
+        room_roles: dict[str, str] = {}
+        if room_map_ready:
+            room_roles = load_room_map(Path(room_map_value))
+        membership = {
+            "connected": False,
+            "all_joined": False,
+            "rooms_expected": room_count,
+            "error": None,
+        }
+        if homeserver_ready and token and room_map_ready:
+            membership = (matrix_probe or probe_joined_rooms)(homeserver, token, room_roles)
+        membership_ready = membership.get("all_joined") is True
         checks["matrix_homeserver"] = {"status": "PASS" if homeserver_ready else "FAIL"}
         checks["matrix_access"] = {"status": "PASS" if token else "FAIL", "redacted": True}
         checks["matrix_room_map"] = {
             "status": "PASS" if room_map_ready else "FAIL",
             "rooms": room_count,
+        }
+        checks["matrix_room_membership"] = {
+            "status": "PASS" if membership_ready else "NOT_CHECKED" if not (
+                homeserver_ready and bool(token) and room_map_ready
+            ) else "FAIL",
+            "rooms": membership.get("rooms_expected") if membership_ready else 0,
         }
         if not homeserver:
             missing.append("MATRIX_HOMESERVER_MISSING")
@@ -246,6 +265,13 @@ def build_pack_report(
             missing.append("MATRIX_ROOM_MAP_MISSING")
         elif not room_map_ready:
             missing.append("MATRIX_ROOM_MAP_INVALID")
+        elif homeserver_ready and token and not membership_ready:
+            error = membership.get("error")
+            missing.append(
+                "MATRIX_ROOM_MAP_UNJOINED"
+                if error == "MATRIX_ROOM_MAP_UNJOINED"
+                else "MATRIX_ROOM_MEMBERSHIP_UNVERIFIED"
+            )
 
     status = "READY" if not missing else "BLOCKED"
     fallback_mode = "QUICK" if normalized == "live" and repository_ready else "PUBLIC_EVIDENCE_REPLAY"

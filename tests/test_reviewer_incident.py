@@ -31,6 +31,7 @@ SESSION_ID = "20260831-091"
 def _event(event_id: str, kind: str, actor: str, timestamp: str) -> dict:
     return {
         "classification": "NON_AUTHORITATIVE_UI_PROJECTION",
+        "validation_version": "matrix-sender-bound-v1",
         "event_id": event_id,
         "room_id": f"!{actor}:example.invalid",
         "actor": actor,
@@ -53,6 +54,19 @@ class ReviewerIncidentTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
+
+    def test_status_rejects_a_projection_without_sender_bound_validation(self) -> None:
+        observer = self.session_root / "observer"
+        observer.mkdir(exist_ok=True)
+        legacy = _event("$legacy", "evidence_incomplete", "evidence-collector", "2026-08-31T10:00:00Z")
+        legacy.pop("validation_version")
+        (observer / "normalized_events.jsonl").write_text(
+            json.dumps(legacy) + "\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(ReviewerIncidentError, "invalid"):
+            review_reviewer_incident(self.session_root)
 
     def test_prepare_is_non_overwritable_and_does_not_leak_the_answer(self) -> None:
         self.assertEqual(self.prepared["status"], "PREPARED")

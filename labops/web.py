@@ -16,8 +16,15 @@ from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 from labops.live_demo import ROLE_ORDER, SESSION_ID
+from labops.matrix_observer import (
+    PROJECTION_VALIDATION_VERSION,
+    projection_actor_valid,
+)
 from labops.reviewer_state import EVENT_KINDS
 from labops.trace import TraceLog
+
+
+REVIEWER_PROJECTION_EVENT_KINDS = set(EVENT_KINDS) | {"evidence_incomplete"}
 
 
 def _read_json(path: Path, default: Any) -> Any:
@@ -1108,13 +1115,15 @@ def _read_reviewer_events(path: Path, *, maximum_bytes: int = 2 * 1024 * 1024) -
         if (
             not isinstance(item, dict)
             or item.get("classification") != "NON_AUTHORITATIVE_UI_PROJECTION"
+            or item.get("validation_version") != PROJECTION_VALIDATION_VERSION
             or not isinstance(item.get("event_id"), str)
             or not item["event_id"].startswith("$")
             or not isinstance(item.get("kind"), str)
-            or item["kind"] not in EVENT_KINDS
+            or item["kind"] not in REVIEWER_PROJECTION_EVENT_KINDS
             or not isinstance(room_id, str)
             or not room_id.startswith("!")
             or actor not in set(ROLE_ORDER) | {"human-approver"}
+            or not projection_actor_valid(actor, item.get("kind"))
             or not isinstance(item.get("workflow_from"), str)
             or not isinstance(item.get("workflow_to"), str)
             or item.get("evidence_state") != "OBSERVED"

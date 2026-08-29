@@ -26,6 +26,17 @@ FORMAL_BUNDLES = (
     ROOT / "demo/output-agentteams-at003/artifacts/DEMO-RCA-003/LABOPS-AT-003-evidence-bundle.zip",
     ROOT / "demo/output-agentteams-at004/LABOPS-AT-004-EVAL-DRIFT-evidence-bundle.zip",
 )
+REAL_ROOM_MAP = {
+    "schema_version": "1.0",
+    "rooms": {
+        "!manager:matrix-local.hiclaw.io": "labops-manager",
+        "!collector:matrix-local.hiclaw.io": "evidence-collector",
+        "!rca:matrix-local.hiclaw.io": "rca-analyst",
+        "!planner:matrix-local.hiclaw.io": "experiment-planner",
+        "!executor:matrix-local.hiclaw.io": "safe-executor",
+        "!auditor:matrix-local.hiclaw.io": "verification-auditor",
+    },
+}
 
 
 def _sha(path: Path) -> str:
@@ -106,10 +117,7 @@ class ReviewerPreflightTests(unittest.TestCase):
     def test_live_mode_accepts_a_valid_room_allowlist_without_exposing_credentials(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             room_map = Path(tmp) / "rooms.json"
-            room_map.write_text(
-                (ROOT / "config/reviewer-room-map.example.json").read_text(encoding="utf-8"),
-                encoding="utf-8",
-            )
+            room_map.write_text(json.dumps(REAL_ROOM_MAP), encoding="utf-8")
             environment = {
                 "LABOPS_MATRIX_HOMESERVER": "http://127.0.0.1:18080",
                 "LABOPS_MATRIX_ACCESS_TOKEN": "reviewer-secret-token",
@@ -120,6 +128,12 @@ class ReviewerPreflightTests(unittest.TestCase):
                 "live",
                 environment=environment,
                 docker_probe=lambda _root: {"docker": True, "runner_image": True},
+                matrix_probe=lambda _homeserver, _token, roles: {
+                    "connected": True,
+                    "all_joined": True,
+                    "rooms_expected": len(roles),
+                    "error": None,
+                },
             )
 
         self.assertEqual(report["status"], "READY")
@@ -127,6 +141,31 @@ class ReviewerPreflightTests(unittest.TestCase):
         rendered = json.dumps(report, ensure_ascii=False)
         self.assertNotIn("reviewer-secret-token", rendered)
         self.assertNotIn(str(room_map), rendered)
+
+    def test_live_mode_blocks_a_well_formed_but_unjoined_room_map(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            room_map = Path(tmp) / "rooms.json"
+            room_map.write_text(json.dumps(REAL_ROOM_MAP), encoding="utf-8")
+            report = build_preflight(
+                ROOT,
+                "live",
+                environment={
+                    "LABOPS_MATRIX_HOMESERVER": "http://127.0.0.1:18080",
+                    "LABOPS_MATRIX_ACCESS_TOKEN": "reviewer-secret-token",
+                    "LABOPS_MATRIX_ROOM_MAP": str(room_map),
+                },
+                docker_probe=lambda _root: {"docker": True, "runner_image": True},
+                matrix_probe=lambda _homeserver, _token, roles: {
+                    "connected": True,
+                    "all_joined": False,
+                    "rooms_expected": len(roles),
+                    "error": "MATRIX_ROOM_MAP_UNJOINED",
+                },
+            )
+
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertIn("MATRIX_ROOM_MAP_UNJOINED", report["missing_requirements"])
+        self.assertEqual(report["checks"]["matrix_room_membership"]["status"], "FAIL")
 
 
 class ReviewerLifecycleTests(unittest.TestCase):

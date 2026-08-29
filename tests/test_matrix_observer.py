@@ -12,6 +12,7 @@ from labops.live_demo import prepare_session
 from labops.matrix_observer import (
     load_room_map,
     normalize_sync_response,
+    probe_joined_rooms,
     sync_once,
     write_observer_projection,
 )
@@ -50,6 +51,7 @@ class MatrixObserverTests(unittest.TestCase):
         kind: str = "rca_to_planner",
         event_type: str = "m.room.message",
         include_run: bool = True,
+        sender: str = "@rca-analyst:matrix-local.hiclaw.io",
     ) -> dict:
         bindings = [
             SESSION["session_id"],
@@ -61,7 +63,7 @@ class MatrixObserverTests(unittest.TestCase):
         return {
             "type": event_type,
             "event_id": event_id,
-            "sender": "@worker:example.invalid",
+            "sender": sender,
             "origin_server_ts": 1788152400000,
             "content": {
                 "msgtype": "m.text",
@@ -86,15 +88,15 @@ class MatrixObserverTests(unittest.TestCase):
             document = {
                 "schema_version": "1.0",
                 "rooms": {
-                    "!manager:example.invalid": "labops-manager",
-                    "!collector:example.invalid": "evidence-collector",
+                    "!manager:matrix-local.hiclaw.io": "labops-manager",
+                    "!collector:matrix-local.hiclaw.io": "evidence-collector",
                 },
             }
             path.write_text(json.dumps(document), encoding="utf-8")
             self.assertEqual(load_room_map(path), document["rooms"])
             validate_document(document, "reviewer_config.schema.json", ROOT)
 
-            document["rooms"]["!manager-copy:example.invalid"] = "labops-manager"
+            document["rooms"]["!manager-copy:matrix-local.hiclaw.io"] = "labops-manager"
             path.write_text(json.dumps(document), encoding="utf-8")
             with self.assertRaises(ValueError):
                 load_room_map(path)
@@ -104,9 +106,13 @@ class MatrixObserverTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 load_room_map(path)
 
+    def test_room_map_rejects_the_committed_placeholder_template(self) -> None:
+        with self.assertRaisesRegex(ValueError, "placeholder"):
+            load_room_map(ROOT / "config/reviewer-room-map.example.json")
+
     def test_normalization_excludes_unlisted_rooms_and_unbound_messages(self) -> None:
-        allowed = "!rca:example.invalid"
-        excluded = "!unlisted:example.invalid"
+        allowed = "!rca:matrix-local.hiclaw.io"
+        excluded = "!unlisted:matrix-local.hiclaw.io"
         payload = self._sync_payload({
             allowed: {"timeline": {"events": [
                 self._bound_event("$accepted"),
@@ -121,12 +127,13 @@ class MatrixObserverTests(unittest.TestCase):
         self.assertEqual(event["actor"], "rca-analyst")
         self.assertEqual(event["kind"], "rca_to_planner")
         self.assertEqual(event["classification"], "NON_AUTHORITATIVE_UI_PROJECTION")
+        self.assertEqual(event["validation_version"], "matrix-sender-bound-v1")
         self.assertEqual(event["artifact_refs"], ["shared/hypotheses.json"])
         self.assertNotIn("body", event)
         self.assertNotIn("private", json.dumps(event))
 
     def test_normalization_rejects_unknown_event_kind_and_invalid_event_id(self) -> None:
-        room = "!planner:example.invalid"
+        room = "!planner:matrix-local.hiclaw.io"
         payload = self._sync_payload({
             room: {"timeline": {"events": [
                 self._bound_event("not-a-matrix-event", kind="policy_passed"),
@@ -136,10 +143,14 @@ class MatrixObserverTests(unittest.TestCase):
         self.assertEqual(normalize_sync_response(payload, {room: "experiment-planner"}, SESSION), [])
 
     def test_normalization_observes_evidence_gap_without_treating_it_as_terminal_proof(self) -> None:
-        room = "!collector:example.invalid"
+        room = "!collector:matrix-local.hiclaw.io"
         payload = self._sync_payload({
             room: {"timeline": {"events": [
-                self._bound_event("$gap", kind="evidence_incomplete"),
+                self._bound_event(
+                    "$gap",
+                    kind="evidence_incomplete",
+                    sender="@evidence-collector:matrix-local.hiclaw.io",
+                ),
             ]}}
         })
 
@@ -150,8 +161,82 @@ class MatrixObserverTests(unittest.TestCase):
         self.assertEqual(events[0]["evidence_state"], "OBSERVED")
         self.assertNotEqual(events[0]["evidence_state"], "VERIFIED")
 
+    def test_normalization_rejects_manager_instruction_in_collector_room(self) -> None:
+        room = "!collector:matrix-local.hiclaw.io"
+        payload = self._sync_payload({
+            room: {"timeline": {"events": [
+                self._bound_event(
+                    "$manager-instruction",
+                    kind="evidence_incomplete",
+                    sender="@manager:matrix-local.hiclaw.io",
+                ),
+            ]}}
+        })
+
+        self.assertEqual(
+            normalize_sync_response(payload, {room: "evidence-collector"}, SESSION),
+            [],
+        )
+
+    def test_normalization_rejects_matching_localpart_from_a_foreign_homeserver(self) -> None:
+        room = "!collector:matrix-local.hiclaw.io"
+        payload = self._sync_payload({
+            room: {"timeline": {"events": [
+                self._bound_event(
+                    "$foreign-collector",
+                    kind="evidence_incomplete",
+                    sender="@evidence-collector:evil.example",
+                ),
+            ]}}
+        })
+
+        self.assertEqual(
+            normalize_sync_response(payload, {room: "evidence-collector"}, SESSION),
+            [],
+        )
+
+    def test_normalization_accepts_runtime_alias_only_for_its_canonical_role(self) -> None:
+        room = "!planner:matrix-local.hiclaw.io"
+        payload = self._sync_payload({
+            room: {"timeline": {"events": [
+                self._bound_event(
+                    "$planner-policy",
+                    kind="policy_passed",
+                    sender="@researcher:matrix-local.hiclaw.io",
+                ),
+            ]}}
+        })
+
+        events = normalize_sync_response(payload, {room: "experiment-planner"}, SESSION)
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["actor"], "experiment-planner")
+
+    def test_human_approval_requires_a_non_agent_sender_on_the_room_homeserver(self) -> None:
+        room = "!manager:matrix-local.hiclaw.io"
+        local = self._bound_event(
+            "$local-approval",
+            kind="approval_granted",
+            sender="@human-reviewer:matrix-local.hiclaw.io",
+        )
+        local["content"]["labops_event"]["actor"] = "human-approver"
+        foreign = self._bound_event(
+            "$foreign-approval",
+            kind="approval_granted",
+            sender="@human-reviewer:evil.example",
+        )
+        foreign["content"]["labops_event"]["actor"] = "human-approver"
+        payload = self._sync_payload({
+            room: {"timeline": {"events": [local, foreign]}},
+        })
+
+        events = normalize_sync_response(payload, {room: "labops-manager"}, SESSION)
+
+        self.assertEqual([event["event_id"] for event in events], ["$local-approval"])
+        self.assertEqual(events[0]["actor"], "human-approver")
+
     def test_sync_once_uses_bearer_header_and_returns_sanitized_snapshot(self) -> None:
-        room = "!rca:example.invalid"
+        room = "!rca:matrix-local.hiclaw.io"
         payload = self._sync_payload({
             room: {"timeline": {"events": [self._bound_event("$accepted")]}}
         })
@@ -180,6 +265,99 @@ class MatrixObserverTests(unittest.TestCase):
         self.assertEqual(observed["timeout"], 5.0)
         self.assertNotIn("secret-token-value", json.dumps(result))
 
+    def test_initial_sync_fails_closed_when_configured_rooms_are_not_joined(self) -> None:
+        configured = "!collector:matrix-local.hiclaw.io"
+        payload = self._sync_payload({
+            "!different:matrix-local.hiclaw.io": {"timeline": {"events": []}},
+        })
+
+        def opener(_request, timeout):
+            del timeout
+            return FakeResponse(payload)
+
+        result = sync_once(
+            "http://matrix-local.hiclaw.io:18080",
+            "secret-token-value",
+            {configured: "evidence-collector"},
+            session=SESSION,
+            opener=opener,
+        )
+
+        self.assertFalse(result["connected"])
+        self.assertEqual(result["source_status"], "DISCONNECTED")
+        self.assertEqual(result["errors"], [{"code": "MATRIX_ROOM_MAP_UNJOINED"}])
+        self.assertNotIn(configured, json.dumps(result))
+
+    def test_incremental_sync_does_not_require_unchanged_rooms_to_reappear(self) -> None:
+        configured = "!collector:matrix-local.hiclaw.io"
+
+        def opener(_request, timeout):
+            del timeout
+            return FakeResponse(self._sync_payload({}))
+
+        result = sync_once(
+            "http://matrix-local.hiclaw.io:18080",
+            "secret-token-value",
+            {configured: "evidence-collector"},
+            since="s123_456",
+            session=SESSION,
+            opener=opener,
+        )
+
+        self.assertTrue(result["connected"])
+        self.assertEqual(result["source_status"], "LIVE")
+
+    def test_incremental_sync_fails_closed_when_a_configured_room_is_left(self) -> None:
+        configured = "!collector:matrix-local.hiclaw.io"
+        payload = {
+            "next_batch": "s124_000",
+            "rooms": {"join": {}, "leave": {configured: {}}},
+        }
+
+        def opener(_request, timeout):
+            del timeout
+            return FakeResponse(payload)
+
+        result = sync_once(
+            "http://matrix-local.hiclaw.io:18080",
+            "secret-token-value",
+            {configured: "evidence-collector"},
+            since="s123_456",
+            session=SESSION,
+            opener=opener,
+        )
+
+        self.assertFalse(result["connected"])
+        self.assertEqual(result["errors"], [{"code": "MATRIX_ROOM_MAP_UNJOINED"}])
+
+    def test_membership_probe_fails_closed_without_leaking_room_ids_or_token(self) -> None:
+        configured = "!collector:matrix-local.hiclaw.io"
+        token = "secret-token-value"
+
+        def opener(_request, timeout):
+            del timeout
+            return FakeResponse({"joined_rooms": ["!different:matrix-local.hiclaw.io"]})
+
+        result = probe_joined_rooms(
+            "http://matrix-local.hiclaw.io:18080",
+            token,
+            {configured: "evidence-collector"},
+            opener=opener,
+        )
+
+        self.assertEqual(
+            result,
+            {
+                "connected": True,
+                "all_joined": False,
+                "rooms_expected": 1,
+                "error": "MATRIX_ROOM_MAP_UNJOINED",
+            },
+        )
+        rendered = json.dumps(result)
+        self.assertNotIn(configured, rendered)
+        self.assertNotIn(token, rendered)
+
     def test_sync_errors_are_structured_and_never_leak_token(self) -> None:
         token = "top-secret-matrix-token"
 
@@ -189,7 +367,7 @@ class MatrixObserverTests(unittest.TestCase):
         result = sync_once(
             "http://matrix.example.invalid",
             token,
-            {"!manager:example.invalid": "labops-manager"},
+            {"!manager:matrix-local.hiclaw.io": "labops-manager"},
             opener=opener,
         )
         self.assertFalse(result["connected"])
@@ -198,7 +376,7 @@ class MatrixObserverTests(unittest.TestCase):
         self.assertNotIn(token, json.dumps(result))
 
     def test_encrypted_room_is_explicitly_unsupported(self) -> None:
-        room = "!auditor:example.invalid"
+        room = "!auditor:matrix-local.hiclaw.io"
         payload = self._sync_payload({
             room: {"timeline": {"events": [
                 self._bound_event("$encrypted", event_type="m.room.encrypted"),
@@ -234,8 +412,9 @@ class MatrixObserverTests(unittest.TestCase):
                 "next_batch": "s1",
                 "events": [{
                     "classification": "NON_AUTHORITATIVE_UI_PROJECTION",
+                    "validation_version": "matrix-sender-bound-v1",
                     "event_id": "$one",
-                    "room_id": "!manager:example.invalid",
+                    "room_id": "!manager:matrix-local.hiclaw.io",
                     "actor": "labops-manager",
                     "kind": "task_dispatched",
                     "timestamp": "2026-08-31T10:00:00Z",
@@ -267,6 +446,47 @@ class MatrixObserverTests(unittest.TestCase):
             invalid["source_status"] = "PRETEND_LIVE"
             with self.assertRaises(ValueError):
                 write_observer_projection(session_root, invalid)
+
+    def test_projection_discards_legacy_cache_without_sender_validation_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            session_root = Path(prepare_session(ROOT, Path(tmp), "20260831-081")["session_root"])
+            observer = session_root / "observer"
+            observer.mkdir()
+            legacy = {
+                "classification": "NON_AUTHORITATIVE_UI_PROJECTION",
+                "event_id": "$legacy",
+                "room_id": "!collector:matrix-local.hiclaw.io",
+                "actor": "evidence-collector",
+                "kind": "evidence_incomplete",
+                "timestamp": "2026-08-31T10:00:00Z",
+                "workflow_from": "EVIDENCE_COLLECTING",
+                "workflow_to": "BLOCKED",
+                "evidence_state": "OBSERVED",
+                "artifact_refs": [],
+                "hash_refs": [],
+            }
+            (observer / "normalized_events.jsonl").write_text(
+                json.dumps(legacy) + "\n",
+                encoding="utf-8",
+            )
+
+            write_observer_projection(
+                session_root,
+                {
+                    "connected": True,
+                    "source_status": "LIVE",
+                    "checked_at": "2026-08-31T10:00:01Z",
+                    "last_success_at": "2026-08-31T10:00:01Z",
+                    "next_batch": "s1",
+                    "events": [],
+                    "errors": [],
+                },
+            )
+
+            self.assertEqual(
+                (observer / "normalized_events.jsonl").read_text(encoding="utf-8"),
+                "",
+            )
 
     def test_projection_refuses_formal_evidence_like_roots(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

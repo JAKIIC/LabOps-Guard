@@ -129,6 +129,9 @@ Copy-Item config/reviewer-room-map.example.json config/reviewer-room-map.json
 ```
 
 `config/reviewer-room-map.json` 已被 Git 忽略。不要修改或提交 `.example.json` 来保存真实 room。
+模板中的 `example.invalid` 是故意不可运行的占位值，直接复制而不替换时，preflight 必须返回
+`MATRIX_ROOM_MAP_INVALID`。在 Element 中依次打开六个真实会话的“房间信息 / 设置 / 高级”，复制
+以 `!` 开头的 **Internal room ID**；不要填写 `#` 开头的 room alias，也不要填写浏览器 URL。
 
 ### Windows 环境变量
 
@@ -188,6 +191,10 @@ python -B -m labops live-demo verify --session 20260831-001
 python -B scripts/verify_evidence.py
 ```
 
+Live preflight 会通过 Matrix `joined_rooms` 接口确认当前 Token 已加入配置的六个 room；Observer
+首次 `/sync` 会再次执行同一 fail-closed 门禁。配置格式正确但房间未加入时返回
+`MATRIX_ROOM_MAP_UNJOINED`，不会显示 `LIVE`。
+
 Live 验证只有在真实六角色 Matrix 事件、Approval、Gateway 请求、Runner Artifact 与 Auditor
 结论全部存在且交叉绑定时才能通过。缺少任何一项都必须显示 `BLOCKED`。Recovery event 不能
 替代 AgentTeams handoff，人工也不能直接写 `RESOLVED`。
@@ -199,6 +206,8 @@ Live 验证只有在真实六角色 Matrix 事件、Approval、Gateway 请求、
 | Matrix/HiClaw 未配置 | 使用 Quick Mode，不称为 Live |
 | Docker 或 Runner 镜像缺失 | Live preflight 返回 `BLOCKED`；不要绕过 |
 | room map 不完整 | 修复本地配置；不要补写虚假 room/event |
+| room map 仍是模板 | 用 Element 的 Internal room ID 替换全部 `example.invalid` 值 |
+| `MATRIX_ROOM_MAP_UNJOINED` | 确认 Token 所属账号已加入六个真实 room，且未误填 alias/URL |
 | Agent/证据不完整 | 保持 `BLOCKED`，按 Recovery/Human Takeover 流程处理 |
 | 现场网络或 UI 故障 | 使用 Quick Replay、Public Demo、视频和 Evidence verifier |
 

@@ -39,6 +39,11 @@ Quick Mode 用于稳定复核归档 Evidence；Live Mode 仅在外部 AgentTeams
 与六角色 room map 真实可用时启动。Reviewer Workbench 是观察面，不发送任务、不进行审批，
 也不能替代下面的真人 Element 操作和 `live-demo verify`。
 
+Live Observer 同时核验 allowlisted room、真实 Matrix `event.sender`、session/task/incident/run
+绑定和事件类型。Manager 在 Worker room 中发送的任务说明不会被归因为 Worker 结果；例如任务
+正文里出现 `LABOPS_EVENT_KIND: evidence_incomplete`，只有真实 `evidence-collector` 账号发送时
+才会进入只读事件投影。
+
 ## 2. 当前真实运行链路
 
 1. 参赛者把 `agentteams/prompts/eval_drift_task.md` 的完整文本发送到已配置的 AgentTeams

@@ -32,7 +32,12 @@ from labops.live_demo import (
     _session_manifest,
     prepare_session,
 )
-from labops.matrix_observer import load_room_map, sync_once, write_observer_projection
+from labops.matrix_observer import (
+    load_room_map,
+    probe_joined_rooms,
+    sync_once,
+    write_observer_projection,
+)
 
 
 LIFECYCLE_CLASSIFICATION = "LOCAL_REVIEWER_LIFECYCLE"
@@ -143,6 +148,7 @@ def build_preflight(
     *,
     environment: dict[str, str] | None = None,
     docker_probe: Callable[[Path], dict[str, bool]] | None = None,
+    matrix_probe: Callable[[str, str, dict[str, str]], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Return deterministic, credential-free Reviewer readiness JSON."""
 
@@ -179,6 +185,7 @@ def build_preflight(
         homeserver_ready = homeserver.startswith(("http://", "https://"))
         token_ready = bool(token)
         room_map_ready = False
+        room_roles: dict[str, str] = {}
         if room_map_value:
             try:
                 room_roles = load_room_map(Path(room_map_value))
@@ -188,6 +195,21 @@ def build_preflight(
         checks["matrix_homeserver"] = {"status": "PASS" if homeserver_ready else "FAIL"}
         checks["matrix_access_token"] = {"status": "PASS" if token_ready else "FAIL", "redacted": True}
         checks["matrix_room_map"] = {"status": "PASS" if room_map_ready else "FAIL", "rooms": 6 if room_map_ready else 0}
+        membership = {
+            "connected": False,
+            "all_joined": False,
+            "rooms_expected": len(room_roles),
+            "error": None,
+        }
+        if homeserver_ready and token_ready and room_map_ready:
+            membership = (matrix_probe or probe_joined_rooms)(homeserver, token, room_roles)
+        membership_ready = membership.get("all_joined") is True
+        checks["matrix_room_membership"] = {
+            "status": "PASS" if membership_ready else "NOT_CHECKED" if not (
+                homeserver_ready and token_ready and room_map_ready
+            ) else "FAIL",
+            "rooms": membership.get("rooms_expected") if membership_ready else 0,
+        }
         if not homeserver:
             missing.append("MATRIX_HOMESERVER_MISSING")
         elif not homeserver_ready:
@@ -198,7 +220,14 @@ def build_preflight(
             missing.append("MATRIX_ROOM_MAP_MISSING")
         elif not room_map_ready:
             missing.append("MATRIX_ROOM_MAP_INVALID")
-        if repository_ready and docker_ready and image_ready and homeserver_ready and token_ready and room_map_ready:
+        elif homeserver_ready and token_ready and not membership_ready:
+            error = membership.get("error")
+            missing.append(
+                "MATRIX_ROOM_MAP_UNJOINED"
+                if error == "MATRIX_ROOM_MAP_UNJOINED"
+                else "MATRIX_ROOM_MEMBERSHIP_UNVERIFIED"
+            )
+        if repository_ready and docker_ready and image_ready and homeserver_ready and token_ready and room_map_ready and membership_ready:
             available_modes.append("LIVE")
 
     requested = normalized.upper()

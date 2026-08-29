@@ -104,6 +104,7 @@ class ReviewerWebTests(unittest.TestCase):
     ) -> dict:
         return {
             "classification": "NON_AUTHORITATIVE_UI_PROJECTION",
+            "validation_version": "matrix-sender-bound-v1",
             "event_id": event_id,
             "room_id": "!private-reviewer-room:matrix.example.invalid",
             "actor": actor,
@@ -300,6 +301,40 @@ class ReviewerWebTests(unittest.TestCase):
         payload = caught.exception.read().decode("utf-8")
         self.assertNotIn(private_path, payload)
         self.assertIn("REVIEWER_SOURCE_INVALID", payload)
+
+    def test_legacy_event_without_sender_validation_version_is_blocked(self) -> None:
+        event_path = self.session_root / "observer" / "normalized_events.jsonl"
+        event = json.loads(event_path.read_text(encoding="utf-8").splitlines()[0])
+        event.pop("validation_version")
+        event_path.write_text(json.dumps(event) + "\n", encoding="utf-8")
+
+        request = urllib.request.Request(
+            self.base + f"/api/reviewer/status?session={self.SESSION_ID}"
+        )
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(request, timeout=3)
+
+        self.assertEqual(caught.exception.code, 503)
+        self.assertIn("REVIEWER_SOURCE_INVALID", caught.exception.read().decode("utf-8"))
+
+    def test_evidence_incomplete_is_a_valid_dynamic_projection_event(self) -> None:
+        event_path = self.session_root / "observer" / "normalized_events.jsonl"
+        gap = self._event(
+            "$evidence-gap",
+            "evidence_incomplete",
+            "evidence-collector",
+            "EVIDENCE_COLLECTING",
+            "BLOCKED",
+            "2026-08-28T11:59:56Z",
+        )
+        event_path.write_text(json.dumps(gap) + "\n", encoding="utf-8")
+
+        payload = self._json(
+            f"/api/reviewer/events?session={self.SESSION_ID}&after=0"
+        )
+
+        self.assertEqual(payload["events"][0]["kind"], "evidence_incomplete")
+        self.assertEqual(payload["events"][0]["actor"], "evidence-collector")
 
 
 if __name__ == "__main__":

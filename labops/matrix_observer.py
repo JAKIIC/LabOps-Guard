@@ -19,20 +19,36 @@ from urllib.request import Request, urlopen
 
 from labops.contracts import ContractError, validate_document
 from labops.live_demo import CLASSIFICATION, ROLE_ORDER
-from labops.reviewer_state import EXPECTED_TIMELINE
+from labops.reviewer_state import AGENT_PROGRESS, EXPECTED_TIMELINE
 
 
 PROJECTION_CLASSIFICATION = "NON_AUTHORITATIVE_UI_PROJECTION"
+PROJECTION_VALIDATION_VERSION = "matrix-sender-bound-v1"
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_EVENTS_PER_SYNC = 256
 ROOM_ID = re.compile(r"^![^:\s]+:\S+$")
 EVENT_ID = re.compile(r"^\$\S+$")
+MATRIX_USER_ID = re.compile(r"^@([^:\s]+):(\S+)$")
 EVENT_KIND = re.compile(r"LABOPS_EVENT_KIND\s*[:=]\s*([a-z_]+)", re.IGNORECASE)
 SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 TRANSITIONS = {kind: (source, target) for kind, source, target in EXPECTED_TIMELINE}
 TRANSITIONS.update({
     "evidence_incomplete": ("EVIDENCE_COLLECTING", "BLOCKED"),
 })
+EVENT_ACTORS = {kind: actor for kind, (actor, _state) in AGENT_PROGRESS.items()}
+EVENT_ACTORS["evidence_incomplete"] = "evidence-collector"
+RUNTIME_SENDER_ALIASES = {
+    "manager": "labops-manager",
+    "labops-manager": "labops-manager",
+    "hiclaw-manager": "labops-manager",
+    "evidence-collector": "evidence-collector",
+    "rca-analyst": "rca-analyst",
+    "researcher": "experiment-planner",
+    "experiment-planner": "experiment-planner",
+    "controlled-executor": "safe-executor",
+    "safe-executor": "safe-executor",
+    "verification-auditor": "verification-auditor",
+}
 SOURCE_STATUSES = {"LIVE", "STALE", "DISCONNECTED", "UNSUPPORTED_ENCRYPTED_ROOM"}
 ERROR_CODES = {
     "MATRIX_AUTH_FAILED",
@@ -40,6 +56,7 @@ ERROR_CODES = {
     "MATRIX_CONFIG_INVALID",
     "MATRIX_RESPONSE_TOO_LARGE",
     "MATRIX_RESPONSE_INVALID",
+    "MATRIX_ROOM_MAP_UNJOINED",
     "UNSUPPORTED_ENCRYPTED_ROOM",
 }
 
@@ -71,6 +88,9 @@ def load_room_map(path: str | Path) -> dict[str, str]:
     for room_id, agent_id in rooms.items():
         if not isinstance(room_id, str) or ROOM_ID.fullmatch(room_id) is None:
             raise ValueError("Reviewer room map contains an invalid Matrix room ID")
+        domain = room_id.split(":", 1)[1].lower()
+        if domain == "example.invalid" or domain.endswith(".invalid"):
+            raise ValueError("Reviewer room map contains a placeholder Matrix room ID")
         if agent_id not in ROLE_ORDER:
             raise ValueError("Reviewer room map contains an unknown Agent ID")
         if agent_id in seen_roles:
@@ -118,6 +138,30 @@ def _session_bindings(session: dict[str, Any]) -> list[str]:
     return [str(value) for value in values]
 
 
+def _sender_localpart(sender: object, room_id: str) -> str | None:
+    if not isinstance(sender, str) or not isinstance(room_id, str) or ":" not in room_id:
+        return None
+    match = MATRIX_USER_ID.fullmatch(sender)
+    if match is None or match.group(2).lower() != room_id.split(":", 1)[1].lower():
+        return None
+    return match.group(1).lower()
+
+
+def _sender_role(sender: object, room_id: str) -> str | None:
+    localpart = _sender_localpart(sender, room_id)
+    return RUNTIME_SENDER_ALIASES.get(localpart) if localpart is not None else None
+
+
+def projection_actor_valid(actor: object, kind: object) -> bool:
+    """Return whether a projected kind is bound to its authorized actor."""
+
+    if not isinstance(kind, str):
+        return False
+    if kind == "approval_granted":
+        return actor == "human-approver"
+    return EVENT_ACTORS.get(kind) == actor
+
+
 def _normalized_event(
     event: dict[str, Any],
     room_id: str,
@@ -142,6 +186,21 @@ def _normalized_event(
         kind = match.group(1).lower() if match else None
     if kind not in TRANSITIONS:
         return None
+    sender = event.get("sender")
+    sender_role = _sender_role(sender, room_id)
+    if kind == "approval_granted":
+        if structured.get("actor") != "human-approver" or sender_role is not None:
+            return None
+        if _sender_localpart(sender, room_id) is None:
+            return None
+        actor = "human-approver"
+    else:
+        expected_actor = EVENT_ACTORS.get(kind)
+        if expected_actor is None or sender_role != expected_actor:
+            return None
+        if expected_actor != agent_id and expected_actor != "labops-manager":
+            return None
+        actor = expected_actor
     expected_from, expected_to = TRANSITIONS[kind]
     workflow_from = structured.get("workflow_from")
     workflow_to = structured.get("workflow_to")
@@ -149,11 +208,9 @@ def _normalized_event(
         workflow_from = expected_from
     if not isinstance(workflow_to, str) or not workflow_to:
         workflow_to = expected_to
-    actor = agent_id
-    if kind == "approval_granted" and structured.get("actor") == "human-approver":
-        actor = "human-approver"
     return {
         "classification": PROJECTION_CLASSIFICATION,
+        "validation_version": PROJECTION_VALIDATION_VERSION,
         "event_id": event_id,
         "room_id": room_id,
         "actor": actor,
@@ -230,6 +287,57 @@ def _failure(checked_at: str, code: str) -> dict[str, Any]:
     }
 
 
+def probe_joined_rooms(
+    homeserver: str,
+    token: str,
+    room_roles: dict[str, str],
+    opener: Callable[..., Any] = urlopen,
+    timeout: float = 5.0,
+) -> dict[str, Any]:
+    """Verify configured rooms are joined without returning private identifiers."""
+
+    base = {
+        "connected": False,
+        "all_joined": False,
+        "rooms_expected": len(room_roles) if isinstance(room_roles, dict) else 0,
+        "error": "MATRIX_CONFIG_INVALID",
+    }
+    if (
+        not isinstance(homeserver, str)
+        or not homeserver.startswith(("http://", "https://"))
+        or not isinstance(token, str)
+        or not token
+        or not isinstance(room_roles, dict)
+        or not room_roles
+    ):
+        return base
+    endpoint = homeserver.rstrip("/") + "/_matrix/client/v3/joined_rooms"
+    request = Request(endpoint, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+    try:
+        with opener(request, timeout=timeout) as response:
+            raw = response.read(MAX_RESPONSE_BYTES + 1)
+            if len(raw) > MAX_RESPONSE_BYTES:
+                return dict(base, error="MATRIX_RESPONSE_TOO_LARGE")
+            payload = json.loads(raw.decode("utf-8"))
+    except HTTPError as exc:
+        code = "MATRIX_AUTH_FAILED" if exc.code in {401, 403} else "MATRIX_UNAVAILABLE"
+        return dict(base, error=code)
+    except (URLError, OSError, TimeoutError):
+        return dict(base, error="MATRIX_UNAVAILABLE")
+    except (UnicodeError, json.JSONDecodeError, ValueError, TypeError):
+        return dict(base, error="MATRIX_RESPONSE_INVALID")
+    joined = payload.get("joined_rooms") if isinstance(payload, dict) else None
+    if not isinstance(joined, list) or any(not isinstance(item, str) for item in joined):
+        return dict(base, connected=True, error="MATRIX_RESPONSE_INVALID")
+    all_joined = set(room_roles).issubset(set(joined))
+    return {
+        "connected": True,
+        "all_joined": all_joined,
+        "rooms_expected": len(room_roles),
+        "error": None if all_joined else "MATRIX_ROOM_MAP_UNJOINED",
+    }
+
+
 def sync_once(
     homeserver: str,
     token: str,
@@ -267,6 +375,15 @@ def sync_once(
         return _failure(checked_at, "MATRIX_UNAVAILABLE")
     except (UnicodeError, json.JSONDecodeError, ValueError, TypeError):
         return _failure(checked_at, "MATRIX_RESPONSE_INVALID")
+
+    joined = payload.get("rooms", {}).get("join", {}) if isinstance(payload.get("rooms"), dict) else {}
+    if since is None and (
+        not isinstance(joined, dict) or not set(room_roles).issubset(set(joined))
+    ):
+        return _failure(checked_at, "MATRIX_ROOM_MAP_UNJOINED")
+    left = payload.get("rooms", {}).get("leave", {}) if isinstance(payload.get("rooms"), dict) else {}
+    if isinstance(left, dict) and set(room_roles).intersection(set(left)):
+        return _failure(checked_at, "MATRIX_ROOM_MAP_UNJOINED")
 
     encrypted = _encrypted_rooms(payload, room_roles)
     if encrypted:
@@ -340,10 +457,12 @@ def _cache_event(value: object) -> dict[str, Any] | None:
     if (
         not isinstance(event_id, str)
         or EVENT_ID.fullmatch(event_id) is None
+        or value.get("validation_version") != PROJECTION_VALIDATION_VERSION
         or not isinstance(room_id, str)
         or ROOM_ID.fullmatch(room_id) is None
         or actor not in set(ROLE_ORDER) | {"human-approver"}
         or kind not in TRANSITIONS
+        or not projection_actor_valid(actor, kind)
     ):
         return None
     expected_from, expected_to = TRANSITIONS[str(kind)]
@@ -351,6 +470,7 @@ def _cache_event(value: object) -> dict[str, Any] | None:
     workflow_to = value.get("workflow_to")
     return {
         "classification": PROJECTION_CLASSIFICATION,
+        "validation_version": PROJECTION_VALIDATION_VERSION,
         "event_id": event_id,
         "room_id": room_id,
         "actor": actor,
@@ -406,7 +526,7 @@ def write_observer_projection(session_root: str | Path, snapshot: dict) -> None:
                 raise ValueError("observer event cache is malformed") from exc
             sanitized = _cache_event(record)
             if sanitized is None:
-                raise ValueError("observer event cache contains an invalid record")
+                continue
             if sanitized["event_id"] in seen:
                 continue
             seen.add(sanitized["event_id"])

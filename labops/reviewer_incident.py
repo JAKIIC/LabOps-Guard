@@ -15,6 +15,11 @@ from typing import Any
 
 from labops.contracts import ContractError, validate_document
 from labops.live_demo import CLASSIFICATION, prepare_session
+from labops.matrix_observer import (
+    PROJECTION_CLASSIFICATION,
+    PROJECTION_VALIDATION_VERSION,
+    projection_actor_valid,
+)
 from labops.recovery import RecoveryError, load_recovery_overlay
 from labops.trace import TraceLog
 
@@ -307,8 +312,14 @@ def _events(root: Path) -> list[dict[str, Any]]:
             item = json.loads(line)
         except json.JSONDecodeError as exc:
             raise ReviewerIncidentError("Matrix observer event cache is invalid") from exc
-        if isinstance(item, dict):
-            events.append(item)
+        if (
+            not isinstance(item, dict)
+            or item.get("classification") != PROJECTION_CLASSIFICATION
+            or item.get("validation_version") != PROJECTION_VALIDATION_VERSION
+            or not projection_actor_valid(item.get("actor"), item.get("kind"))
+        ):
+            raise ReviewerIncidentError("Matrix observer event cache is invalid")
+        events.append(item)
     return events
 
 

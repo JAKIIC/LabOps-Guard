@@ -97,6 +97,11 @@ Copy-Item config/reviewer-room-map.example.json config/reviewer-room-map.json
 
 将六个真实 room ID 写入 `config/reviewer-room-map.json`。在当前终端加载本地值：
 
+- 模板中的 `example.invalid` 只用于说明字段，不能直接运行；
+- 在 Element 的“房间信息 / 设置 / 高级”中复制以 `!` 开头的 Internal room ID；
+- 不要使用 `#` 开头的 room alias，也不要复制浏览器地址；
+- 当前 Token 对应的 Matrix 账号必须已经加入这六个 room。
+
 ```powershell
 $env:LABOPS_MATRIX_HOMESERVER = "http://127.0.0.1:18080"
 $env:LABOPS_MATRIX_ACCESS_TOKEN = "<local-read-only-token>"
@@ -148,7 +153,7 @@ python -B -m labops reviewer preflight --mode live
 ```
 
 Live `pack-check` 核对：Docker、Runner 标签、AgentTeams Controller、Manager、至少五个 Worker、
-Matrix URL、只读 Token 和六角色 room map。它只输出状态和数量，不输出 Token、room ID、容器
+Matrix URL、只读 Token、六角色 room map 及真实 joined-room membership。它只输出状态和数量，不输出 Token、room ID、容器
 环境变量或绝对路径。
 
 当前外部服务未运行时的真实降级样例见
@@ -240,6 +245,8 @@ Remove-Item Env:LABOPS_MATRIX_ACCESS_TOKEN -ErrorAction SilentlyContinue
 | `Runtime Skill conflict` | 停止部署并人工核对目标 workspace；不要覆盖未知 Skill 或删除其证据 |
 | `OpenClaw did not discover` | 核对固定版本、Owner 映射与 Skill 目录；不能把部署成功描述为调用成功 |
 | `MATRIX_*_MISSING/INVALID` | 修复本地变量或脱敏 room map；不要提交真实值 |
+| `MATRIX_ROOM_MAP_UNJOINED` | 用真实 Internal room ID 替换模板值，并确认 Token 账号已加入全部 room |
+| `MATRIX_ROOM_MEMBERSHIP_UNVERIFIED` | 检查 Matrix 可达性、Token 权限和 `/joined_rooms` 响应后再启动 Live |
 | Matrix/Agent 不稳定 | 停止 Live 口播，切换 Quick/Public Replay，并明确标注降级 |
 
 可使用官方只读诊断命令检查服务名和日志；输出在公开前必须脱敏：
