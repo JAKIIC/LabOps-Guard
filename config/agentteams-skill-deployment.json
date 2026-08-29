@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "agentteams_version": "v1.1.2",
+  "runtime_family": "AgentTeams (legacy HiClaw deployment contract)",
+  "deployments": [
+    {
+      "runtime_agent_id": "labops-manager",
+      "canonical_agent_id": "labops-manager",
+      "container_name": "hiclaw-manager",
+      "skills_root": "/root/manager-workspace/skills",
+      "skill_ids": ["pack-lab-evidence", "publish-case-memory"]
+    },
+    {
+      "runtime_agent_id": "evidence-collector",
+      "canonical_agent_id": "evidence-collector",
+      "container_name": "hiclaw-worker-evidence-collector",
+      "skills_root": "/root/hiclaw-fs/agents/evidence-collector/skills",
+      "skill_ids": ["collect-lab-evidence"]
+    },
+    {
+      "runtime_agent_id": "rca-analyst",
+      "canonical_agent_id": "rca-analyst",
+      "container_name": "hiclaw-worker-rca-analyst",
+      "skills_root": "/root/hiclaw-fs/agents/rca-analyst/skills",
+      "skill_ids": ["diagnose-lab-incident"]
+    },
+    {
+      "runtime_agent_id": "researcher",
+      "canonical_agent_id": "experiment-planner",
+      "container_name": "hiclaw-worker-researcher",
+      "skills_root": "/root/hiclaw-fs/agents/researcher/skills",
+      "skill_ids": ["plan-lab-experiment"]
+    },
+    {
+      "runtime_agent_id": "controlled-executor",
+      "canonical_agent_id": "safe-executor",
+      "container_name": "hiclaw-worker-controlled-executor",
+      "skills_root": "/root/hiclaw-fs/agents/controlled-executor/skills",
+      "skill_ids": ["control-lab-action"]
+    },
+    {
+      "runtime_agent_id": "verification-auditor",
+      "canonical_agent_id": "verification-auditor",
+      "container_name": "hiclaw-worker-verification-auditor",
+      "skills_root": "/root/hiclaw-fs/agents/verification-auditor/skills",
+      "skill_ids": ["verify-lab-result"]
+    }
+  ]
+}

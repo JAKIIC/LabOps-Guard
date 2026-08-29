@@ -248,6 +248,45 @@ def cmd_skills(args) -> int:
     return 0
 
 
+def cmd_agentteams_skills(args) -> int:
+    from labops.agentteams_skill_deployment import (
+        AgentTeamsSkillDeploymentError,
+        build_deployment_plan,
+        deploy_skill_packages,
+        verify_skill_packages,
+    )
+
+    project_root = Path(__file__).resolve().parent.parent
+    try:
+        if args.action == "plan":
+            payload = build_deployment_plan(project_root)
+        elif args.action == "verify":
+            payload = verify_skill_packages(project_root)
+        elif args.confirm_version != "v1.1.2":
+            print(
+                json.dumps(
+                    {
+                        "status": "BLOCKED",
+                        "error_code": "VERSION_CONFIRMATION_REQUIRED",
+                        "error": "Deploy requires --confirm-version v1.1.2",
+                    },
+                    ensure_ascii=False,
+                ),
+                file=sys.stderr,
+            )
+            return 2
+        else:
+            payload = deploy_skill_packages(
+                project_root,
+                confirm_version=args.confirm_version,
+            )
+    except (OSError, ValueError, AgentTeamsSkillDeploymentError) as exc:
+        print(json.dumps({"status": "BLOCKED", "error": str(exc)}, ensure_ascii=False), file=sys.stderr)
+        return 2
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
 def cmd_trust(args) -> int:
     from labops.trust import build_trust_snapshot
 
@@ -523,6 +562,25 @@ def build_parser() -> argparse.ArgumentParser:
     skill_validate_event.add_argument("event_json")
     skill_validate_event.add_argument("--format", choices=["json"], default="json")
     skill_validate_event.set_defaults(func=cmd_skills)
+
+    sp = sub.add_parser(
+        "agentteams-skills",
+        help="plan and verify deployment of the seven existing Skills into AgentTeams",
+    )
+    agentteams_skill_sub = sp.add_subparsers(dest="action", required=True)
+    agentteams_skill_plan = agentteams_skill_sub.add_parser(
+        "plan", help="validate and print the path-redacted runtime deployment plan"
+    )
+    agentteams_skill_plan.set_defaults(func=cmd_agentteams_skills)
+    agentteams_skill_deploy = agentteams_skill_sub.add_parser(
+        "deploy", help="deploy the existing Skill packages into a running pinned AgentTeams runtime"
+    )
+    agentteams_skill_deploy.add_argument("--confirm-version", default=None)
+    agentteams_skill_deploy.set_defaults(func=cmd_agentteams_skills)
+    agentteams_skill_verify = agentteams_skill_sub.add_parser(
+        "verify", help="read back runtime Skill bindings, hashes and OpenClaw discovery"
+    )
+    agentteams_skill_verify.set_defaults(func=cmd_agentteams_skills)
 
     sp = sub.add_parser("trust", help="emit the read-only Trust Layer snapshot")
     sp.add_argument("--at004-root", default=None)

@@ -83,6 +83,18 @@ AgentTeams 负责角色编排和上下文交接；LabOps Guard 的 Schema、Poli
 七个版本化 Skill 的 I/O、失败处理、安全边界、复用方式及 runtime evidence 事实边界见
 [`docs/skill-framework.md`](docs/skill-framework.md)。
 
+Reviewer Live 环境可将这七个现有 Skill 以版本和哈希强绑定方式部署到六个 AgentTeams runtime，
+再由 OpenClaw 逐角色确认发现状态：
+
+```powershell
+python -B -m labops agentteams-skills plan
+python -B -m labops agentteams-skills deploy --confirm-version v1.1.2
+python -B -m labops agentteams-skills verify
+```
+
+该结果证明部署、Owner binding 和 runtime discovery，不把“被发现”外推为“已在 incident 中调用”。
+调用级证据仍必须来自新 live run 的真实 hook 或 Gateway Tool Contract；历史 Evidence 不回填。
+
 ## 安全不变量
 
 - Planner 每个计划只允许一个被证据支持的变量变化，并定义预算、成功条件与回滚；

@@ -105,7 +105,34 @@ $env:LABOPS_MATRIX_ROOM_MAP = (Resolve-Path config/reviewer-room-map.json).Path
 
 环境文件只是填写提示，项目不会自动读取并回显凭据。
 
-## 6. 第四步：构建固定 Runner 并检查 Live
+## 6. 第四步：部署并核验七个 LabOps Skill
+
+七个 Skill 随本仓库提供，但 AgentTeams 官方安装器不会自动把它们放进各角色的 OpenClaw
+workspace。先执行只读计划，确认固定版本、六个 runtime identity、角色别名和七个 Skill 的
+Owner 关系：
+
+```powershell
+python -B -m labops agentteams-skills plan
+```
+
+只有六个 AgentTeams 容器均以 `v1.1.2` 运行时，真人才显式确认部署：
+
+```powershell
+python -B -m labops agentteams-skills deploy --confirm-version v1.1.2
+python -B -m labops agentteams-skills verify
+```
+
+部署器先检查全部容器、版本和已有 binding；任一目录存在不同 binding 时会在复制前整体阻断，
+不会覆盖未知 Skill。每份部署副本包含 `LABOPS_RUNTIME_BINDING.json`，绑定 Skill ID、SemVer、
+规范 Owner、runtime identity、`SKILL.md`/I/O Schema 哈希和部署清单哈希。`verify` 会从六个容器
+重新读取 binding 与文件哈希，并通过 `openclaw skills list --json` 确认实际发现七个 Skill。
+
+这里的 `discovery=VERIFIED` 只证明 Skill 已被目标 Agent runtime 发现，**不等于本次 incident
+已经调用它**。报告必须继续显示 `invocation=UNVERIFIED` 和
+`runtime_event_emission=NOT_IMPLEMENTED`；不得把安装/发现证据冒充调用 Trace，也不得回填历史
+AT-002/003/004 Evidence。
+
+## 7. 第五步：构建固定 Runner 并检查 Live
 
 若本机尚无固定 Runner，在能够访问基础镜像和 PyTorch wheel 的准备环境构建：
 
@@ -127,7 +154,7 @@ Matrix URL、只读 Token 和六角色 room map。它只输出状态和数量，
 当前外部服务未运行时的真实降级样例见
 [`samples/reviewer-pack-check-live-blocked.json`](samples/reviewer-pack-check-live-blocked.json)。
 
-## 7. 第五步：启动真实 Live Observer
+## 8. 第六步：启动真实 Live Observer
 
 只有两个检查都为 `READY` 时执行：
 
@@ -147,7 +174,7 @@ pwsh -File scripts/stop_reviewer_demo.ps1
 Remove-Item Env:LABOPS_MATRIX_ACCESS_TOKEN -ErrorAction SilentlyContinue
 ```
 
-## 8. 故障诊断
+## 9. 故障诊断
 
 | 缺口/错误 | 处理 |
 |---|---|
@@ -157,6 +184,8 @@ Remove-Item Env:LABOPS_MATRIX_ACCESS_TOKEN -ErrorAction SilentlyContinue
 | `AGENTTEAMS_CONTROLLER_MISSING` | 检查固定版本安装和 Controller 日志 |
 | `AGENTTEAMS_MANAGER_MISSING` | 检查 Manager 状态与模型连通性 |
 | `AGENTTEAMS_WORKERS_INSUFFICIENT` | 确认五个现有角色 Worker 真实 Running；不要模拟 Worker |
+| `Runtime Skill conflict` | 停止部署并人工核对目标 workspace；不要覆盖未知 Skill 或删除其证据 |
+| `OpenClaw did not discover` | 核对固定版本、Owner 映射与 Skill 目录；不能把部署成功描述为调用成功 |
 | `MATRIX_*_MISSING/INVALID` | 修复本地变量或脱敏 room map；不要提交真实值 |
 | Matrix/Agent 不稳定 | 停止 Live 口播，切换 Quick/Public Replay，并明确标注降级 |
 
@@ -168,7 +197,7 @@ docker logs --tail 200 hiclaw-controller
 docker logs --tail 200 hiclaw-manager
 ```
 
-## 9. 模式真实性速查
+## 10. 模式真实性速查
 
 | 模式 | AgentTeams 实时执行 | 可作为运行证据 |
 |---|---:|---|

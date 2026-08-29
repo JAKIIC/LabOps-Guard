@@ -33,6 +33,8 @@ ATTACHMENT_FILES = {
     "submission/LabOps-Guard-GOAI-复赛方案-v1.0-rc1.pdf":
         "01_项目方案/LabOps-Guard-GOAI-复赛方案-v1.0-rc1.pdf",
     "docs/reviewer-edition.md": "03_演示与运行/reviewer-edition.md",
+    "docs/reviewer-reproducibility-pack.md":
+        "03_演示与运行/reviewer-reproducibility-pack.md",
     "docs/final-demo-guide.md": "03_演示与运行/final-demo-guide.md",
     "docs/final-demo-recording-runbook.md": "03_演示与运行/final-demo-recording-runbook.md",
     "docs/final-demo-video-script.md": "03_演示与运行/final-demo-video-script.md",

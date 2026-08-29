@@ -63,22 +63,35 @@ Quick Mode 用于稳定复核归档 Evidence；Live Mode 仅在外部 AgentTeams
 `safe-executor → control-lab-action → labops.runner.execute` 的真实绑定；这不改变历史包的
 语义。
 
-`demo-readiness` 会显示七 Skill、版本、Owner 和预期 pipeline，并明确返回
-`runtime_event_emission=NOT_IMPLEMENTED` 与 `live_visibility=AGENTTEAMS_HOOK_REQUIRED`。
-预检中 `control-lab-action=GATEWAY_CONTRACT_READY` 只表示 verifier 已就绪；只有新 live run 真实
-产生完整 Gateway request/response、Runner Artifact 并通过校验后，结果才会显示
-`control-lab-action=VERIFIED`。其余六个 Skill 继续显示
-`CONFIGURED / AGENTTEAMS_HOOK_REQUIRED`。
+仓库提供版本锁定的 AgentTeams Skill 部署与只读核验入口。正式 live 前执行：
 
-若实际 AgentTeams 部署有真实 Worker invocation hook，可让 hook 产生符合
+```powershell
+python -B -m labops agentteams-skills plan
+python -B -m labops agentteams-skills deploy --confirm-version v1.1.2
+python -B -m labops agentteams-skills verify
+```
+
+`verify` 必须确认六个 runtime identity 中的七个 Skill 均为
+`discovery=VERIFIED / binding=VERIFIED`。这证明目标 OpenClaw runtime 已真实发现当前版本的 Skill，
+仍不证明某次 incident 已调用它；报告有意保留 `invocation=UNVERIFIED` 与
+`runtime_event_emission=NOT_IMPLEMENTED`。
+
+`demo-readiness` 会显示七 Skill、版本、Owner 和预期 pipeline。预检中
+`control-lab-action=GATEWAY_CONTRACT_READY` 只表示 verifier 已就绪；只有新 live run 真实产生
+完整 Gateway request/response、Runner Artifact 并通过校验后，结果才会显示
+`control-lab-action=VERIFIED`。其余六个 Skill 在没有可信 invocation hook/event 时只能描述为
+“已部署并被 runtime 发现，调用证据未验证”。
+
+若后续实际 AgentTeams 部署提供可信 Worker invocation hook，可让 hook 产生符合
 `schemas/skill_usage_event.schema.json` 的新 live event，再执行：
 
 ```powershell
 python -B -m labops skills validate-event <event.json>
 ```
 
-该命令只验证 event，不生成、不持久化、不发送 Matrix 消息。若部署没有 hook，视频只能展示
-Skill Registry 与 Worker 配置，并明确它们是 `CONFIGURED`，不是 runtime invocation proof。
+该命令只验证 event，不生成、不持久化、不发送 Matrix 消息。若部署没有 hook，视频可以展示
+Skill Registry、runtime binding、OpenClaw discovery 与 Worker 配置，但必须明确它们不是
+runtime invocation proof。
 录制时可在 verifier JSON 中展示 `skill_runtime_evidence`：只有
 `control-lab-action.status=VERIFIED`，`remaining_skills.status=CONFIGURED`。
 
