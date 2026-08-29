@@ -157,6 +157,48 @@ class ReviewerWebTests(unittest.TestCase):
         self.assertNotIn("LIVE MODE", visible_text)
         self.assertIn("Read-only", visible_text)
 
+    def test_reviewer_page_uses_chinese_primary_labels_with_technical_terms_preserved(self) -> None:
+        html, visible_text = self._html("/reviewer")
+        for marker in (
+            "可信 Agent 执行审查台",
+            "当前事故",
+            "当前责任人",
+            "最后活动 Agent",
+            "最后事件 / 更新时间",
+            "AgentTeams 协作时间线",
+            "人工审批门",
+            "工具契约 / Tool Contract",
+            "恢复 / 升级处理",
+            "沙箱执行器",
+            "独立审计",
+            "完全只读",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, visible_text)
+
+        # Identifiers and runtime status codes remain available for evidence review.
+        for technical_marker in (
+            "Reviewer Edition",
+            "Incident ID",
+            "Task ID",
+            "Run ID",
+            "VERIFIED",
+            "RESOLVED",
+            "DISCONNECTED",
+        ):
+            with self.subTest(technical_marker=technical_marker):
+                self.assertIn(technical_marker, html)
+
+        for runtime_explanation in (
+            "任务已派发",
+            "证据收集完成",
+            "证据不完整",
+            "补齐证据缺口并创建新 attempt",
+            "REPLAY 为不可变的历史归档运行",
+        ):
+            with self.subTest(runtime_explanation=runtime_explanation):
+                self.assertIn(runtime_explanation, html)
+
     def test_reviewer_page_polls_only_read_only_reviewer_apis(self) -> None:
         html, _ = self._html("/reviewer")
         self.assertIn('fetch(`/api/reviewer/status', html)
