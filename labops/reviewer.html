@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LabOps Guard · 可信 Agent 执行审查台 · Reviewer Edition</title>
+  <title>LabOps Guard · Reviewer Edition</title>
   <style>
     :root {
       color-scheme: dark;
@@ -153,7 +153,9 @@
     .event:first-child { border-top: 0; }
     .event-head { display: grid; grid-template-columns: 86px minmax(0, 1fr) auto; align-items: center; gap: 9px; }
     .event-time { color: #789aac; font: .68rem ui-monospace, monospace; }
-    .event-title { font-size: .78rem; font-weight: 700; overflow-wrap: anywhere; }
+    .event-title { display: grid; gap: 3px; font-size: .78rem; font-weight: 700; overflow-wrap: anywhere; }
+    .event-description { color: var(--text); }
+    .state-transition { color: #789aac; font: .66rem ui-monospace, SFMono-Regular, Consolas, monospace; }
 
     .approval-card { border-color: #765a2a; background: linear-gradient(145deg, #2c2315, var(--surface)); }
     .approval-card .value { color: var(--yellow); }
@@ -169,6 +171,8 @@
     .directive:first-of-type { border-top: 0; }
     .policy-list { display: grid; gap: 7px; margin-top: 9px; }
     .policy { padding: 8px; border: 1px solid #3c3048; border-radius: 9px; color: #c4aed0; font-size: .7rem; overflow-wrap: anywhere; }
+    .policy-explanation { line-height: 1.45; }
+    .machine-rule { display: block; margin-top: 5px; color: #9c82ad; font: .66rem/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
 
     .footer {
       display: flex;
@@ -205,34 +209,34 @@
   <main class="shell">
     <header class="topbar">
       <div>
-        <div class="brand">LabOps Guard · 可信 Agent 执行审查台 · Reviewer Edition</div>
-        <div class="subtitle">面向生产级 Agent 系统的可信执行基础设施 · 本地详细证据</div>
+        <div class="brand">LabOps Guard · Reviewer Edition</div>
+        <div class="subtitle">面向生产级 Agent 系统的可信执行与治理基础设施 · 本地详细证据</div>
       </div>
       <div class="badges" aria-live="polite">
-        <span id="source-badge" class="badge is-configured">CONNECTING</span>
-        <span id="mode-badge" class="badge is-configured">MODE NOT LOADED</span>
-        <span class="badge is-configured">完全只读 · Read-only</span>
+        <span id="source-badge" class="badge is-configured">连接中</span>
+        <span id="mode-badge" class="badge is-configured">模式未加载</span>
+        <span class="badge is-configured">完全只读</span>
       </div>
     </header>
 
     <section class="grid summary" aria-label="Incident summary">
       <article class="card">
-        <div class="label">当前事故 · Current Incident</div>
+        <div class="label">当前事故</div>
         <div id="incident-summary" class="value">正在等待白名单 Reviewer 会话</div>
         <div id="workflow-summary" class="muted">尚未加载工作流投影。</div>
       </article>
       <article class="card">
-        <div class="label">当前责任人 · Current Owner</div>
+        <div class="label">当前责任人</div>
         <div id="current-owner" class="value">—</div>
         <div class="muted">当前已观察工作流状态下的决策责任人</div>
       </article>
       <article class="card">
-        <div class="label">最后活动 Agent · Last Active Agent</div>
+        <div class="label">最后活动 Agent</div>
         <div id="last-agent" class="value">—</div>
         <details><summary>运行时身份 · Runtime identity</summary><pre id="last-agent-runtime">尚未观察</pre></details>
       </article>
       <article class="card">
-        <div class="label">最后事件 / 更新时间 · Last Event / Last Updated</div>
+        <div class="label">最后事件 / 更新时间</div>
         <div id="last-event" class="value">—</div>
         <div id="last-updated" class="muted">尚未观察到数据源更新</div>
       </article>
@@ -241,8 +245,8 @@
     <section id="identity-grid" class="grid ids" aria-label="Session identifiers"></section>
 
     <section aria-labelledby="flow-title">
-      <h2 id="flow-title" class="label" style="margin-top:16px">AgentTeams 协作链 + 人工审批门 · Human Approval Gate</h2>
-      <div class="muted">每个节点分别展示工作流状态（Workflow State）与证据状态（Evidence State）。</div>
+      <h2 id="flow-title" class="label" style="margin-top:16px">AgentTeams 协作链与人工审批门</h2>
+      <div class="muted">每个节点分别展示工作流状态与证据状态。</div>
       <div id="agent-flow" class="flow"></div>
     </section>
 
@@ -252,53 +256,53 @@
         <div id="timeline" class="timeline"><div class="empty">尚未加载时间线投影。</div></div>
       </article>
       <article class="card approval-card">
-        <div class="label">人工审批门 · Human Approval Gate</div>
-        <div id="approval-state" class="value">NOT OBSERVED</div>
+        <div class="label">人工审批门</div>
+        <div id="approval-state" class="value">未观察</div>
         <div id="approval-summary" class="muted">受控执行前必须观察到真实人工决策。</div>
-        <details><summary>审批证据 · Approval evidence</summary><pre id="approval-details">尚未观察到审批产物。</pre></details>
+        <details><summary>审批 Evidence</summary><pre id="approval-details">尚未观察到审批产物。</pre></details>
         <div class="read-only-note">人工审批在 Element 中由真人完成。本审查台不能审批、执行、重试、重派、接管或修改状态。</div>
       </article>
     </section>
 
     <section class="grid pair">
       <article class="card">
-        <h2>工具契约 / Tool Contract</h2>
+        <h2>工具调用约束 · Tool Contract</h2>
         <div id="tool-grid" class="kv-grid"></div>
-        <details><summary>完整绑定与受保护资源 · Protected Resources</summary><pre id="tool-details">尚未观察到 Gateway 工具契约。</pre></details>
+        <details><summary>完整绑定与 Protected Resources</summary><pre id="tool-details">尚未观察到 Gateway Tool Contract。</pre></details>
       </article>
       <article class="card recovery-card">
         <h2>恢复 / 升级处理 · Recovery / Escalation</h2>
         <div class="directive">
-          <span class="label">当前指令 · Current Directive</span>
-          <span id="current-directive" class="badge is-configured">NONE</span>
+          <span class="label">当前指令</span>
+          <span id="current-directive" class="badge is-configured">无</span>
         </div>
         <div id="resume-condition" class="muted">尚未观察到恢复事实。</div>
-        <div class="label" style="margin-top:14px">已配置策略 · Configured Policy</div>
+        <div class="label" style="margin-top:14px">已配置策略</div>
         <div id="configured-policy" class="policy-list"></div>
-        <details><summary>尝试 / 责任归属证据 · Attempt / ownership evidence</summary><pre id="recovery-details">尚未观察到恢复 Trace。</pre></details>
+        <details><summary>Attempt 与责任归属 Evidence</summary><pre id="recovery-details">尚未观察到恢复 Trace。</pre></details>
       </article>
     </section>
 
     <section class="grid pair">
       <article class="card">
-        <div class="label">沙箱执行器 · Sandbox Runner</div>
-        <div id="runner-state" class="value">NOT OBSERVED</div>
+        <div class="label">受控执行 · Runner</div>
+        <div id="runner-state" class="value">未观察</div>
         <details><summary>Runner 执行证据</summary><pre id="runner-details">尚未观察到 Runner 产物。</pre></details>
       </article>
       <article class="card">
-        <div class="label">独立审计 · Independent Audit</div>
-        <div id="audit-state" class="value">UNVERIFIED</div>
+        <div class="label">独立审计 · Auditor</div>
+        <div id="audit-state" class="value">未验证</div>
         <details><summary>Auditor 审计证据</summary><pre id="audit-details">尚未观察到 Auditor 裁决。</pre></details>
       </article>
     </section>
 
     <section class="card" style="margin-top:12px">
-      <div class="label">证据边界 · Evidence limitations</div>
+      <div class="label">Evidence 边界</div>
       <div id="limitations" class="muted">尚未加载证据边界说明。</div>
     </section>
 
     <footer class="footer">
-      <span>绿色仅表示 已验证 / 已解决（VERIFIED / RESOLVED）</span>
+      <span>绿色仅表示已验证或已解决</span>
       <span>本地展示详细证据 · Public Demo 继续脱敏</span>
       <span>完全只读 · 所有写请求 → 405</span>
     </footer>
@@ -363,17 +367,19 @@
       REASSIGN_OR_HUMAN_TAKEOVER: '重派或人工接管',
       BOUNDED_RETRY_OR_HUMAN_TAKEOVER: '有限重试或人工接管',
       ROLLBACK_REQUIRED: '必须回滚',
-      HUMAN_TAKEOVER: '人工接管'
+      HUMAN_TAKEOVER: '人工接管',
+      QUICK: '快速模式',
+      NONE: '无'
     });
 
     const ROLE_LABEL = Object.freeze({
-      'Incident Commander': '事故指挥官 · Incident Commander',
-      'Evidence Collector': '证据收集员 · Evidence Collector',
-      'RCA Analyst': '根因分析员 · RCA Analyst',
-      'Experiment Planner': '实验规划员 · Experiment Planner',
-      'Safe Executor': '安全执行员 · Safe Executor',
-      'Verification Auditor': '验证审计员 · Verification Auditor',
-      'Human Approver': '人工审批人 · Human Approver'
+      'Incident Commander': '事故指挥官（Incident Commander）',
+      'Evidence Collector': '证据收集员（Evidence Collector）',
+      'RCA Analyst': '根因分析员（RCA Analyst）',
+      'Experiment Planner': '实验规划员（Experiment Planner）',
+      'Safe Executor': '安全执行员（Safe Executor）',
+      'Verification Auditor': '验证审计员（Verification Auditor）',
+      'Human Approver': '人工审批人'
     });
 
     const EVENT_LABEL = Object.freeze({
@@ -390,8 +396,8 @@
       evidence_incomplete: '证据不完整',
       recovery_requested: '已请求恢复',
       human_takeover: '人工接管',
-      runner_started: 'Runner 已启动',
-      runner_completed: 'Runner 执行完成',
+      runner_started: 'Runner 启动',
+      runner_completed: 'Runner 完成执行',
       executor_to_auditor: '执行结果移交审计',
       verification_completed: '独立验证已完成',
       terminal_decided: '终态已裁决',
@@ -431,7 +437,7 @@
     function label(value) { return text(value).replaceAll('_', ' '); }
     function statusLabel(value) {
       const normalized = text(value, 'CONFIGURED');
-      return STATUS_LABEL[normalized] ? `${STATUS_LABEL[normalized]} · ${label(normalized)}` : label(normalized);
+      return STATUS_LABEL[normalized] || label(normalized);
     }
     function roleLabel(value) {
       const normalized = text(value, 'Unknown role');
@@ -439,7 +445,7 @@
     }
     function eventLabel(value) {
       const normalized = text(value, 'unknown_event');
-      return EVENT_LABEL[normalized] ? `${EVENT_LABEL[normalized]} · ${label(normalized)}` : label(normalized);
+      return EVENT_LABEL[normalized] || label(normalized);
     }
     function conditionLabel(value) {
       const normalized = text(value, '');
@@ -503,11 +509,11 @@
         node.appendChild(make('div', 'node-index', String(index + 1).padStart(2, '0')));
         node.appendChild(make('div', 'node-name', roleLabel(agent.role_name)));
         const states = make('div', 'state-row');
-        states.appendChild(make('div', 'state-label', '工作流状态 · Workflow State'));
+        states.appendChild(make('div', 'state-label', '工作流状态'));
         const workflow = make('span');
         setBadge(workflow, agent.workflow_state);
         states.appendChild(workflow);
-        states.appendChild(make('div', 'state-label', '证据状态 · Evidence State'));
+        states.appendChild(make('div', 'state-label', '证据状态'));
         const evidence = make('span');
         setBadge(evidence, agent.evidence_state);
         states.appendChild(evidence);
@@ -519,14 +525,14 @@
           const approval = state.approval || {};
           const gate = make('article', 'agent-node gate');
           gate.appendChild(make('div', 'node-index', 'H'));
-          gate.appendChild(make('div', 'node-name', '人工审批门 · Human Approval Gate'));
-          gate.appendChild(make('div', 'muted', '真人责任主体 · 不属于 Agent'));
+          gate.appendChild(make('div', 'node-name', '人工审批门'));
+          gate.appendChild(make('div', 'muted', '真人责任主体，不属于 Agent'));
           const gateStates = make('div', 'state-row');
-          gateStates.appendChild(make('div', 'state-label', '工作流状态 · Workflow State'));
+          gateStates.appendChild(make('div', 'state-label', '工作流状态'));
           const gateWorkflow = make('span');
           setBadge(gateWorkflow, (state.incident || {}).workflow_state === 'APPROVAL_PENDING' ? 'WAITING' : approval.status);
           gateStates.appendChild(gateWorkflow);
-          gateStates.appendChild(make('div', 'state-label', '证据状态 · Evidence State'));
+          gateStates.appendChild(make('div', 'state-label', '证据状态'));
           const gateEvidence = make('span');
           setBadge(gateEvidence, approval.status);
           gateStates.appendChild(gateEvidence);
@@ -549,7 +555,10 @@
         const head = make('div', 'event-head');
         const timeValue = event.timestamp ? new Date(event.timestamp).toISOString().slice(11, 19) : '配置态';
         head.appendChild(make('span', 'event-time', timeValue));
-        head.appendChild(make('span', 'event-title', `${eventLabel(event.kind)} · ${statusLabel(event.workflow_from)} → ${statusLabel(event.workflow_to)}`));
+        const title = make('span', 'event-title');
+        title.appendChild(make('span', 'event-description', eventLabel(event.kind)));
+        title.appendChild(make('code', 'state-transition', `${text(event.workflow_from, 'UNKNOWN')} → ${text(event.workflow_to, 'UNKNOWN')}`));
+        head.appendChild(title);
         const proof = make('span');
         setBadge(proof, event.evidence_state);
         head.appendChild(proof);
@@ -580,14 +589,14 @@
       const tool = state.tool_contract || {};
       const grid = byId('tool-grid');
       clear(grid);
-      addKV(grid, '状态 · Status', statusLabel(tool.status));
+      addKV(grid, '状态', statusLabel(tool.status));
       addKV(grid, 'Skill / 版本', tool.skill);
-      addKV(grid, '调用方 · Caller', tool.caller);
-      addKV(grid, '工具 · Tool', tool.tool_id);
-      addKV(grid, '计划哈希 · Plan hash', tool.plan_hash);
-      addKV(grid, '审批绑定 · Approval binding', tool.approval_binding);
-      addKV(grid, '受保护资源 · Protected Resources', tool.protected_resource_count);
-      addKV(grid, '资源预算 · Resource budget', json(tool.resource_budget));
+      addKV(grid, '调用方', tool.caller);
+      addKV(grid, 'Tool', tool.tool_id);
+      addKV(grid, 'Plan Hash', tool.plan_hash);
+      addKV(grid, 'Approval Binding', tool.approval_binding);
+      addKV(grid, 'Protected Resources', tool.protected_resource_count);
+      addKV(grid, '资源预算', json(tool.resource_budget));
       byId('tool-details').textContent = json(tool.details || {});
     }
 
@@ -595,17 +604,24 @@
       const recovery = state.recovery || {};
       const directive = recovery.current_directive || 'NONE';
       setBadge(byId('current-directive'), directive === 'NONE' ? 'CONFIGURED' : recovery.status);
-      byId('current-directive').textContent = label(directive);
+      byId('current-directive').textContent = statusLabel(directive);
       byId('resume-condition').textContent = recovery.resume_condition
-        ? `恢复条件 · Resume condition：${recovery.resume_condition}`
-        : '尚未观察到恢复事实。当前指令（Current Directive）为 NONE。';
+        ? `恢复条件：${conditionLabel(recovery.resume_condition)}`
+        : '尚未观察到恢复事实，当前没有恢复指令。';
       const policies = byId('configured-policy');
       clear(policies);
       const configured = recovery.configured_policy || {};
       Object.entries(configured).forEach(([failure, policy]) => {
         const decision = policy.decision || policy.first_failure || 'CONFIGURED';
         const condition = conditionLabel(policy.resume_condition || policy.budget_exhausted || '');
-        policies.appendChild(make('div', 'policy', `${eventLabel(failure)} · ${statusLabel(decision)} · ${condition}`));
+        const item = make('div', 'policy');
+        item.appendChild(make('div', 'policy-explanation', `${eventLabel(failure)}：${condition || '按治理策略处理'}`));
+        const machineDecision = {
+          REASSIGN_OR_HUMAN_TAKEOVER: 'REASSIGN / HUMAN_TAKEOVER',
+          BOUNDED_RETRY_OR_HUMAN_TAKEOVER: 'BOUNDED_RETRY / HUMAN_TAKEOVER'
+        }[decision] || decision;
+        item.appendChild(make('code', 'machine-rule', `${failure} → ${machineDecision}`));
+        policies.appendChild(item);
       });
       if (!Object.keys(configured).length) policies.appendChild(make('div', 'empty', '尚未加载已配置的恢复策略。'));
       byId('recovery-details').textContent = json({

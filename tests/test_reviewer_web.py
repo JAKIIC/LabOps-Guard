@@ -140,13 +140,14 @@ class ReviewerWebTests(unittest.TestCase):
         html, visible_text = self._html("/reviewer")
         self.assertEqual(html, (ROOT / "labops" / "reviewer.html").read_text(encoding="utf-8"))
         for marker in (
-            "Human Approval Gate",
-            "Current Directive",
-            "Configured Policy",
-            "Workflow State",
-            "Evidence State",
-            "Last Active Agent",
-            "Last Event",
+            "人工审批门",
+            "当前指令",
+            "已配置策略",
+            "工作流状态",
+            "证据状态",
+            "最后活动 Agent",
+            "最后事件 / 更新时间",
+            "Tool Contract",
             "Protected Resources",
         ):
             with self.subTest(marker=marker):
@@ -155,26 +156,43 @@ class ReviewerWebTests(unittest.TestCase):
         parser.feed(html)
         self.assertEqual(parser.interactive_tags, [])
         self.assertNotIn("LIVE MODE", visible_text)
-        self.assertIn("Read-only", visible_text)
+        self.assertIn("完全只读", visible_text)
 
     def test_reviewer_page_uses_chinese_primary_labels_with_technical_terms_preserved(self) -> None:
         html, visible_text = self._html("/reviewer")
         for marker in (
-            "可信 Agent 执行审查台",
+            "LabOps Guard · Reviewer Edition",
+            "面向生产级 Agent 系统的可信执行与治理基础设施",
             "当前事故",
             "当前责任人",
             "最后活动 Agent",
             "最后事件 / 更新时间",
             "AgentTeams 协作时间线",
             "人工审批门",
-            "工具契约 / Tool Contract",
+            "Tool Contract",
             "恢复 / 升级处理",
-            "沙箱执行器",
-            "独立审计",
+            "Runner",
+            "Auditor",
             "完全只读",
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, visible_text)
+
+        for redundant_label in (
+            "可信 Agent 执行审查台",
+            "Current Incident",
+            "Current Owner",
+            "Last Active Agent",
+            "Last Event / Last Updated",
+            "Workflow State",
+            "Evidence State",
+            "Current Directive",
+            "Configured Policy",
+            "Human Approval Gate",
+            "Read-only",
+        ):
+            with self.subTest(redundant_label=redundant_label):
+                self.assertNotIn(redundant_label, visible_text)
 
         # Identifiers and runtime status codes remain available for evidence review.
         for technical_marker in (
