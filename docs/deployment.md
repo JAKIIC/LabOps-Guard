@@ -15,13 +15,20 @@ Run from the repository root:
 
 ## External runtime version record
 
-The source package pins the Python compatibility range and Runner image tags. Matrix/Element,
-MinIO and the AgentTeams deployment are supplied by the live recording environment, so their
-exact versions must be recorded during preflight rather than guessed in source. Use
+The source package pins Python, Runner and the historically verified AgentTeams legacy deployment
+contract in `config/reviewer-runtime-lock.json`. AgentTeams is fixed to `v1.1.2`; Matrix/Element,
+MinIO and the gateway are bundled by that release, while their observed image IDs must be recorded
+during a new live preflight rather than guessed in source. Run
+`python -B -m labops reviewer pack-check --mode quick|live` and use
 [`toolchain-compatibility-matrix.md`](toolchain-compatibility-matrix.md) for component roles,
 permissions and migration boundaries, and [`final-demo-guide.md`](final-demo-guide.md) for the
 recording-time readiness checks. Record only product/version/model identifiers; never copy Tokens,
 private room IDs or host credentials into evidence.
+
+The clean-host sequence, checksum-pinned official installer helper, sanitized environment template,
+sample outputs and diagnosis table are in
+[`reviewer-reproducibility-pack.md`](reviewer-reproducibility-pack.md). The helper does not vendor or
+silently execute AgentTeams; execution requires an explicit human version confirmation.
 
 ## Main and fallback runners
 

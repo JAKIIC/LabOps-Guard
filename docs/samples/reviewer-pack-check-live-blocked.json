@@ -1,0 +1,54 @@
+{
+  "checks": {
+    "agentteams_runtime": {
+      "controller": "MISSING",
+      "expected_version": "v1.1.2",
+      "manager": "MISSING",
+      "observed_version": null,
+      "status": "FAIL",
+      "workers_required": 5,
+      "workers_running": 0
+    },
+    "docker": {"server_version": "29.6.2", "status": "PASS"},
+    "matrix_access": {"redacted": true, "status": "FAIL"},
+    "matrix_homeserver": {"status": "FAIL"},
+    "matrix_room_map": {"rooms": 0, "status": "FAIL"},
+    "package_version": {
+      "expected": "1.0.0rc1",
+      "observed": "1.0.0rc1",
+      "status": "PASS"
+    },
+    "repository": {"status": "PASS"},
+    "runner_contract": {
+      "image": "labops/pytorch-cpu-runner:0.2.0",
+      "status": "PASS"
+    },
+    "runtime_lock": {"status": "PASS"}
+  },
+  "fallback": {
+    "description": "Use verified archived Evidence when Live prerequisites are unavailable.",
+    "mode": "QUICK"
+  },
+  "missing_requirements": [
+    "AGENTTEAMS_CONTROLLER_MISSING",
+    "AGENTTEAMS_MANAGER_MISSING",
+    "AGENTTEAMS_WORKERS_INSUFFICIENT",
+    "MATRIX_HOMESERVER_MISSING",
+    "MATRIX_ACCESS_TOKEN_MISSING",
+    "MATRIX_ROOM_MAP_MISSING"
+  ],
+  "requested_mode": "LIVE",
+  "safety": [
+    "No credential value, private room ID or host path is returned.",
+    "Quick Mode is archived verified replay, not live AgentTeams execution.",
+    "Live readiness requires real AgentTeams services and five Workers.",
+    "Formal AT-002/003/004 Evidence is read-only."
+  ],
+  "schema_version": "1.0",
+  "status": "BLOCKED",
+  "versions": {
+    "agentteams": "v1.1.2",
+    "labops": "1.0.0rc1",
+    "runner": "labops/pytorch-cpu-runner:0.2.0"
+  }
+}

@@ -17,7 +17,10 @@ PATTERNS = {
     "aws_access_key": re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b"),
     "assigned_secret": re.compile(r"(?i)\b(?:api[_-]?key|access[_-]?token|password|client[_-]?secret)\b\s*[:=]\s*['\"][^'\"\r\n]{8,}['\"]"),
 }
-TEXT_SUFFIXES = {".py", ".ps1", ".cmd", ".md", ".json", ".yaml", ".yml", ".toml", ".txt", ".html", ".css", ".js"}
+TEXT_SUFFIXES = {
+    ".py", ".ps1", ".cmd", ".md", ".json", ".yaml", ".yml", ".toml", ".txt",
+    ".html", ".css", ".js", ".example",
+}
 
 
 def tracked_files(root: Path) -> list[Path]:

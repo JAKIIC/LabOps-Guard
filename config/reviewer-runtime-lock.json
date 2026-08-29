@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "agentteams": {
+    "name": "AgentTeams (legacy HiClaw deployment contract)",
+    "version": "v1.1.2",
+    "repository": "https://github.com/agentscope-ai/AgentTeams",
+    "installer_url": "https://raw.githubusercontent.com/agentscope-ai/AgentTeams/v1.1.2/install/hiclaw-install.ps1",
+    "installer_sha256": "91a616ff80677d2329a6432c2c02c97ab6e397a027922943d8a34c7b53887c09",
+    "license": "Apache-2.0"
+  },
+  "labops": {
+    "package_version": "1.0.0rc1",
+    "python_minimum": "3.9"
+  },
+  "runner": {
+    "image": "labops/pytorch-cpu-runner:0.2.0",
+    "labels": {
+      "io.labops.runner.image": "labops/pytorch-cpu-runner:0.2.0",
+      "io.labops.runner.python": "3.11.15",
+      "io.labops.runner.torch": "2.5.1+cpu",
+      "io.labops.runner.network-runtime": "none"
+    }
+  },
+  "bundled_components": [
+    "Higress Gateway",
+    "Tuwunel Matrix",
+    "Element Web",
+    "MinIO"
+  ]
+}

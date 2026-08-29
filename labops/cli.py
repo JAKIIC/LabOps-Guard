@@ -369,7 +369,15 @@ def cmd_reviewer(args) -> int:
         else project_root / "demo" / "live-sessions"
     )
     try:
-        if args.action == "preflight":
+        if args.action == "pack-check":
+            from labops import reproducibility
+
+            payload = reproducibility.build_pack_report(
+                project_root,
+                args.mode,
+                args.runtime_lock or reproducibility.DEFAULT_LOCK,
+            )
+        elif args.action == "preflight":
             payload = reviewer.build_preflight(project_root, args.mode)
         elif args.action == "start":
             def emit_started(value: dict) -> None:
@@ -592,6 +600,17 @@ def build_parser() -> argparse.ArgumentParser:
     reviewer_preflight = reviewer_sub.add_parser("preflight", help="check Quick or Live prerequisites")
     reviewer_preflight.add_argument("--mode", choices=["quick", "live"], default="quick")
     reviewer_preflight.set_defaults(func=cmd_reviewer)
+
+    reviewer_pack_check = reviewer_sub.add_parser(
+        "pack-check", help="verify the version-pinned Reviewer Reproducibility Pack"
+    )
+    reviewer_pack_check.add_argument("--mode", choices=["quick", "live"], default="quick")
+    reviewer_pack_check.add_argument(
+        "--runtime-lock",
+        default=None,
+        help="runtime lock JSON (default: config/reviewer-runtime-lock.json)",
+    )
+    reviewer_pack_check.set_defaults(func=cmd_reviewer)
 
     reviewer_start = reviewer_sub.add_parser("start", help="start Reviewer Edition in the foreground")
     reviewer_start.add_argument("--mode", choices=["quick", "live"], required=True)

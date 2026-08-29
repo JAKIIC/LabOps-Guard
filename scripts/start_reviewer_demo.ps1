@@ -9,6 +9,11 @@ param(
 
 $normalizedMode = $Mode.ToLowerInvariant()
 
+& python -B -m labops reviewer pack-check --mode $normalizedMode
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
 & python -B -m labops reviewer preflight --mode $normalizedMode
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE

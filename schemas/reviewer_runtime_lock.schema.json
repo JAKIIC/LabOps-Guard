@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/reviewer_runtime_lock.schema.json",
+  "title": "ReviewerRuntimeLock",
+  "type": "object",
+  "required": ["schema_version", "agentteams", "labops", "runner", "bundled_components"],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["1.0"]},
+    "agentteams": {
+      "type": "object",
+      "required": ["name", "version", "repository", "installer_url", "installer_sha256", "license"],
+      "properties": {
+        "name": {"type": "string", "enum": ["AgentTeams (legacy HiClaw deployment contract)"]},
+        "version": {"type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "repository": {"type": "string", "enum": ["https://github.com/agentscope-ai/AgentTeams"]},
+        "installer_url": {"type": "string", "pattern": "^https://raw\\.githubusercontent\\.com/agentscope-ai/AgentTeams/v[0-9]+\\.[0-9]+\\.[0-9]+/install/hiclaw-install\\.ps1$"},
+        "installer_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "license": {"type": "string", "enum": ["Apache-2.0"]}
+      },
+      "additionalProperties": false
+    },
+    "labops": {
+      "type": "object",
+      "required": ["package_version", "python_minimum"],
+      "properties": {
+        "package_version": {"type": "string", "enum": ["1.0.0rc1"]},
+        "python_minimum": {"type": "string", "enum": ["3.9"]}
+      },
+      "additionalProperties": false
+    },
+    "runner": {
+      "type": "object",
+      "required": ["image", "labels"],
+      "properties": {
+        "image": {"type": "string", "enum": ["labops/pytorch-cpu-runner:0.2.0"]},
+        "labels": {
+          "type": "object",
+          "required": ["io.labops.runner.image", "io.labops.runner.python", "io.labops.runner.torch", "io.labops.runner.network-runtime"],
+          "properties": {
+            "io.labops.runner.image": {"type": "string", "enum": ["labops/pytorch-cpu-runner:0.2.0"]},
+            "io.labops.runner.python": {"type": "string", "enum": ["3.11.15"]},
+            "io.labops.runner.torch": {"type": "string", "enum": ["2.5.1+cpu"]},
+            "io.labops.runner.network-runtime": {"type": "string", "enum": ["none"]}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "bundled_components": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {"type": "string", "enum": ["Higress Gateway", "Tuwunel Matrix", "Element Web", "MinIO"]}
+    }
+  },
+  "additionalProperties": false
+}

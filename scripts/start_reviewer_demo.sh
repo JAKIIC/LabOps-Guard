@@ -14,6 +14,12 @@ case "$mode" in
     ;;
 esac
 
+python -B -m labops reviewer pack-check --mode "$mode"
+pack_status=$?
+if [ "$pack_status" -ne 0 ]; then
+  exit "$pack_status"
+fi
+
 python -B -m labops reviewer preflight --mode "$mode"
 preflight_status=$?
 if [ "$preflight_status" -ne 0 ]; then

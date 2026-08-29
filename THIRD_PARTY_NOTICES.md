@@ -22,6 +22,13 @@ The competition PowerPoint template is an externally supplied submission asset a
 as LabOps Guard source code. OpenTelemetry names appear only as documentation for a future adapter;
 no OpenTelemetry SDK or Collector is bundled.
 
+The optional Reviewer Reproducibility Pack pins AgentTeams `v1.1.2` and the SHA-256 of its official
+version-tagged PowerShell installer. The repository does not copy AgentTeams source, images,
+credentials or installer bytes. The helper downloads the official artifact, verifies the pinned
+checksum and requires explicit human confirmation before execution. Tuwunel/Matrix, Element, MinIO
+and Higress are bundled by that external AgentTeams release; redistribution obligations remain with
+their upstream packages and are not replaced by this notice.
+
 ## Legacy Polar fixture
 
 An early Polar-code audit used a 13-file snapshot whose redistribution permission could not be

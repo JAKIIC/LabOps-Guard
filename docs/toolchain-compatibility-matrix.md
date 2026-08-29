@@ -7,7 +7,7 @@
 
 | 组件 | 当前版本或兼容范围 | 调用方式 | 与 Agent / Skill 的关系 | 权限与证据边界 |
 |---|---|---|---|---|
-| AgentTeams（原 HiClaw） | 实机录制环境 `v1.1.2`；仓库通过 Prompt、Task Contract 和 Artifact Schema 集成 | Manager room 接收任务，Manager 向五 Worker 派发 | 多 Agent 编排基点；不替代 Skill、Policy 或 Auditor | 真实 Matrix event ID、handoff artifact 和 Trace 才算运行证据 |
+| AgentTeams（legacy HiClaw deployment contract） | 实机录制环境与 `config/reviewer-runtime-lock.json` 均固定 `v1.1.2`；官方 installer SHA-256 受检 | Manager room 接收任务，Manager 向五 Worker 派发 | 多 Agent 编排基点；不替代 Skill、Policy 或 Auditor | 真实 Matrix event ID、handoff artifact 和 Trace 才算运行证据 |
 | Matrix / Element | 部署提供；版本必须在新 live session 登记 | Manager/Worker room 消息与人工 Approval event | 上下文交接和真人操作界面 | Token、私有 room ID 不进入仓库、视频或提交包 |
 | MinIO / shared object store | 部署提供；版本必须在新 live session 登记 | session 隔离 bucket/prefix 或共享路径 | Agent 间交换 Schema 化 Artifact | 不覆盖正式 Evidence；凭据由外部部署管理 |
 | LabOps Guard control plane | `1.0.0rc1`；Python 3.9–3.12 CI | CLI、Schema、Policy、Verifier | 为六 Agent 提供确定性治理契约 | 标准库优先；源码可直接验证 |

@@ -136,6 +136,7 @@ class TestReviewerEditionPackage(unittest.TestCase):
             )
             self.assertEqual(success.returncode, 0, success.stderr.decode(errors="replace"))
             self.assertEqual(log.read_text(encoding="utf-8").splitlines(), [
+                "-B -m labops reviewer pack-check --mode quick",
                 "-B -m labops reviewer preflight --mode quick",
                 "-B -m labops reviewer start --mode quick",
             ])
@@ -154,6 +155,7 @@ class TestReviewerEditionPackage(unittest.TestCase):
             )
             self.assertEqual(blocked.returncode, 7)
             self.assertEqual(log.read_text(encoding="utf-8").splitlines(), [
+                "-B -m labops reviewer pack-check --mode live",
                 "-B -m labops reviewer preflight --mode live",
             ])
 
@@ -183,6 +185,7 @@ class TestReviewerEditionPackage(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0)
             self.assertEqual(log.read_text(encoding="utf-8").splitlines(), [
+                "-B -m labops reviewer pack-check --mode quick",
                 "-B -m labops reviewer preflight --mode quick",
                 "-B -m labops reviewer start --mode quick",
             ])

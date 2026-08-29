@@ -1,0 +1,30 @@
+{
+  "checks": {
+    "package_version": {
+      "expected": "1.0.0rc1",
+      "observed": "1.0.0rc1",
+      "status": "PASS"
+    },
+    "repository": {"status": "PASS"},
+    "runtime_lock": {"status": "PASS"}
+  },
+  "fallback": {
+    "description": "Use verified archived Evidence when Live prerequisites are unavailable.",
+    "mode": "PUBLIC_EVIDENCE_REPLAY"
+  },
+  "missing_requirements": [],
+  "requested_mode": "QUICK",
+  "safety": [
+    "No credential value, private room ID or host path is returned.",
+    "Quick Mode is archived verified replay, not live AgentTeams execution.",
+    "Live readiness requires real AgentTeams services and five Workers.",
+    "Formal AT-002/003/004 Evidence is read-only."
+  ],
+  "schema_version": "1.0",
+  "status": "READY",
+  "versions": {
+    "agentteams": "v1.1.2",
+    "labops": "1.0.0rc1",
+    "runner": "labops/pytorch-cpu-runner:0.2.0"
+  }
+}

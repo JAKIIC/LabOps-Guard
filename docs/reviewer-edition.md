@@ -29,6 +29,15 @@ Evidence、Trust Contract、Skill Registry、Runner Gateway 和外部 AgentTeams
 - 本地端口 `18787` 未被占用；
 - 不要把 Token、真实 room ID 或本机绝对路径写入提交包、视频或 Git。
 
+先执行版本锁和提交资产检查：
+
+```powershell
+python -B -m labops reviewer pack-check --mode quick
+```
+
+固定 AgentTeams v1.1.2、校验和安装辅助、脱敏环境模板和样例输出见
+[`reviewer-reproducibility-pack.md`](reviewer-reproducibility-pack.md)。
+
 先确认源码候选可读取：
 
 ```powershell
@@ -127,6 +136,7 @@ Copy-Item config/reviewer-room-map.example.json config/reviewer-room-map.json
 $env:LABOPS_MATRIX_HOMESERVER = "http://127.0.0.1:18080"
 $env:LABOPS_MATRIX_ACCESS_TOKEN = "<local-token>"
 $env:LABOPS_MATRIX_ROOM_MAP = (Resolve-Path config/reviewer-room-map.json).Path
+python -B -m labops reviewer pack-check --mode live
 python -B -m labops reviewer preflight --mode live
 ```
 
