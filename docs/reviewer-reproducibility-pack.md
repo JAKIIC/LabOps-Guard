@@ -167,6 +167,59 @@ pwsh -File scripts/start_reviewer_demo.ps1 `
 真人仍必须在 Element 中发送任务并完成 Approval。Reviewer 只读观察 Matrix、Gateway、Runner、
 Recovery 和 Auditor 证据，不发送消息、不批准、不执行、不补写事件。
 
+### 8.1 答案盲测的动态异常会话
+
+为证明 AgentTeams 会因证据缺口改变路径，而不是只重放 AT-004 固定成功链，可准备一条新的、
+不可覆盖的 Reviewer incident：
+
+```powershell
+python -B -m labops reviewer-incident prepare --session 20260831-091
+python -B -m labops reviewer-incident status --session 20260831-091
+```
+
+`prepare` 只生成初始事故包、Manager 任务和 operator-only 的 withheld evidence；Manager 任务中
+不含缺失配置值或预期最终指标。它不发送 Matrix 消息、不接受接管、不批准计划，也不调用
+Runner。真人把新 session 的 `manager_task.md` 发到真实 Manager room，并保持 Reviewer Live
+Observer 运行。Evidence Collector 必须在真实 Matrix 中发出 session-bound
+`LABOPS_EVENT_KIND: evidence_incomplete`；否则状态保持 `WAITING_FOR_AGENTTEAMS_GAP`。
+
+确认该事件后，归档 Manager 的 `CAPABILITY_MISSING` 决策。没有真实备用 Worker 时，系统只能
+产生 `REASSIGN_UNAVAILABLE → HUMAN_TAKEOVER`：
+
+```powershell
+python -B -m labops recovery request `
+  --session 20260831-091 `
+  --failure-type CAPABILITY_MISSING `
+  --failed-role evidence-collector `
+  --failed-worker-id evidence-collector-primary `
+  --requested-by labops-manager `
+  --source-ref observer/normalized_events.jsonl
+```
+
+真人使用 `labops recovery accept` 接受返回的 takeover ID 后，只有同一人工 owner 可以释放缺失
+证据。`--confirm` 必须逐字重复 takeover ID：
+
+```powershell
+python -B -m labops reviewer-incident release `
+  --session 20260831-091 `
+  --takeover-id TAKEOVER-20260831-091-01 `
+  --released-by human-operator `
+  --confirm TAKEOVER-20260831-091-01
+
+python -B -m labops recovery resume `
+  --session 20260831-091 `
+  --takeover-id TAKEOVER-20260831-091-01 `
+  --resumed-by human-operator `
+  --resume-point EVIDENCE_COLLECTING `
+  --confirm TAKEOVER-20260831-091-01
+```
+
+Evidence Collector 重新收集后，Manager 必须在真实 Matrix 中产生新的 session-bound
+`manager_to_collector` redispatch，之后才继续 RCA、Plan、独立 Human Approval、Gateway/Runner
+和 Auditor。`reviewer-incident status` 在流程尚未满足时有意返回退出码 `2`，表示真实性门禁尚未
+通过，不代表它伪造后续步骤。调用状态始终保持事实分层：七个 Skill 的部署与发现可核验；没有
+native invocation hook 的 Skill 仍为 `UNVERIFIED`，不得用角色消息替代 Skill 调用证据。
+
 结束后：
 
 ```powershell

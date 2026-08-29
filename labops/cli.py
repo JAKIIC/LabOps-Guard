@@ -396,6 +396,43 @@ def cmd_recovery(args) -> int:
     return 0
 
 
+def cmd_reviewer_incident(args) -> int:
+    """Prepare or inspect the answer-blind Reviewer incident helper."""
+
+    from labops.reviewer_incident import (
+        ReviewerIncidentError,
+        prepare_reviewer_incident,
+        release_reviewer_evidence,
+        review_reviewer_incident,
+    )
+
+    project_root = Path(__file__).resolve().parent.parent
+    sessions_root = (
+        Path(args.sessions_root)
+        if args.sessions_root
+        else project_root / "demo" / "live-sessions"
+    )
+    session_root = sessions_root / args.session
+    try:
+        if args.action == "prepare":
+            payload = prepare_reviewer_incident(project_root, sessions_root, args.session)
+        elif args.action == "status":
+            payload = review_reviewer_incident(session_root)
+        else:
+            if args.confirm != args.takeover_id:
+                raise ReviewerIncidentError("explicit confirmation must equal takeover_id")
+            payload = release_reviewer_evidence(
+                session_root,
+                takeover_id=args.takeover_id,
+                released_by=args.released_by,
+            )
+    except (ReviewerIncidentError, OSError, ValueError, json.JSONDecodeError) as exc:
+        print(json.dumps({"status": "BLOCKED", "error": str(exc)}, ensure_ascii=False, indent=2))
+        return 2
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if payload.get("status") in {"PREPARED", "EVIDENCE_RELEASED", "READY_FOR_AGENTTEAMS_CONTINUATION"} else 2
+
+
 def cmd_reviewer(args) -> int:
     """Operate the local read-only Reviewer Edition lifecycle."""
 
@@ -651,6 +688,36 @@ def build_parser() -> argparse.ArgumentParser:
     recovery_resume.add_argument("--resume-point", required=True)
     recovery_resume.add_argument("--confirm", required=True, help="must exactly repeat takeover_id")
     recovery_resume.set_defaults(func=cmd_recovery)
+
+    sp = sub.add_parser(
+        "reviewer-incident",
+        help="prepare and inspect an answer-blind non-formal Reviewer incident",
+    )
+    incident_sub = sp.add_subparsers(dest="action", required=True)
+
+    incident_prepare = incident_sub.add_parser(
+        "prepare", help="create a non-overwritable Reviewer incident session"
+    )
+    incident_prepare.add_argument("--session", required=True)
+    incident_prepare.add_argument("--sessions-root", default=None)
+    incident_prepare.set_defaults(func=cmd_reviewer_incident)
+
+    incident_status = incident_sub.add_parser(
+        "status", help="verify observed events and print the truthful next step"
+    )
+    incident_status.add_argument("--session", required=True)
+    incident_status.add_argument("--sessions-root", default=None)
+    incident_status.set_defaults(func=cmd_reviewer_incident)
+
+    incident_release = incident_sub.add_parser(
+        "release", help="release operator evidence after an accepted Human Takeover"
+    )
+    incident_release.add_argument("--session", required=True)
+    incident_release.add_argument("--sessions-root", default=None)
+    incident_release.add_argument("--takeover-id", required=True)
+    incident_release.add_argument("--released-by", required=True)
+    incident_release.add_argument("--confirm", required=True, help="must exactly repeat takeover_id")
+    incident_release.set_defaults(func=cmd_reviewer_incident)
 
     sp = sub.add_parser("reviewer", help="run the local read-only Reviewer Edition")
     reviewer_sub = sp.add_subparsers(dest="action", required=True)

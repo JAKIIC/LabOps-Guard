@@ -355,6 +355,64 @@ missing 只有在 Matrix event 和 session 内 capability artifact 同时证明�
 
 Recovery Trace 属于本次新 live session，不得写入或回填 AT-002/003/004 正式 Evidence。
 
+## 6.2 Reviewer Evidence Gap 动态路径
+
+这条路径用于现场证明“证据不足会改变协作路线”，不是第二个正式 Evidence Bundle。先创建新
+session：
+
+```powershell
+python -B -m labops reviewer-incident prepare --session 20260831-091
+```
+
+由真人把 `demo/live-sessions/20260831-091/manager_task.md` 发给真实 Manager。Prompt 只包含
+`0.71875 × 3`、历史区间、已知保护项和缺失 artifact 名称；不包含被隐藏的配置值、RCA 答案或
+最终指标。预期可观察路径是：
+
+```text
+Manager → Evidence Collector
+→ evidence_incomplete (real Matrix event)
+→ CAPABILITY_MISSING
+→ REASSIGN_UNAVAILABLE
+→ HUMAN_TAKEOVER (real human acceptance)
+→ operator evidence release
+→ resume at EVIDENCE_COLLECTING
+→ Manager redispatches Evidence Collector (new real Matrix event)
+→ RCA → Plan → separate Human Approval → Gateway/Runner → Auditor
+```
+
+关键命令按顺序执行：
+
+```powershell
+python -B -m labops reviewer-incident status --session 20260831-091
+
+python -B -m labops recovery request `
+  --session 20260831-091 `
+  --failure-type CAPABILITY_MISSING `
+  --failed-role evidence-collector `
+  --failed-worker-id evidence-collector-primary `
+  --requested-by labops-manager `
+  --source-ref observer/normalized_events.jsonl
+
+# 使用 request 返回的真实 takeover ID；接受动作必须由真人执行。
+python -B -m labops recovery accept --session 20260831-091 `
+  --takeover-id TAKEOVER-20260831-091-01 --accepted-by human-operator `
+  --confirm TAKEOVER-20260831-091-01
+
+python -B -m labops reviewer-incident release --session 20260831-091 `
+  --takeover-id TAKEOVER-20260831-091-01 --released-by human-operator `
+  --confirm TAKEOVER-20260831-091-01
+
+python -B -m labops recovery resume --session 20260831-091 `
+  --takeover-id TAKEOVER-20260831-091-01 --resumed-by human-operator `
+  --resume-point EVIDENCE_COLLECTING --confirm TAKEOVER-20260831-091-01
+```
+
+`status` 会核对答案盲测契约、initial/withheld artifact 哈希、真实 observer event、恢复 Trace、
+Human Takeover owner、证据释放 Trace 和 redispatch 顺序。它只把 Matrix 分支称为 `OBSERVED`，
+不会称为加密认证；不会把 Skill deployment/discovery 外推成 invocation。Helper 本身不会发送
+Matrix、接受接管、审批、执行 Runner 或生成虚假 Skill event。若任何真实事件缺失，保持
+`WAITING_* / BLOCKED` 并切换已验证 Replay，不手工补事件。
+
 ## 7. 录制窗口与镜头顺序
 
 1. **Matrix/AgentTeams Manager room**：任务接收、Manager 编排和角色交接；

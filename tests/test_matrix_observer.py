@@ -135,6 +135,21 @@ class MatrixObserverTests(unittest.TestCase):
         })
         self.assertEqual(normalize_sync_response(payload, {room: "experiment-planner"}, SESSION), [])
 
+    def test_normalization_observes_evidence_gap_without_treating_it_as_terminal_proof(self) -> None:
+        room = "!collector:example.invalid"
+        payload = self._sync_payload({
+            room: {"timeline": {"events": [
+                self._bound_event("$gap", kind="evidence_incomplete"),
+            ]}}
+        })
+
+        events = normalize_sync_response(payload, {room: "evidence-collector"}, SESSION)
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["kind"], "evidence_incomplete")
+        self.assertEqual(events[0]["evidence_state"], "OBSERVED")
+        self.assertNotEqual(events[0]["evidence_state"], "VERIFIED")
+
     def test_sync_once_uses_bearer_header_and_returns_sanitized_snapshot(self) -> None:
         room = "!rca:example.invalid"
         payload = self._sync_payload({

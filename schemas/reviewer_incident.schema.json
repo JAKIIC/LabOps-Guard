@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "labops://schemas/reviewer_incident.schema.json",
+  "title": "ReviewerEvidenceGapIncident",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "classification",
+    "profile",
+    "session_id",
+    "initial_packet",
+    "withheld_evidence",
+    "release_target",
+    "required_dynamic_events",
+    "helper_boundaries"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["1.0"]},
+    "classification": {"type": "string", "enum": ["NON_FORMAL_LIVE_DEMO"]},
+    "profile": {"type": "string", "enum": ["REVIEWER_EVIDENCE_GAP_V1"]},
+    "session_id": {"type": "string", "pattern": "^[0-9]{8}-[0-9]{3}$"},
+    "initial_packet": {"$ref": "#/$defs/fileBinding"},
+    "withheld_evidence": {"$ref": "#/$defs/fileBinding"},
+    "release_target": {"type": "string", "enum": ["operator/released/evaluation-config-snapshot-current.json"]},
+    "required_dynamic_events": {
+      "type": "array",
+      "const": ["evidence_incomplete", "manager_to_collector"]
+    },
+    "helper_boundaries": {
+      "type": "object",
+      "required": ["sends_matrix_messages", "accepts_takeover", "approves_plans", "executes_runner", "claims_skill_invocation"],
+      "properties": {
+        "sends_matrix_messages": {"type": "boolean", "const": false},
+        "accepts_takeover": {"type": "boolean", "const": false},
+        "approves_plans": {"type": "boolean", "const": false},
+        "executes_runner": {"type": "boolean", "const": false},
+        "claims_skill_invocation": {"type": "boolean", "const": false}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "fileBinding": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

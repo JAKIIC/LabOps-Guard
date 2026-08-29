@@ -30,6 +30,9 @@ EVENT_ID = re.compile(r"^\$\S+$")
 EVENT_KIND = re.compile(r"LABOPS_EVENT_KIND\s*[:=]\s*([a-z_]+)", re.IGNORECASE)
 SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 TRANSITIONS = {kind: (source, target) for kind, source, target in EXPECTED_TIMELINE}
+TRANSITIONS.update({
+    "evidence_incomplete": ("EVIDENCE_COLLECTING", "BLOCKED"),
+})
 SOURCE_STATUSES = {"LIVE", "STALE", "DISCONNECTED", "UNSUPPORTED_ENCRYPTED_ROOM"}
 ERROR_CODES = {
     "MATRIX_AUTH_FAILED",
