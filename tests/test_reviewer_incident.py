@@ -12,6 +12,7 @@ from pathlib import Path
 from labops import cli
 from labops.matrix_observer import write_observer_projection
 from labops.recovery import (
+    RecoveryError,
     accept_human_takeover,
     request_recovery,
     resume_human_takeover,
@@ -34,6 +35,11 @@ def _event(event_id: str, kind: str, actor: str, timestamp: str) -> dict:
         "validation_version": "matrix-sender-bound-v1",
         "event_id": event_id,
         "room_id": f"!{actor}:example.invalid",
+        "session_id": SESSION_ID,
+        "task_instance_id": f"LIVE-TASK-{SESSION_ID}",
+        "incident_instance_id": f"LIVE-INCIDENT-{SESSION_ID}",
+        "attempt_id": f"LIVE-ATTEMPT-{SESSION_ID}-01",
+        "run_id": f"RUN-LABOPS-AT-004-AGENTTEAMS-{SESSION_ID[-3:]}",
         "actor": actor,
         "kind": kind,
         "timestamp": timestamp,
@@ -67,6 +73,84 @@ class ReviewerIncidentTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ReviewerIncidentError, "invalid"):
             review_reviewer_incident(self.session_root)
+
+    def test_recovery_requires_a_real_observed_gap_before_writing_trace(self) -> None:
+        write_observer_projection(
+            self.session_root,
+            {
+                "connected": True,
+                "source_status": "LIVE",
+                "checked_at": "2026-08-31T10:00:00Z",
+                "last_success_at": "2026-08-31T10:00:00Z",
+                "next_batch": "s1",
+                "events": [],
+                "errors": [],
+            },
+        )
+
+        with self.assertRaisesRegex(RecoveryError, "RECOVERY_PRECONDITION_NOT_MET"):
+            request_recovery(
+                self.session_root,
+                failure_type="CAPABILITY_MISSING",
+                failed_role="evidence-collector",
+                failed_worker_id="evidence-collector-primary",
+                requested_by="labops-manager",
+                source_refs=["observer/normalized_events.jsonl"],
+            )
+        self.assertFalse((self.session_root / "recovery").exists())
+
+    def test_recovery_rejects_a_cross_session_observer_event(self) -> None:
+        event = _event(
+            "$foreign-gap",
+            "evidence_incomplete",
+            "evidence-collector",
+            "2026-08-31T10:00:00Z",
+        )
+        event["session_id"] = "20260831-999"
+        event["task_instance_id"] = "LIVE-TASK-20260831-999"
+        event["incident_instance_id"] = "LIVE-INCIDENT-20260831-999"
+        event["attempt_id"] = "LIVE-ATTEMPT-20260831-999-01"
+        event["run_id"] = "RUN-LABOPS-AT-004-AGENTTEAMS-999"
+        observer = self.session_root / "observer"
+        observer.mkdir(exist_ok=True)
+        (observer / "normalized_events.jsonl").write_text(
+            json.dumps(event) + "\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(RecoveryError, "RECOVERY_PRECONDITION_NOT_MET"):
+            request_recovery(
+                self.session_root,
+                failure_type="CAPABILITY_MISSING",
+                failed_role="evidence-collector",
+                failed_worker_id="evidence-collector-primary",
+                requested_by="labops-manager",
+                source_refs=["observer/normalized_events.jsonl"],
+            )
+
+    def test_recovery_rejects_a_gap_from_the_wrong_actor(self) -> None:
+        event = _event(
+            "$wrong-actor-gap",
+            "evidence_incomplete",
+            "rca-analyst",
+            "2026-08-31T10:00:00Z",
+        )
+        observer = self.session_root / "observer"
+        observer.mkdir(exist_ok=True)
+        (observer / "normalized_events.jsonl").write_text(
+            json.dumps(event) + "\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(RecoveryError, "RECOVERY_PRECONDITION_NOT_MET"):
+            request_recovery(
+                self.session_root,
+                failure_type="CAPABILITY_MISSING",
+                failed_role="evidence-collector",
+                failed_worker_id="evidence-collector-primary",
+                requested_by="labops-manager",
+                source_refs=["observer/normalized_events.jsonl"],
+            )
 
     def test_prepare_is_non_overwritable_and_does_not_leak_the_answer(self) -> None:
         self.assertEqual(self.prepared["status"], "PREPARED")
@@ -354,17 +438,17 @@ class ReviewerIncidentTests(unittest.TestCase):
                 "errors": [],
             },
         )
-        request_recovery(
-            self.session_root,
-            failure_type="AUDIT_INCONCLUSIVE",
-            requested_by="verification-auditor",
-            source_refs=["observer/normalized_events.jsonl"],
+        with self.assertRaisesRegex(RecoveryError, "RECOVERY_PRECONDITION_NOT_MET"):
+            request_recovery(
+                self.session_root,
+                failure_type="AUDIT_INCONCLUSIVE",
+                requested_by="verification-auditor",
+                source_refs=["observer/normalized_events.jsonl"],
+            )
+        self.assertEqual(
+            review_reviewer_incident(self.session_root)["status"],
+            "WAITING_FOR_RECOVERY_REQUEST",
         )
-
-        result = review_reviewer_incident(self.session_root)
-
-        self.assertEqual(result["status"], "BLOCKED")
-        self.assertEqual(result["recovery"]["profile_binding"], "INVALID")
 
 
 if __name__ == "__main__":

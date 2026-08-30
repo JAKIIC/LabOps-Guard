@@ -18,6 +18,7 @@ import urllib.error
 import urllib.request
 import uuid
 import webbrowser
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -42,6 +43,14 @@ from labops.matrix_observer import (
 
 LIFECYCLE_CLASSIFICATION = "LOCAL_REVIEWER_LIFECYCLE"
 LIFECYCLE_MAX_AGE_SECONDS = 15
+AGENTTEAMS_CONTAINERS = {
+    "labops-manager": "hiclaw-manager",
+    "evidence-collector": "hiclaw-worker-evidence-collector",
+    "rca-analyst": "hiclaw-worker-rca-analyst",
+    "experiment-planner": "hiclaw-worker-researcher",
+    "safe-executor": "hiclaw-worker-controlled-executor",
+    "verification-auditor": "hiclaw-worker-verification-auditor",
+}
 
 
 def _utc_now() -> str:
@@ -108,6 +117,78 @@ def _probe_docker(project_root: Path) -> dict[str, bool]:
     return {"docker": True, "runner_image": image.returncode == 0}
 
 
+def _probe_agentteams_business_readiness(project_root: Path) -> dict[str, Any]:
+    """Check that every AgentTeams Matrix consumer is actually running.
+
+    Container liveness and Matrix membership are insufficient: OpenClaw can
+    remain healthy while one channel has stopped consuming messages.
+    """
+
+    docker = shutil.which("docker")
+    if not docker:
+        return {
+            "ready": False,
+            "ready_count": 0,
+            "required": len(AGENTTEAMS_CONTAINERS),
+            "components": {role: "DOCKER_UNAVAILABLE" for role in AGENTTEAMS_CONTAINERS},
+        }
+
+    def probe(item: tuple[str, str]) -> tuple[str, str]:
+        role, container = item
+        try:
+            result = subprocess.run(
+                [docker, "exec", container, "openclaw", "channels", "status", "--json"],
+                cwd=project_root,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return role, "UNREACHABLE"
+        if result.returncode != 0:
+            return role, "UNREACHABLE"
+        try:
+            channel_status = json.loads(result.stdout)
+        except (json.JSONDecodeError, TypeError):
+            return role, "INVALID_HEALTH"
+        matrix = (
+            channel_status.get("channels", {}).get("matrix", {})
+            if isinstance(channel_status, dict)
+            else {}
+        )
+        accounts = (
+            channel_status.get("channelAccounts", {}).get("matrix", [])
+            if isinstance(channel_status, dict)
+            else []
+        )
+        if matrix.get("configured") is not True:
+            return role, "MATRIX_UNCONFIGURED"
+        if matrix.get("running") is not True:
+            return role, "MATRIX_STOPPED"
+        account = next(
+            (item for item in accounts if isinstance(item, dict) and item.get("accountId") == "default"),
+            accounts[0] if accounts and isinstance(accounts[0], dict) else {},
+        )
+        if not account:
+            return role, "MATRIX_ACCOUNT_MISSING"
+        if account.get("running") is not True or account.get("connected") is not True:
+            return role, "MATRIX_DISCONNECTED"
+        if account.get("healthState") != "healthy":
+            return role, "MATRIX_UNHEALTHY"
+        return role, "READY"
+
+    with ThreadPoolExecutor(max_workers=len(AGENTTEAMS_CONTAINERS)) as executor:
+        components = dict(executor.map(probe, AGENTTEAMS_CONTAINERS.items()))
+    ready_count = sum(status == "READY" for status in components.values())
+    return {
+        "ready": ready_count == len(AGENTTEAMS_CONTAINERS),
+        "ready_count": ready_count,
+        "required": len(AGENTTEAMS_CONTAINERS),
+        "components": components,
+    }
+
+
 def _repository_projection(project_root: Path) -> tuple[dict[str, Any], bool]:
     try:
         readiness = build_readiness(project_root)
@@ -148,6 +229,7 @@ def build_preflight(
     *,
     environment: dict[str, str] | None = None,
     docker_probe: Callable[[Path], dict[str, bool]] | None = None,
+    agentteams_probe: Callable[[Path], dict[str, Any]] | None = None,
     matrix_probe: Callable[[str, str, dict[str, str]], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Return deterministic, credential-free Reviewer readiness JSON."""
@@ -178,6 +260,27 @@ def build_preflight(
             missing.append("DOCKER_UNAVAILABLE")
         if not image_ready:
             missing.append("RUNNER_IMAGE_MISSING")
+
+        business = {
+            "ready": False,
+            "ready_count": 0,
+            "required": len(AGENTTEAMS_CONTAINERS),
+            "components": {},
+        }
+        if docker_ready:
+            business = (agentteams_probe or _probe_agentteams_business_readiness)(root)
+        business_ready = business.get("ready") is True
+        ready_count = business.get("ready_count")
+        required_count = business.get("required")
+        components = business.get("components") if isinstance(business.get("components"), dict) else {}
+        checks["agentteams_business_readiness"] = {
+            "status": "PASS" if business_ready else "NOT_CHECKED" if not docker_ready else "FAIL",
+            "ready": ready_count if isinstance(ready_count, int) else 0,
+            "required": required_count if isinstance(required_count, int) else len(AGENTTEAMS_CONTAINERS),
+            "components": components,
+        }
+        if docker_ready and not business_ready:
+            missing.append("AGENTTEAMS_BUSINESS_NOT_READY")
 
         homeserver = env.get("LABOPS_MATRIX_HOMESERVER", "").strip()
         token = env.get("LABOPS_MATRIX_ACCESS_TOKEN", "").strip()
@@ -227,7 +330,16 @@ def build_preflight(
                 if error == "MATRIX_ROOM_MAP_UNJOINED"
                 else "MATRIX_ROOM_MEMBERSHIP_UNVERIFIED"
             )
-        if repository_ready and docker_ready and image_ready and homeserver_ready and token_ready and room_map_ready and membership_ready:
+        if (
+            repository_ready
+            and docker_ready
+            and image_ready
+            and business_ready
+            and homeserver_ready
+            and token_ready
+            and room_map_ready
+            and membership_ready
+        ):
             available_modes.append("LIVE")
 
     requested = normalized.upper()

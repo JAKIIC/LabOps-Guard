@@ -7,7 +7,10 @@ The current overlay is always reconstructed from the verified hash chain.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import re
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -204,6 +207,92 @@ def _safe_source_refs(root: Path, source_refs: list[str] | None) -> list[str]:
     return checked
 
 
+def _observer_recovery_evidence(
+    root: Path,
+    manifest: dict,
+    refs: list[str],
+    failure_type: str,
+    failed_role: str | None,
+) -> dict | None:
+    """Validate an Observer event before it can drive a recovery decision.
+
+    The projection remains non-authoritative UI evidence.  This gate only
+    proves that a sender-bound, session-bound failure was actually observed
+    before the append-only recovery overlay is changed.
+    """
+
+    observer_ref = "observer/normalized_events.jsonl"
+    if observer_ref not in refs:
+        return None
+    path = root / observer_ref
+    try:
+        raw = path.read_bytes()
+        lines = raw.decode("utf-8").splitlines()
+    except (OSError, UnicodeError) as exc:
+        raise RecoveryError("RECOVERY_PRECONDITION_NOT_MET: observer evidence is unreadable") from exc
+    expected_bindings = {
+        name: manifest.get(name)
+        for name in (
+            "session_id",
+            "task_instance_id",
+            "incident_instance_id",
+            "attempt_id",
+            "run_id",
+        )
+    }
+    expected_kind = {
+        "EVIDENCE_INCOMPLETE": "evidence_incomplete",
+        "CAPABILITY_MISSING": "evidence_incomplete",
+    }.get(failure_type)
+    expected_actor = failed_role if failure_type == "CAPABILITY_MISSING" else "evidence-collector"
+    matching: list[dict] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        timestamp = event.get("timestamp")
+        try:
+            parsed_timestamp = datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            continue
+        if parsed_timestamp.tzinfo is None:
+            continue
+        if (
+            expected_kind is not None
+            and event.get("classification") == "NON_AUTHORITATIVE_UI_PROJECTION"
+            and event.get("validation_version") == "matrix-sender-bound-v1"
+            and isinstance(event.get("event_id"), str)
+            and re.fullmatch(r"\$\S+", str(event["event_id"])) is not None
+            and isinstance(event.get("room_id"), str)
+            and re.fullmatch(r"![^:\s]+:\S+", str(event["room_id"])) is not None
+            and event.get("kind") == expected_kind
+            and event.get("actor") == expected_actor
+            and event.get("evidence_state") == "OBSERVED"
+            and event.get("workflow_to") == "BLOCKED"
+            and all(event.get(name) == value for name, value in expected_bindings.items())
+        ):
+            matching.append(event)
+    if not matching:
+        raise RecoveryError(
+            "RECOVERY_PRECONDITION_NOT_MET: no sender-bound, session-bound failure event was observed"
+        )
+    event = matching[-1]
+    return {
+        "source_ref": observer_ref,
+        "source_sha256": hashlib.sha256(raw).hexdigest(),
+        "matrix_event_id": event["event_id"],
+        "kind": event["kind"],
+        "actor": event["actor"],
+        "observed_at": event["timestamp"],
+        "validation_version": event["validation_version"],
+    }
+
+
 def _append(root: Path, entity_type: str, entity_id: str, event: str, actor: str, extra: dict) -> dict:
     return _trace(root).append(
         entity_type,
@@ -319,6 +408,13 @@ def request_recovery(session_root: str | Path, *, failure_type: str,
     if requested_by not in manifest["agent_order"]:
         raise RecoveryError("recovery must be requested by a canonical Agent role")
     refs = _safe_source_refs(root, source_refs)
+    observer_evidence = _observer_recovery_evidence(
+        root,
+        manifest,
+        refs,
+        failure_type,
+        failed_role,
+    )
     overlay = load_recovery_overlay(root)
     if overlay["pending_takeover"] is not None:
         raise RecoveryError("a human takeover is already pending")
@@ -338,6 +434,7 @@ def request_recovery(session_root: str | Path, *, failure_type: str,
         "failed_role": failed_role,
         "failed_worker_id": failed_worker_id,
         "source_refs": refs,
+        "observer_evidence": observer_evidence,
     })
     overlay = load_recovery_overlay(root)
 

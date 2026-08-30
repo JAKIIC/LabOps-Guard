@@ -56,6 +56,48 @@ def _ready(mode: str) -> dict:
     }
 
 
+class ReviewerBusinessReadinessProbeTests(unittest.TestCase):
+    def test_probe_uses_live_channel_status_instead_of_gateway_health_projection(self) -> None:
+        channel_status = {
+            "channels": {"matrix": {"configured": True, "running": True}},
+            "channelAccounts": {
+                "matrix": [
+                    {
+                        "accountId": "default",
+                        "configured": True,
+                        "running": True,
+                        "connected": True,
+                        "healthState": "healthy",
+                    }
+                ]
+            },
+        }
+        gateway_health = {
+            "ok": True,
+            "channels": {
+                "matrix": {
+                    "configured": True,
+                    "running": False,
+                    "probe": {"ok": True},
+                }
+            },
+        }
+
+        def fake_run(command, **_kwargs):
+            payload = channel_status if "channels" in command and "status" in command else gateway_health
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps(payload), stderr="")
+
+        with (
+            patch("labops.reviewer.shutil.which", return_value="docker"),
+            patch("labops.reviewer.subprocess.run", side_effect=fake_run),
+        ):
+            result = reviewer_mod._probe_agentteams_business_readiness(ROOT)
+
+        self.assertTrue(result["ready"])
+        self.assertEqual(result["ready_count"], 6)
+        self.assertEqual(set(result["components"].values()), {"READY"})
+
+
 class _FakeComponent:
     def __init__(self, name: str, events: list[str]) -> None:
         self.name = name
@@ -128,6 +170,12 @@ class ReviewerPreflightTests(unittest.TestCase):
                 "live",
                 environment=environment,
                 docker_probe=lambda _root: {"docker": True, "runner_image": True},
+                agentteams_probe=lambda _root: {
+                    "ready": True,
+                    "ready_count": 6,
+                    "required": 6,
+                    "components": {},
+                },
                 matrix_probe=lambda _homeserver, _token, roles: {
                     "connected": True,
                     "all_joined": True,
@@ -155,6 +203,12 @@ class ReviewerPreflightTests(unittest.TestCase):
                     "LABOPS_MATRIX_ROOM_MAP": str(room_map),
                 },
                 docker_probe=lambda _root: {"docker": True, "runner_image": True},
+                agentteams_probe=lambda _root: {
+                    "ready": True,
+                    "ready_count": 6,
+                    "required": 6,
+                    "components": {},
+                },
                 matrix_probe=lambda _homeserver, _token, roles: {
                     "connected": True,
                     "all_joined": False,
@@ -166,6 +220,41 @@ class ReviewerPreflightTests(unittest.TestCase):
         self.assertEqual(report["status"], "BLOCKED")
         self.assertIn("MATRIX_ROOM_MAP_UNJOINED", report["missing_requirements"])
         self.assertEqual(report["checks"]["matrix_room_membership"]["status"], "FAIL")
+
+    def test_live_mode_blocks_when_a_running_worker_is_not_consuming_matrix(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            room_map = Path(tmp) / "rooms.json"
+            room_map.write_text(json.dumps(REAL_ROOM_MAP), encoding="utf-8")
+            report = build_preflight(
+                ROOT,
+                "live",
+                environment={
+                    "LABOPS_MATRIX_HOMESERVER": "http://127.0.0.1:18080",
+                    "LABOPS_MATRIX_ACCESS_TOKEN": "reviewer-secret-token",
+                    "LABOPS_MATRIX_ROOM_MAP": str(room_map),
+                },
+                docker_probe=lambda _root: {"docker": True, "runner_image": True},
+                agentteams_probe=lambda _root: {
+                    "ready": False,
+                    "ready_count": 5,
+                    "required": 6,
+                    "components": {
+                        "labops-manager": "READY",
+                        "evidence-collector": "MATRIX_STOPPED",
+                    },
+                },
+                matrix_probe=lambda _homeserver, _token, roles: {
+                    "connected": True,
+                    "all_joined": True,
+                    "rooms_expected": len(roles),
+                    "error": None,
+                },
+            )
+
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertIn("AGENTTEAMS_BUSINESS_NOT_READY", report["missing_requirements"])
+        self.assertEqual(report["checks"]["agentteams_business_readiness"]["status"], "FAIL")
+        self.assertEqual(report["checks"]["agentteams_business_readiness"]["ready"], 5)
 
 
 class ReviewerLifecycleTests(unittest.TestCase):

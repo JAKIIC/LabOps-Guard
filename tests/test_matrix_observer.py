@@ -24,6 +24,7 @@ SESSION = {
     "session_id": "20260831-081",
     "task_instance_id": "LIVE-TASK-20260831-081",
     "incident_instance_id": "LIVE-INCIDENT-20260831-081",
+    "attempt_id": "LIVE-ATTEMPT-20260831-081-01",
     "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-081",
 }
 
@@ -51,6 +52,7 @@ class MatrixObserverTests(unittest.TestCase):
         kind: str = "rca_to_planner",
         event_type: str = "m.room.message",
         include_run: bool = True,
+        include_attempt: bool = True,
         sender: str = "@rca-analyst:matrix-local.hiclaw.io",
     ) -> dict:
         bindings = [
@@ -58,6 +60,8 @@ class MatrixObserverTests(unittest.TestCase):
             SESSION["task_instance_id"],
             SESSION["incident_instance_id"],
         ]
+        if include_attempt:
+            bindings.append(SESSION["attempt_id"])
         if include_run:
             bindings.append(SESSION["run_id"])
         return {
@@ -128,9 +132,24 @@ class MatrixObserverTests(unittest.TestCase):
         self.assertEqual(event["kind"], "rca_to_planner")
         self.assertEqual(event["classification"], "NON_AUTHORITATIVE_UI_PROJECTION")
         self.assertEqual(event["validation_version"], "matrix-sender-bound-v1")
+        self.assertEqual(event["session_id"], SESSION["session_id"])
+        self.assertEqual(event["task_instance_id"], SESSION["task_instance_id"])
+        self.assertEqual(event["incident_instance_id"], SESSION["incident_instance_id"])
+        self.assertEqual(event["attempt_id"], SESSION["attempt_id"])
+        self.assertEqual(event["run_id"], SESSION["run_id"])
         self.assertEqual(event["artifact_refs"], ["shared/hypotheses.json"])
         self.assertNotIn("body", event)
         self.assertNotIn("private", json.dumps(event))
+
+    def test_normalization_rejects_an_event_without_attempt_binding(self) -> None:
+        room = "!rca:matrix-local.hiclaw.io"
+        payload = self._sync_payload({
+            room: {"timeline": {"events": [
+                self._bound_event("$missing-attempt", include_attempt=False),
+            ]}}
+        })
+
+        self.assertEqual(normalize_sync_response(payload, {room: "rca-analyst"}, SESSION), [])
 
     def test_normalization_rejects_unknown_event_kind_and_invalid_event_id(self) -> None:
         room = "!planner:matrix-local.hiclaw.io"
@@ -415,6 +434,11 @@ class MatrixObserverTests(unittest.TestCase):
                     "validation_version": "matrix-sender-bound-v1",
                     "event_id": "$one",
                     "room_id": "!manager:matrix-local.hiclaw.io",
+                    "session_id": "20260831-081",
+                    "task_instance_id": "LIVE-TASK-20260831-081",
+                    "incident_instance_id": "LIVE-INCIDENT-20260831-081",
+                    "attempt_id": "LIVE-ATTEMPT-20260831-081-01",
+                    "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-081",
                     "actor": "labops-manager",
                     "kind": "task_dispatched",
                     "timestamp": "2026-08-31T10:00:00Z",

@@ -130,12 +130,18 @@ def _safe_refs(value: object, *, hashes: bool = False, limit: int = 8) -> list[s
     return result
 
 
-def _session_bindings(session: dict[str, Any]) -> list[str]:
-    names = ("session_id", "task_instance_id", "incident_instance_id", "run_id")
-    values = [session.get(name) for name in names]
-    if any(not isinstance(value, str) or not value for value in values):
-        return []
-    return [str(value) for value in values]
+def _session_bindings(session: dict[str, Any]) -> dict[str, str]:
+    names = (
+        "session_id",
+        "task_instance_id",
+        "incident_instance_id",
+        "attempt_id",
+        "run_id",
+    )
+    values = {name: session.get(name) for name in names}
+    if any(not isinstance(value, str) or not value for value in values.values()):
+        return {}
+    return {name: str(value) for name, value in values.items()}
 
 
 def _sender_localpart(sender: object, room_id: str) -> str | None:
@@ -166,7 +172,7 @@ def _normalized_event(
     event: dict[str, Any],
     room_id: str,
     agent_id: str,
-    bindings: list[str],
+    bindings: dict[str, str],
 ) -> dict[str, Any] | None:
     if event.get("type") != "m.room.message":
         return None
@@ -175,7 +181,7 @@ def _normalized_event(
     if not isinstance(event_id, str) or EVENT_ID.fullmatch(event_id) is None or not isinstance(content, dict):
         return None
     searchable = json.dumps(content, ensure_ascii=False, sort_keys=True)
-    if not bindings or any(binding not in searchable for binding in bindings):
+    if not bindings or any(binding not in searchable for binding in bindings.values()):
         return None
     structured = content.get("labops_event")
     structured = structured if isinstance(structured, dict) else {}
@@ -213,6 +219,7 @@ def _normalized_event(
         "validation_version": PROJECTION_VALIDATION_VERSION,
         "event_id": event_id,
         "room_id": room_id,
+        **bindings,
         "actor": actor,
         "kind": kind,
         "timestamp": _event_time(event.get("origin_server_ts")),
@@ -447,13 +454,14 @@ def _safe_errors(value: object) -> list[dict[str, str]]:
     return errors
 
 
-def _cache_event(value: object) -> dict[str, Any] | None:
+def _cache_event(value: object, session: dict[str, Any]) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         return None
     event_id = value.get("event_id")
     room_id = value.get("room_id")
     actor = value.get("actor")
     kind = value.get("kind")
+    bindings = _session_bindings(session)
     if (
         not isinstance(event_id, str)
         or EVENT_ID.fullmatch(event_id) is None
@@ -463,6 +471,8 @@ def _cache_event(value: object) -> dict[str, Any] | None:
         or actor not in set(ROLE_ORDER) | {"human-approver"}
         or kind not in TRANSITIONS
         or not projection_actor_valid(actor, kind)
+        or not bindings
+        or any(value.get(name) != expected for name, expected in bindings.items())
     ):
         return None
     expected_from, expected_to = TRANSITIONS[str(kind)]
@@ -473,6 +483,7 @@ def _cache_event(value: object) -> dict[str, Any] | None:
         "validation_version": PROJECTION_VALIDATION_VERSION,
         "event_id": event_id,
         "room_id": room_id,
+        **bindings,
         "actor": actor,
         "kind": kind,
         "timestamp": value.get("timestamp") if isinstance(value.get("timestamp"), str) else None,
@@ -524,7 +535,7 @@ def write_observer_projection(session_root: str | Path, snapshot: dict) -> None:
                 record = json.loads(line)
             except json.JSONDecodeError as exc:
                 raise ValueError("observer event cache is malformed") from exc
-            sanitized = _cache_event(record)
+            sanitized = _cache_event(record, manifest)
             if sanitized is None:
                 continue
             if sanitized["event_id"] in seen:
@@ -534,7 +545,7 @@ def write_observer_projection(session_root: str | Path, snapshot: dict) -> None:
     incoming = snapshot.get("events", [])
     if isinstance(incoming, list):
         for item in incoming:
-            record = _cache_event(item)
+            record = _cache_event(item, manifest)
             if record is None:
                 continue
             if record["event_id"] in seen:
