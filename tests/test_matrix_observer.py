@@ -10,12 +10,14 @@ from urllib.error import HTTPError
 from labops.contracts import validate_document
 from labops.live_demo import prepare_session
 from labops.matrix_observer import (
+    active_session_binding,
     load_room_map,
     normalize_sync_response,
     probe_joined_rooms,
     sync_once,
     write_observer_projection,
 )
+from labops.recovery import request_recovery
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -511,6 +513,210 @@ class MatrixObserverTests(unittest.TestCase):
                 (observer / "normalized_events.jsonl").read_text(encoding="utf-8"),
                 "",
             )
+
+    def test_recovery_refreshes_active_binding_and_preserves_prior_attempt_events(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            session_root = Path(prepare_session(ROOT, Path(tmp), "20260831-081")["session_root"])
+            initial = dict(SESSION)
+            first = {
+                "classification": "NON_AUTHORITATIVE_UI_PROJECTION",
+                "validation_version": "matrix-sender-bound-v1",
+                "event_id": "$attempt-one",
+                "room_id": "!collector:matrix-local.hiclaw.io",
+                **{name: initial[name] for name in (
+                    "session_id", "task_instance_id", "incident_instance_id", "attempt_id", "run_id"
+                )},
+                "actor": "evidence-collector",
+                "kind": "evidence_incomplete",
+                "timestamp": "2026-08-31T10:00:00Z",
+                "workflow_from": "EVIDENCE_COLLECTING",
+                "workflow_to": "BLOCKED",
+                "evidence_state": "OBSERVED",
+                "artifact_refs": [],
+                "hash_refs": [],
+            }
+            write_observer_projection(session_root, {
+                "connected": True,
+                "source_status": "LIVE",
+                "events": [first],
+                "errors": [],
+            })
+            source = session_root / "evidence" / "recovery-source.json"
+            source.write_text("{}\n", encoding="utf-8")
+            result = request_recovery(
+                session_root,
+                failure_type="EVIDENCE_INCOMPLETE",
+                requested_by="verification-auditor",
+                source_refs=["evidence/recovery-source.json"],
+            )
+
+            active = active_session_binding(session_root)
+            self.assertEqual(active["attempt_id"], result["attempt"]["attempt_id"])
+            self.assertEqual(active["run_id"], result["attempt"]["run_id"])
+            second = dict(first)
+            second.update({
+                "event_id": "$attempt-two",
+                "attempt_id": active["attempt_id"],
+                "run_id": active["run_id"],
+            })
+            write_observer_projection(session_root, {
+                "connected": True,
+                "source_status": "LIVE",
+                "events": [second],
+                "errors": [],
+            })
+
+            records = [
+                json.loads(line)
+                for line in (session_root / "observer" / "normalized_events.jsonl")
+                .read_text(encoding="utf-8")
+                .splitlines()
+            ]
+            self.assertEqual([record["event_id"] for record in records], ["$attempt-one", "$attempt-two"])
+            self.assertEqual(records[0]["attempt_id"], SESSION["attempt_id"])
+            self.assertEqual(records[1]["attempt_id"], active["attempt_id"])
+
+    def test_projection_rejects_unknown_attempt_after_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            session_root = Path(prepare_session(ROOT, Path(tmp), "20260831-081")["session_root"])
+            source = session_root / "evidence" / "recovery-source.json"
+            source.write_text("{}\n", encoding="utf-8")
+            request_recovery(
+                session_root,
+                failure_type="EVIDENCE_INCOMPLETE",
+                requested_by="verification-auditor",
+                source_refs=["evidence/recovery-source.json"],
+            )
+            unknown = {
+                "classification": "NON_AUTHORITATIVE_UI_PROJECTION",
+                "validation_version": "matrix-sender-bound-v1",
+                "event_id": "$unknown-attempt",
+                "room_id": "!collector:matrix-local.hiclaw.io",
+                "session_id": SESSION["session_id"],
+                "task_instance_id": SESSION["task_instance_id"],
+                "incident_instance_id": SESSION["incident_instance_id"],
+                "attempt_id": "LIVE-ATTEMPT-20260831-081-99",
+                "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-999",
+                "actor": "evidence-collector",
+                "kind": "evidence_incomplete",
+                "evidence_state": "OBSERVED",
+                "artifact_refs": [],
+                "hash_refs": [],
+            }
+            write_observer_projection(session_root, {
+                "connected": True,
+                "source_status": "LIVE",
+                "events": [unknown],
+                "errors": [],
+            })
+            self.assertEqual(
+                (session_root / "observer" / "normalized_events.jsonl").read_text(encoding="utf-8"),
+                "",
+            )
+
+    def test_projection_rejects_new_events_from_an_old_attempt_after_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            session_root = Path(prepare_session(ROOT, Path(tmp), "20260831-081")["session_root"])
+            source = session_root / "evidence" / "recovery-source.json"
+            source.write_text("{}\n", encoding="utf-8")
+            request_recovery(
+                session_root,
+                failure_type="EVIDENCE_INCOMPLETE",
+                requested_by="verification-auditor",
+                source_refs=["evidence/recovery-source.json"],
+            )
+            stale = {
+                "classification": "NON_AUTHORITATIVE_UI_PROJECTION",
+                "validation_version": "matrix-sender-bound-v1",
+                "event_id": "$late-old-attempt",
+                "room_id": "!collector:matrix-local.hiclaw.io",
+                **{name: SESSION[name] for name in (
+                    "session_id", "task_instance_id", "incident_instance_id", "attempt_id", "run_id"
+                )},
+                "actor": "evidence-collector",
+                "kind": "evidence_incomplete",
+                "evidence_state": "OBSERVED",
+                "artifact_refs": [],
+                "hash_refs": [],
+            }
+
+            write_observer_projection(session_root, {
+                "connected": True,
+                "source_status": "LIVE",
+                "events": [stale],
+                "errors": [],
+            })
+
+            self.assertEqual(
+                (session_root / "observer" / "normalized_events.jsonl").read_text(encoding="utf-8"),
+                "",
+            )
+
+    def test_corrupt_recovery_trace_forces_source_status_disconnected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            session_root = Path(prepare_session(ROOT, Path(tmp), "20260831-081")["session_root"])
+            write_observer_projection(session_root, {
+                "connected": True,
+                "source_status": "LIVE",
+                "checked_at": "2026-08-31T10:00:00Z",
+                "last_success_at": "2026-08-31T10:00:00Z",
+                "events": [],
+                "errors": [],
+            })
+            recovery = session_root / "recovery"
+            recovery.mkdir()
+            (recovery / "recovery_trace.jsonl").write_text("not-json\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "recovery"):
+                write_observer_projection(session_root, {
+                    "connected": True,
+                    "source_status": "LIVE",
+                    "checked_at": "2026-08-31T10:00:01Z",
+                    "last_success_at": "2026-08-31T10:00:01Z",
+                    "events": [],
+                    "errors": [],
+                })
+
+            status = json.loads(
+                (session_root / "observer" / "source_status.json").read_text(encoding="utf-8")
+            )
+            self.assertFalse(status["connected"])
+            self.assertEqual(status["source_status"], "DISCONNECTED")
+            self.assertEqual(status["errors"], [{"code": "RECOVERY_BINDING_INVALID"}])
+
+    def test_normalization_uses_latest_recovery_attempt_binding(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            session_root = Path(prepare_session(ROOT, Path(tmp), "20260831-081")["session_root"])
+            source = session_root / "evidence" / "recovery-source.json"
+            source.write_text("{}\n", encoding="utf-8")
+            request_recovery(
+                session_root,
+                failure_type="EVIDENCE_INCOMPLETE",
+                requested_by="verification-auditor",
+                source_refs=["evidence/recovery-source.json"],
+            )
+            active = active_session_binding(session_root)
+            event = self._bound_event(
+                "$latest-attempt",
+                kind="evidence_incomplete",
+                sender="@evidence-collector:matrix-local.hiclaw.io",
+            )
+            body = event["content"]["body"]
+            event["content"]["body"] = body.replace(
+                SESSION["attempt_id"], active["attempt_id"]
+            ).replace(SESSION["run_id"], active["run_id"])
+            payload = self._sync_payload({
+                "!collector:matrix-local.hiclaw.io": {"timeline": {"events": [event]}}
+            })
+
+            events = normalize_sync_response(
+                payload,
+                {"!collector:matrix-local.hiclaw.io": "evidence-collector"},
+                active,
+            )
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["attempt_id"], active["attempt_id"])
+            self.assertEqual(events[0]["run_id"], active["run_id"])
 
     def test_projection_refuses_formal_evidence_like_roots(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

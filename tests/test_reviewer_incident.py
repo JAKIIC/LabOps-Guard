@@ -29,7 +29,15 @@ ROOT = Path(__file__).resolve().parents[1]
 SESSION_ID = "20260831-091"
 
 
-def _event(event_id: str, kind: str, actor: str, timestamp: str) -> dict:
+def _event(
+    event_id: str,
+    kind: str,
+    actor: str,
+    timestamp: str,
+    *,
+    attempt_id: str | None = None,
+    run_id: str | None = None,
+) -> dict:
     return {
         "classification": "NON_AUTHORITATIVE_UI_PROJECTION",
         "validation_version": "matrix-sender-bound-v1",
@@ -38,8 +46,8 @@ def _event(event_id: str, kind: str, actor: str, timestamp: str) -> dict:
         "session_id": SESSION_ID,
         "task_instance_id": f"LIVE-TASK-{SESSION_ID}",
         "incident_instance_id": f"LIVE-INCIDENT-{SESSION_ID}",
-        "attempt_id": f"LIVE-ATTEMPT-{SESSION_ID}-01",
-        "run_id": f"RUN-LABOPS-AT-004-AGENTTEAMS-{SESSION_ID[-3:]}",
+        "attempt_id": attempt_id or f"LIVE-ATTEMPT-{SESSION_ID}-01",
+        "run_id": run_id or f"RUN-LABOPS-AT-004-AGENTTEAMS-{SESSION_ID[-3:]}",
         "actor": actor,
         "kind": kind,
         "timestamp": timestamp,
@@ -306,7 +314,7 @@ class ReviewerIncidentTests(unittest.TestCase):
             review_reviewer_incident(self.session_root)["status"],
             "WAITING_FOR_HUMAN_RESUME",
         )
-        resume_human_takeover(
+        resumed = resume_human_takeover(
             self.session_root,
             takeover_id=requested["takeover_id"],
             resumed_by="human-operator",
@@ -321,6 +329,8 @@ class ReviewerIncidentTests(unittest.TestCase):
             "manager_to_collector",
             "labops-manager",
             "2026-08-31T10:05:00Z",
+            attempt_id=resumed["attempt"]["attempt_id"],
+            run_id=resumed["attempt"]["run_id"],
         )
         write_observer_projection(
             self.session_root,

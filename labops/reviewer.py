@@ -34,6 +34,7 @@ from labops.live_demo import (
     prepare_session,
 )
 from labops.matrix_observer import (
+    active_session_binding,
     load_room_map,
     probe_joined_rooms,
     sync_once,
@@ -416,7 +417,7 @@ class _MatrixObserver:
                     self.token,
                     self.room_roles,
                     since,
-                    session=self.session,
+                    session=active_session_binding(self.session_root),
                 )
                 if snapshot.get("connected") is True:
                     if isinstance(snapshot.get("next_batch"), str):

@@ -19,6 +19,7 @@ from urllib.request import Request, urlopen
 
 from labops.contracts import ContractError, validate_document
 from labops.live_demo import CLASSIFICATION, ROLE_ORDER
+from labops.recovery import load_recovery_overlay
 from labops.reviewer_state import AGENT_PROGRESS, EXPECTED_TIMELINE
 
 
@@ -57,6 +58,7 @@ ERROR_CODES = {
     "MATRIX_RESPONSE_TOO_LARGE",
     "MATRIX_RESPONSE_INVALID",
     "MATRIX_ROOM_MAP_UNJOINED",
+    "RECOVERY_BINDING_INVALID",
     "UNSUPPORTED_ENCRYPTED_ROOM",
 }
 
@@ -142,6 +144,49 @@ def _session_bindings(session: dict[str, Any]) -> dict[str, str]:
     if any(not isinstance(value, str) or not value for value in values.values()):
         return {}
     return {name: str(value) for name, value in values.items()}
+
+
+def _known_session_bindings(session_root: Path, manifest: dict[str, Any]) -> list[dict[str, str]]:
+    """Return every attempt/run binding verified by the recovery hash chain."""
+
+    common_names = ("session_id", "task_instance_id", "incident_instance_id")
+    common = {name: manifest.get(name) for name in common_names}
+    if any(not isinstance(value, str) or not value for value in common.values()):
+        raise ValueError("live session manifest lacks observer bindings")
+    overlay = load_recovery_overlay(session_root)
+    attempts = overlay.get("attempts")
+    if not isinstance(attempts, list) or not attempts:
+        raise ValueError("recovery overlay has no attempts")
+    bindings: list[dict[str, str]] = []
+    for attempt in attempts:
+        if not isinstance(attempt, dict):
+            raise ValueError("recovery overlay contains an invalid attempt")
+        attempt_id = attempt.get("attempt_id")
+        run_id = attempt.get("run_id")
+        if not isinstance(attempt_id, str) or not attempt_id or not isinstance(run_id, str) or not run_id:
+            raise ValueError("recovery attempt lacks observer bindings")
+        bindings.append({
+            **{name: str(value) for name, value in common.items()},
+            "attempt_id": attempt_id,
+            "run_id": run_id,
+        })
+    return bindings
+
+
+def active_session_binding(session_root: str | Path) -> dict[str, Any]:
+    """Return a transient session manifest bound to the latest verified attempt.
+
+    The immutable ``session.json`` remains the original attempt manifest.  This
+    helper overlays only the latest attempt/run pair reconstructed from the
+    append-only Recovery Trace so a live Observer cannot accept stale runs.
+    """
+
+    root = Path(session_root).resolve()
+    manifest = _read_object(root / "session.json")
+    if manifest.get("classification") != CLASSIFICATION:
+        raise ValueError("active observer binding requires a NON_FORMAL_LIVE_DEMO session")
+    active = _known_session_bindings(root, manifest)[-1]
+    return {**manifest, "attempt_id": active["attempt_id"], "run_id": active["run_id"]}
 
 
 def _sender_localpart(sender: object, room_id: str) -> str | None:
@@ -454,14 +499,21 @@ def _safe_errors(value: object) -> list[dict[str, str]]:
     return errors
 
 
-def _cache_event(value: object, session: dict[str, Any]) -> dict[str, Any] | None:
+def _cache_event(
+    value: object,
+    allowed_bindings: list[dict[str, str]],
+) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         return None
     event_id = value.get("event_id")
     room_id = value.get("room_id")
     actor = value.get("actor")
     kind = value.get("kind")
-    bindings = _session_bindings(session)
+    bindings = next((
+        candidate
+        for candidate in allowed_bindings
+        if all(value.get(name) == expected for name, expected in candidate.items())
+    ), None)
     if (
         not isinstance(event_id, str)
         or EVENT_ID.fullmatch(event_id) is None
@@ -471,8 +523,7 @@ def _cache_event(value: object, session: dict[str, Any]) -> dict[str, Any] | Non
         or actor not in set(ROLE_ORDER) | {"human-approver"}
         or kind not in TRANSITIONS
         or not projection_actor_valid(actor, kind)
-        or not bindings
-        or any(value.get(name) != expected for name, expected in bindings.items())
+        or bindings is None
     ):
         return None
     expected_from, expected_to = TRANSITIONS[str(kind)]
@@ -510,6 +561,23 @@ def write_observer_projection(session_root: str | Path, snapshot: dict) -> None:
     if source_status not in SOURCE_STATUSES:
         raise ValueError("observer snapshot has an invalid source status")
     observer = root / "observer"
+    try:
+        allowed_bindings = _known_session_bindings(root, manifest)
+    except ValueError as exc:
+        failed_status = {
+            "classification": PROJECTION_CLASSIFICATION,
+            "connected": False,
+            "source_status": "DISCONNECTED",
+            "checked_at": snapshot.get("checked_at"),
+            "last_success_at": snapshot.get("last_success_at"),
+            "next_batch": snapshot.get("next_batch"),
+            "errors": [{"code": "RECOVERY_BINDING_INVALID"}],
+        }
+        _atomic_text(
+            observer / "source_status.json",
+            json.dumps(failed_status, ensure_ascii=False, indent=2) + "\n",
+        )
+        raise ValueError("recovery binding validation failed") from exc
     status = {
         "classification": PROJECTION_CLASSIFICATION,
         "connected": snapshot.get("connected") is True,
@@ -535,7 +603,7 @@ def write_observer_projection(session_root: str | Path, snapshot: dict) -> None:
                 record = json.loads(line)
             except json.JSONDecodeError as exc:
                 raise ValueError("observer event cache is malformed") from exc
-            sanitized = _cache_event(record, manifest)
+            sanitized = _cache_event(record, allowed_bindings)
             if sanitized is None:
                 continue
             if sanitized["event_id"] in seen:
@@ -545,7 +613,7 @@ def write_observer_projection(session_root: str | Path, snapshot: dict) -> None:
     incoming = snapshot.get("events", [])
     if isinstance(incoming, list):
         for item in incoming:
-            record = _cache_event(item, manifest)
+            record = _cache_event(item, [allowed_bindings[-1]])
             if record is None:
                 continue
             if record["event_id"] in seen:
