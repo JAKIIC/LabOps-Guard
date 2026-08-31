@@ -44,6 +44,7 @@ from labops.matrix_observer import (
 
 LIFECYCLE_CLASSIFICATION = "LOCAL_REVIEWER_LIFECYCLE"
 LIFECYCLE_MAX_AGE_SECONDS = 15
+AGENTTEAMS_STATUS_TIMEOUT_SECONDS = 30
 AGENTTEAMS_CONTAINERS = {
     "labops-manager": "hiclaw-manager",
     "evidence-collector": "hiclaw-worker-evidence-collector",
@@ -143,7 +144,7 @@ def _probe_agentteams_business_readiness(project_root: Path) -> dict[str, Any]:
                 check=False,
                 capture_output=True,
                 text=True,
-                timeout=15,
+                timeout=AGENTTEAMS_STATUS_TIMEOUT_SECONDS,
             )
         except (OSError, subprocess.TimeoutExpired):
             return role, "UNREACHABLE"

@@ -97,6 +97,40 @@ class ReviewerBusinessReadinessProbeTests(unittest.TestCase):
         self.assertEqual(result["ready_count"], 6)
         self.assertEqual(set(result["components"].values()), {"READY"})
 
+    def test_probe_allows_slow_but_healthy_local_channel_status(self) -> None:
+        channel_status = {
+            "channels": {"matrix": {"configured": True, "running": True}},
+            "channelAccounts": {
+                "matrix": [
+                    {
+                        "accountId": "default",
+                        "running": True,
+                        "connected": True,
+                        "healthState": "healthy",
+                    }
+                ]
+            },
+        }
+
+        def slow_local_run(command, **kwargs):
+            if kwargs.get("timeout", 0) < 30:
+                raise subprocess.TimeoutExpired(command, kwargs.get("timeout", 0))
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=json.dumps(channel_status),
+                stderr="",
+            )
+
+        with (
+            patch("labops.reviewer.shutil.which", return_value="docker"),
+            patch("labops.reviewer.subprocess.run", side_effect=slow_local_run),
+        ):
+            result = reviewer_mod._probe_agentteams_business_readiness(ROOT)
+
+        self.assertTrue(result["ready"])
+        self.assertEqual(result["ready_count"], 6)
+
 
 class _FakeComponent:
     def __init__(self, name: str, events: list[str]) -> None:
