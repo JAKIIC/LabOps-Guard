@@ -182,6 +182,32 @@ class MatrixObserverTests(unittest.TestCase):
         self.assertEqual(events[0]["evidence_state"], "OBSERVED")
         self.assertNotEqual(events[0]["evidence_state"], "VERIFIED")
 
+    def test_normalization_accepts_a_markdown_wrapped_event_kind_marker(self) -> None:
+        room = "!collector:matrix-local.hiclaw.io"
+        event = self._bound_event(
+            "$markdown-gap",
+            kind="evidence_incomplete",
+            sender="@evidence-collector:matrix-local.hiclaw.io",
+        )
+        event["content"].pop("labops_event")
+        event["content"]["body"] = (
+            " ".join(
+                [
+                    SESSION["session_id"],
+                    SESSION["task_instance_id"],
+                    SESSION["incident_instance_id"],
+                    SESSION["attempt_id"],
+                    SESSION["run_id"],
+                ]
+            )
+            + " **LABOPS_EVENT_KIND:** evidence_incomplete"
+        )
+        payload = self._sync_payload({room: {"timeline": {"events": [event]}}})
+
+        events = normalize_sync_response(payload, {room: "evidence-collector"}, SESSION)
+
+        self.assertEqual([item["kind"] for item in events], ["evidence_incomplete"])
+
     def test_normalization_rejects_manager_instruction_in_collector_room(self) -> None:
         room = "!collector:matrix-local.hiclaw.io"
         payload = self._sync_payload({

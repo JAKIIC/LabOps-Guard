@@ -30,7 +30,10 @@ MAX_EVENTS_PER_SYNC = 256
 ROOM_ID = re.compile(r"^![^:\s]+:\S+$")
 EVENT_ID = re.compile(r"^\$\S+$")
 MATRIX_USER_ID = re.compile(r"^@([^:\s]+):(\S+)$")
-EVENT_KIND = re.compile(r"LABOPS_EVENT_KIND\s*[:=]\s*([a-z_]+)", re.IGNORECASE)
+EVENT_KIND = re.compile(
+    r"LABOPS_EVENT_KIND\s*(?:[*`]+)?\s*[:=]\s*(?:[*`]+)?\s*([a-z_]+)",
+    re.IGNORECASE,
+)
 SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 TRANSITIONS = {kind: (source, target) for kind, source, target in EXPECTED_TIMELINE}
 TRANSITIONS.update({

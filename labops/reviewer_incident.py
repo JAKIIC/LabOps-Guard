@@ -131,7 +131,9 @@ invent the missing content, and do not route work to RCA while the gap exists.
 
 Required dynamic behavior:
 
-1. Manager dispatches the packet to Evidence Collector.
+1. Manager dispatches the packet to Evidence Collector. The dispatch message
+   must contain all session bindings and the exact plain-text machine line
+   `LABOPS_EVENT_KIND: manager_to_collector`.
 2. Collector validates the packet. If the named artifact is unavailable, emit
    a real Matrix message containing all session bindings and
    `LABOPS_EVENT_KIND: evidence_incomplete`, then stop without diagnosing.

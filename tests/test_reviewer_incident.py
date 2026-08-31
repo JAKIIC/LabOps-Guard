@@ -164,6 +164,7 @@ class ReviewerIncidentTests(unittest.TestCase):
         self.assertEqual(self.prepared["status"], "PREPARED")
         self.assertEqual(self.prepared["profile"], "REVIEWER_EVIDENCE_GAP_V1")
         manager_task = (self.session_root / "manager_task.md").read_text(encoding="utf-8")
+        self.assertIn("LABOPS_EVENT_KIND: manager_to_collector", manager_task)
         for leaked_answer in (
             "train_augmented",
             "eval_standard",
