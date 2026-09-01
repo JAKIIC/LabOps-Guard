@@ -4,7 +4,7 @@ import json
 import tempfile
 import unittest
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -110,6 +110,32 @@ class ReviewerStateTests(unittest.TestCase):
         )
         with self.assertRaises(ValueError):
             classify_source_status("archive-but-live", True, None, self.NOW)
+
+    def test_recent_success_stays_live_during_one_failed_poll(self) -> None:
+        self.assertEqual(
+            classify_source_status(
+                "live",
+                False,
+                "2026-09-02T00:00:00Z",
+                datetime(2026, 9, 2, 0, 0, 10, tzinfo=timezone.utc),
+            ),
+            "LIVE",
+        )
+
+    def test_failed_poll_becomes_stale_then_disconnected_by_age(self) -> None:
+        cases = ((16, "STALE"), (60, "STALE"), (61, "DISCONNECTED"))
+        for seconds, expected in cases:
+            with self.subTest(seconds=seconds):
+                self.assertEqual(
+                    classify_source_status(
+                        "live",
+                        False,
+                        "2026-09-02T00:00:00Z",
+                        datetime(2026, 9, 2, tzinfo=timezone.utc)
+                        + timedelta(seconds=seconds),
+                    ),
+                    expected,
+                )
 
     def test_agent_nodes_separate_workflow_and_evidence_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

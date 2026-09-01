@@ -499,6 +499,80 @@ class MatrixObserverTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 write_observer_projection(session_root, invalid)
 
+    def test_transient_failure_preserves_last_success_and_events(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            session_root = Path(
+                prepare_session(ROOT, Path(tmp), "20260831-081")["session_root"]
+            )
+            event = {
+                "classification": "NON_AUTHORITATIVE_UI_PROJECTION",
+                "validation_version": "matrix-sender-bound-v1",
+                "event_id": "$handoff-1",
+                "room_id": "!manager:matrix-local.hiclaw.io",
+                **{
+                    name: SESSION[name]
+                    for name in (
+                        "session_id",
+                        "task_instance_id",
+                        "incident_instance_id",
+                        "attempt_id",
+                        "run_id",
+                    )
+                },
+                "actor": "labops-manager",
+                "kind": "manager_to_collector",
+                "timestamp": "2026-08-31T10:00:00Z",
+                "workflow_from": "RECEIVED",
+                "workflow_to": "EVIDENCE_COLLECTING",
+                "evidence_state": "OBSERVED",
+                "artifact_refs": [],
+                "hash_refs": [],
+            }
+            write_observer_projection(
+                session_root,
+                {
+                    "connected": True,
+                    "source_status": "LIVE",
+                    "checked_at": "2026-08-31T10:00:00Z",
+                    "last_success_at": "2026-08-31T10:00:00Z",
+                    "next_batch": "cursor-1",
+                    "events": [event],
+                    "errors": [],
+                },
+            )
+
+            write_observer_projection(
+                session_root,
+                {
+                    "connected": False,
+                    "source_status": "DISCONNECTED",
+                    "checked_at": "2026-08-31T10:00:01Z",
+                    "last_success_at": None,
+                    "next_batch": None,
+                    "events": [],
+                    "errors": [{"code": "MATRIX_UNAVAILABLE"}],
+                },
+            )
+
+            status = json.loads(
+                (session_root / "observer" / "source_status.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            records = [
+                json.loads(line)
+                for line in (
+                    session_root / "observer" / "normalized_events.jsonl"
+                ).read_text(encoding="utf-8").splitlines()
+            ]
+
+        self.assertFalse(status["connected"])
+        self.assertEqual(status["checked_at"], "2026-08-31T10:00:01Z")
+        self.assertEqual(status["last_success_at"], "2026-08-31T10:00:00Z")
+        self.assertEqual(status["next_batch"], "cursor-1")
+        self.assertEqual(status["errors"], [{"code": "MATRIX_UNAVAILABLE"}])
+        self.assertEqual([item["event_id"] for item in records], ["$handoff-1"])
+
     def test_projection_discards_legacy_cache_without_sender_validation_version(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             session_root = Path(prepare_session(ROOT, Path(tmp), "20260831-081")["session_root"])

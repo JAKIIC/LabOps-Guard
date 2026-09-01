@@ -581,13 +581,27 @@ def write_observer_projection(session_root: str | Path, snapshot: dict) -> None:
             json.dumps(failed_status, ensure_ascii=False, indent=2) + "\n",
         )
         raise ValueError("recovery binding validation failed") from exc
+    previous_status: dict[str, Any] = {}
+    if snapshot.get("connected") is not True:
+        try:
+            previous_status = _read_object(observer / "source_status.json")
+        except (OSError, ValueError, json.JSONDecodeError, UnicodeError):
+            previous_status = {}
+        if previous_status.get("classification") != PROJECTION_CLASSIFICATION:
+            previous_status = {}
+    last_success_at = snapshot.get("last_success_at")
+    if not isinstance(last_success_at, str):
+        last_success_at = previous_status.get("last_success_at")
+    next_batch = snapshot.get("next_batch")
+    if not isinstance(next_batch, str):
+        next_batch = previous_status.get("next_batch")
     status = {
         "classification": PROJECTION_CLASSIFICATION,
         "connected": snapshot.get("connected") is True,
         "source_status": source_status,
         "checked_at": snapshot.get("checked_at"),
-        "last_success_at": snapshot.get("last_success_at"),
-        "next_batch": snapshot.get("next_batch"),
+        "last_success_at": last_success_at,
+        "next_batch": next_batch,
         "errors": _safe_errors(snapshot.get("errors")),
     }
     _atomic_text(

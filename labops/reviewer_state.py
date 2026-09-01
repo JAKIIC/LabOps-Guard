@@ -98,8 +98,6 @@ def classify_source_status(
         return "REPLAY"
     if live_threshold_seconds < 0 or disconnect_threshold_seconds < live_threshold_seconds:
         raise ValueError("invalid source freshness thresholds")
-    if not connected:
-        return "DISCONNECTED"
     try:
         last_success = _parse_utc(last_success_at)
     except (TypeError, ValueError):
