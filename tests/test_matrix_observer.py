@@ -143,6 +143,32 @@ class MatrixObserverTests(unittest.TestCase):
         self.assertNotIn("body", event)
         self.assertNotIn("private", json.dumps(event))
 
+    def test_normalization_preserves_plain_text_input_and_output_artifact_refs(self) -> None:
+        room = "!rca:matrix-local.hiclaw.io"
+        event = self._bound_event("$artifact-bound")
+        event["content"]["labops_event"].pop("artifact_refs")
+        event["content"]["body"] += (
+            "\nLABOPS_INPUT_ARTIFACT: evidence/collector-report.json"
+            "\nLABOPS_OUTPUT_ARTIFACT: evidence/rca-hypotheses.json"
+        )
+        payload = self._sync_payload({room: {"timeline": {"events": [event]}}})
+
+        normalized = normalize_sync_response(payload, {room: "rca-analyst"}, SESSION)
+
+        self.assertEqual(len(normalized), 1)
+        self.assertEqual(
+            normalized[0]["input_artifact_refs"],
+            ["evidence/collector-report.json"],
+        )
+        self.assertEqual(
+            normalized[0]["output_artifact_refs"],
+            ["evidence/rca-hypotheses.json"],
+        )
+        self.assertEqual(
+            normalized[0]["artifact_refs"],
+            ["evidence/collector-report.json", "evidence/rca-hypotheses.json"],
+        )
+
     def test_normalization_rejects_an_event_without_attempt_binding(self) -> None:
         room = "!rca:matrix-local.hiclaw.io"
         payload = self._sync_payload({

@@ -116,13 +116,17 @@ Canonical live event contract:
 
 Each Worker must emit its own handoff in its assigned Matrix room.
 Manager must not impersonate a Worker event. Every handoff message must contain
-all five bindings below and exactly one of these plain-text machine lines:
+all five bindings below, exactly one event-kind line, and both artifact lines.
+Artifact paths must be session-relative storage paths; never use host-private or
+absolute paths:
 
 - `session_id`: `{manifest['session_id']}`
 - `task_instance_id`: `{manifest['task_instance_id']}`
 - `incident_instance_id`: `{manifest['incident_instance_id']}`
 - `attempt_id`: `{manifest['attempt_id']}`
 - `run_id`: `{manifest['run_id']}`
+- `LABOPS_INPUT_ARTIFACT: <session-relative input path>`
+- `LABOPS_OUTPUT_ARTIFACT: <session-relative output path>`
 - Incident Commander: `LABOPS_EVENT_KIND: manager_to_collector`
 - Evidence Collector: `LABOPS_EVENT_KIND: collector_to_rca`
 - RCA Analyst: `LABOPS_EVENT_KIND: rca_to_planner`
@@ -322,18 +326,48 @@ def _verify_execution(evidence_root: Path, manifest: dict, effective_attempt: di
         skill_evidence["control-lab-action"]["status"] = "VERIFIED"
 
     checks = verification.get("checks", {})
+    checks_complete = (
+        isinstance(checks, dict)
+        and bool(checks)
+        and all(
+            value is True
+            or (isinstance(value, dict) and value.get("pass") is True)
+            for value in checks.values()
+        )
+    )
+    runner_status = {}
+    runner_status_path = evidence_root / "runner" / "status.json"
+    if runner_status_path.is_file():
+        try:
+            runner_status = _read_json(runner_status_path)
+        except (OSError, ValueError, json.JSONDecodeError):
+            runner_status = {}
+    simulated = (
+        run_result.get("simulated") is True
+        or runner_status.get("simulated") is True
+    )
+    resolved_pass = (
+        verification.get("resolution_status") == "RESOLVED"
+        and not simulated
+    )
+    truthful_demo_pass = (
+        simulated
+        and verification.get("demo_verification") == "PASSED"
+        and verification.get("incident_state") == "DEMO_PASSED_NOT_RESOLVED"
+        and verification.get("underlying_issue_resolved") is False
+        and verification.get("has_postcondition") is True
+        and verification.get("is_demo_like") is True
+    )
     if recovery_active and verification.get("attempt_id") != effective_attempt["attempt_id"]:
         errors.append("Auditor verification is not bound to the latest recovery attempt")
     if (
         verification.get("verified_by") != "verification-auditor"
         or verification.get("run_id") != run_id
         or verification.get("decision") != "PASS"
-        or verification.get("resolution_status") != "RESOLVED"
-        or not isinstance(checks, dict)
-        or not checks
-        or not all(value is True for value in checks.values())
+        or not checks_complete
+        or not (resolved_pass or truthful_demo_pass)
     ):
-        errors.append("Independent Verification Auditor did not produce a complete PASS/RESOLVED decision")
+        errors.append("Independent Verification Auditor did not produce a complete truthful PASS decision")
     return skill_evidence
 
 
@@ -430,6 +464,9 @@ def verify_session(project_root: str | Path, sessions_root: str | Path, session_
         _verify_trace(evidence_root, errors)
     digests = []
     evidence_files = list(EVIDENCE_FILES)
+    runner_status_relative = "runner/status.json"
+    if (evidence_root / runner_status_relative).is_file():
+        evidence_files.append(runner_status_relative)
     recovery_relative = "recovery/recovery_trace.jsonl"
     if (session_root / recovery_relative).is_file():
         evidence_files.append(recovery_relative)

@@ -96,6 +96,8 @@ class TestLiveDemoSession(unittest.TestCase):
                 self.assertIn(f"`{field}`", manager_task)
         self.assertIn("Each Worker must emit its own handoff", manager_task)
         self.assertIn("Manager must not impersonate a Worker event", manager_task)
+        self.assertIn("LABOPS_INPUT_ARTIFACT:", manager_task)
+        self.assertIn("LABOPS_OUTPUT_ARTIFACT:", manager_task)
 
     def test_prepare_refuses_to_overwrite_existing_session(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -152,130 +154,166 @@ class TestLiveDemoSession(unittest.TestCase):
             self.assertEqual(result["status"], "BLOCKED")
             self.assertTrue(any("handoff" in item.lower() for item in result["errors"]))
 
+    def _write_complete_bound_live_evidence(
+        self,
+        root: Path,
+        session_id: str,
+        *,
+        simulated: bool = False,
+    ) -> None:
+        prepared = prepare_session(repo_root(), root, session_id)["session"]
+        evidence = root / session_id / "evidence"
+        sequence = session_id.rsplit("-", 1)[-1]
+
+        def write(relative: str, value: object) -> Path:
+            path = evidence / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
+            return path
+
+        events = []
+        handoffs = []
+        for index, (source, target) in enumerate(HANDOFFS, 1):
+            event_id = f"$live-event-{sequence}-{index}"
+            events.append({
+                "event_id": event_id,
+                "sender_agent": source,
+                "room_id": "!real-labops-room:example.org",
+                "timestamp": f"2026-08-31T11:{index:02d}:00Z",
+            })
+            handoffs.append({
+                "from_agent": source,
+                "to_agent": target,
+                "matrix_event_id": event_id,
+                "status": "COMPLETED",
+                "input_artifact_refs": [f"shared/input-{index}.json"],
+                "output_artifact_refs": [f"shared/output-{index}.json"],
+            })
+        write("matrix_events.json", {"events": events})
+        write("handoff_manifest.json", {
+            "agent_order": prepared["agent_order"],
+            "handoffs": handoffs,
+        })
+
+        plan = {
+            "task_id": prepared["scenario_contract"],
+            "incident_id": prepared["scenario_incident"],
+            "plan_id": f"PLAN-LIVE-{sequence}",
+            "run_id": prepared["run_id"],
+            "changes": [{
+                "file": "eval_config.json",
+                "field": "evaluation.preprocessing_profile",
+                "before": "train_augmented",
+                "after": "eval_standard",
+            }],
+            "budget": {"max_runtime_seconds": 30, "device": "cpu", "network": False},
+            "forbidden_changes": ["metric.py", "validation_data.pt", "checkpoint"],
+            "live_context": {
+                "classification": prepared["classification"],
+                "session_id": prepared["session_id"],
+                "task_instance_id": prepared["task_instance_id"],
+                "incident_instance_id": prepared["incident_instance_id"],
+                "attempt_id": prepared["attempt_id"],
+                "storage_namespace": prepared["storage_namespace"],
+            },
+        }
+        approval = {
+            "schema_version": "1.0",
+            "approval_id": f"APR-LIVE-{sequence}",
+            "task_id": plan["task_id"],
+            "incident_id": plan["incident_id"],
+            "plan_id": plan["plan_id"],
+            "canonical_plan_sha256": canonical_plan_sha256(plan),
+            "run_id": plan["run_id"],
+            "decision": "APPROVED",
+            "approved_scope": ["eval_config.json:evaluation.preprocessing_profile"],
+            "allowed_side_effects": ["write sandbox output"],
+            "protected_resources": list(plan["forbidden_changes"]),
+            "resource_budget": dict(plan["budget"]),
+            "decided_by": "human-operator",
+            "approved_at": "2026-08-31T11:55:00Z",
+            "expires_at": "2026-08-31T12:05:00Z",
+            "nonce": f"nonce-live-{sequence}",
+        }
+        tool_contract = normalize_tool_contract({
+            "experiment_plan": plan,
+            "approval": approval,
+        })
+        write("approval_grant.json", approval)
+        write("gateway_request.json", {
+            "experiment_plan": plan,
+            "approval": approval,
+            "tool_contract": tool_contract,
+            "approval_binding": {"status": "VALID"},
+            "approval_consumption": {"status": "CONSUMED"},
+        })
+        write("gateway_response.json", {"ok": True, "run_id": plan["run_id"]})
+
+        run_result = {
+            "run_id": plan["run_id"],
+            "status": "completed",
+            "start_time": "2026-08-31T12:00:00Z",
+            "network": "none",
+            "sandbox_only": True,
+        }
+        metrics = {"candidate_accuracy_values": [0.978125, 0.978125, 0.978125]}
+        write("runner/run_result.json", run_result)
+        write("runner/metrics.json", metrics)
+        (evidence / "runner/stdout.log").write_text("real runner output", encoding="utf-8")
+        (evidence / "runner/stderr.log").write_text("", encoding="utf-8")
+        artifacts = {}
+        for name in ("run_result.json", "metrics.json", "stdout.log", "stderr.log"):
+            path = evidence / "runner" / name
+            artifacts[name] = {"sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        write("runner/artifact_manifest.json", {"run_id": plan["run_id"], "artifacts": artifacts})
+        if simulated:
+            write("runner/status.json", {
+                "run_id": plan["run_id"],
+                "status": "completed",
+                "simulated": True,
+            })
+        verification = {
+            "verified_by": "verification-auditor",
+            "run_id": plan["run_id"],
+            "decision": "PASS",
+            "checks": {
+                "runner": {"pass": True},
+                "approval": {"pass": True},
+                "evidence": {"pass": True},
+            } if simulated else {
+                "runner": True,
+                "approval": True,
+                "evidence": True,
+            },
+        }
+        if simulated:
+            verification.update({
+                "demo_verification": "PASSED",
+                "incident_state": "DEMO_PASSED_NOT_RESOLVED",
+                "underlying_issue_resolved": False,
+                "has_postcondition": True,
+                "is_demo_like": True,
+            })
+        else:
+            verification["resolution_status"] = "RESOLVED"
+        write("verification.json", verification)
+
+        trace = TraceLog(evidence / "trace.jsonl")
+        for index, (source, target) in enumerate(HANDOFFS, 1):
+            trace.append(
+                "handoff", f"handoff-{index}", "completed",
+                actor=source, status="COMPLETED", extra={"to_agent": target},
+            )
+        trace.append("runner", plan["run_id"], "completed", actor="safe-executor", status="completed")
+        trace.append(
+            "verification", f"VERIFY-LIVE-{sequence}", "independent_check",
+            actor="verification-auditor", status="PASS",
+        )
+
     def test_complete_bound_live_evidence_verifies(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            prepared = prepare_session(repo_root(), root, "20260831-021")["session"]
-            evidence = root / "20260831-021" / "evidence"
-
-            def write(relative: str, value: object) -> Path:
-                path = evidence / relative
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
-                return path
-
-            events = []
-            handoffs = []
-            for index, (source, target) in enumerate(HANDOFFS, 1):
-                event_id = f"$live-event-{index}"
-                events.append({
-                    "event_id": event_id,
-                    "sender_agent": source,
-                    "room_id": "!real-labops-room:example.org",
-                    "timestamp": f"2026-08-31T11:{index:02d}:00Z",
-                })
-                handoffs.append({
-                    "from_agent": source,
-                    "to_agent": target,
-                    "matrix_event_id": event_id,
-                    "status": "COMPLETED",
-                    "input_artifact_refs": [f"shared/input-{index}.json"],
-                    "output_artifact_refs": [f"shared/output-{index}.json"],
-                })
-            write("matrix_events.json", {"events": events})
-            write("handoff_manifest.json", {
-                "agent_order": prepared["agent_order"],
-                "handoffs": handoffs,
-            })
-
-            plan = {
-                "task_id": prepared["scenario_contract"],
-                "incident_id": prepared["scenario_incident"],
-                "plan_id": "PLAN-LIVE-021",
-                "run_id": prepared["run_id"],
-                "changes": [{
-                    "file": "eval_config.json",
-                    "field": "evaluation.preprocessing_profile",
-                    "before": "train_augmented",
-                    "after": "eval_standard",
-                }],
-                "budget": {"max_runtime_seconds": 30, "device": "cpu", "network": False},
-                "forbidden_changes": ["metric.py", "validation_data.pt", "checkpoint"],
-                "live_context": {
-                    "classification": prepared["classification"],
-                    "session_id": prepared["session_id"],
-                    "task_instance_id": prepared["task_instance_id"],
-                    "incident_instance_id": prepared["incident_instance_id"],
-                    "attempt_id": prepared["attempt_id"],
-                    "storage_namespace": prepared["storage_namespace"],
-                },
-            }
-            approval = {
-                "schema_version": "1.0",
-                "approval_id": "APR-LIVE-021",
-                "task_id": plan["task_id"],
-                "incident_id": plan["incident_id"],
-                "plan_id": plan["plan_id"],
-                "canonical_plan_sha256": canonical_plan_sha256(plan),
-                "run_id": plan["run_id"],
-                "decision": "APPROVED",
-                "approved_scope": ["eval_config.json:evaluation.preprocessing_profile"],
-                "allowed_side_effects": ["write sandbox output"],
-                "protected_resources": list(plan["forbidden_changes"]),
-                "resource_budget": dict(plan["budget"]),
-                "decided_by": "human-operator",
-                "approved_at": "2026-08-31T11:55:00Z",
-                "expires_at": "2026-08-31T12:05:00Z",
-                "nonce": "nonce-live-021",
-            }
-            tool_contract = normalize_tool_contract({
-                "experiment_plan": plan,
-                "approval": approval,
-            })
-            write("approval_grant.json", approval)
-            write("gateway_request.json", {
-                "experiment_plan": plan,
-                "approval": approval,
-                "tool_contract": tool_contract,
-                "approval_binding": {"status": "VALID"},
-                "approval_consumption": {"status": "CONSUMED"},
-            })
-            write("gateway_response.json", {"ok": True, "run_id": plan["run_id"]})
-
-            run_result = {
-                "run_id": plan["run_id"],
-                "status": "completed",
-                "start_time": "2026-08-31T12:00:00Z",
-                "network": "none",
-                "sandbox_only": True,
-            }
-            metrics = {"candidate_accuracy_values": [0.978125, 0.978125, 0.978125]}
-            write("runner/run_result.json", run_result)
-            write("runner/metrics.json", metrics)
-            (evidence / "runner/stdout.log").write_text("real runner output", encoding="utf-8")
-            (evidence / "runner/stderr.log").write_text("", encoding="utf-8")
-            artifacts = {}
-            for name in ("run_result.json", "metrics.json", "stdout.log", "stderr.log"):
-                path = evidence / "runner" / name
-                artifacts[name] = {"sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
-            write("runner/artifact_manifest.json", {"run_id": plan["run_id"], "artifacts": artifacts})
-            write("verification.json", {
-                "verified_by": "verification-auditor",
-                "run_id": plan["run_id"],
-                "decision": "PASS",
-                "resolution_status": "RESOLVED",
-                "checks": {"runner": True, "approval": True, "evidence": True},
-            })
-
-            trace = TraceLog(evidence / "trace.jsonl")
-            for index, (source, target) in enumerate(HANDOFFS, 1):
-                trace.append(
-                    "handoff", f"handoff-{index}", "completed",
-                    actor=source, status="COMPLETED", extra={"to_agent": target},
-                )
-            trace.append("runner", plan["run_id"], "completed", actor="safe-executor", status="completed")
-            trace.append("verification", "VERIFY-LIVE-021", "independent_check", actor="verification-auditor", status="PASS")
-
+            self._write_complete_bound_live_evidence(root, "20260831-021")
             result = verify_session(repo_root(), root, "20260831-021")
             self.assertEqual(result["status"], "VERIFIED", result["errors"])
             self.assertEqual(result["errors"], [])
@@ -290,6 +328,30 @@ class TestLiveDemoSession(unittest.TestCase):
                     "runtime_visibility": "AGENTTEAMS_HOOK_REQUIRED",
                 },
             )
+
+    def test_complete_simulated_demo_pass_verifies_without_claiming_resolution(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_complete_bound_live_evidence(
+                root, "20260831-022", simulated=True,
+            )
+            result = verify_session(repo_root(), root, "20260831-022")
+            self.assertEqual(result["status"], "VERIFIED", result["errors"])
+            self.assertEqual(result["errors"], [])
+
+    def test_demo_pass_is_blocked_without_runner_simulation_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            session_id = "20260831-023"
+            self._write_complete_bound_live_evidence(root, session_id, simulated=True)
+            status_path = root / session_id / "evidence" / "runner" / "status.json"
+            status_record = json.loads(status_path.read_text(encoding="utf-8"))
+            status_record["simulated"] = False
+            status_path.write_text(
+                json.dumps(status_record, ensure_ascii=False, indent=2), encoding="utf-8",
+            )
+            result = verify_session(repo_root(), root, session_id)
+            self.assertEqual(result["status"], "BLOCKED")
 
 
 if __name__ == "__main__":

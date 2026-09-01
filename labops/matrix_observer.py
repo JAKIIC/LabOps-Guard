@@ -34,6 +34,14 @@ EVENT_KIND = re.compile(
     r"LABOPS_EVENT_KIND\s*(?:[*`]+)?\s*[:=]\s*(?:[*`]+)?\s*([a-z_]+)",
     re.IGNORECASE,
 )
+INPUT_ARTIFACT = re.compile(
+    r"LABOPS_INPUT_ARTIFACT\s*(?:[*`]+)?\s*[:=]\s*(?:[*`]+)?\s*([^\s`*]+)",
+    re.IGNORECASE,
+)
+OUTPUT_ARTIFACT = re.compile(
+    r"LABOPS_OUTPUT_ARTIFACT\s*(?:[*`]+)?\s*[:=]\s*(?:[*`]+)?\s*([^\s`*]+)",
+    re.IGNORECASE,
+)
 SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 TRANSITIONS = {kind: (source, target) for kind, source, target in EXPECTED_TIMELINE}
 TRANSITIONS.update({
@@ -135,6 +143,21 @@ def _safe_refs(value: object, *, hashes: bool = False, limit: int = 8) -> list[s
     return result
 
 
+def _event_artifact_refs(structured: dict[str, Any], body: object) -> tuple[list[str], list[str], list[str]]:
+    """Return bounded artifact refs without retaining the Matrix message body."""
+
+    inputs = _safe_refs(structured.get("input_artifact_refs"))
+    outputs = _safe_refs(structured.get("output_artifact_refs"))
+    if isinstance(body, str):
+        if not inputs:
+            inputs = _safe_refs(INPUT_ARTIFACT.findall(body))
+        if not outputs:
+            outputs = _safe_refs(OUTPUT_ARTIFACT.findall(body))
+    flat = _safe_refs(structured.get("artifact_refs"))
+    combined = _safe_refs([*inputs, *outputs, *flat])
+    return inputs, outputs, combined
+
+
 def _session_bindings(session: dict[str, Any]) -> dict[str, str]:
     names = (
         "session_id",
@@ -233,9 +256,9 @@ def _normalized_event(
         return None
     structured = content.get("labops_event")
     structured = structured if isinstance(structured, dict) else {}
+    body = content.get("body")
     kind = structured.get("kind")
     if not isinstance(kind, str):
-        body = content.get("body")
         match = EVENT_KIND.search(body) if isinstance(body, str) else None
         kind = match.group(1).lower() if match else None
     if kind not in TRANSITIONS:
@@ -262,6 +285,7 @@ def _normalized_event(
         workflow_from = expected_from
     if not isinstance(workflow_to, str) or not workflow_to:
         workflow_to = expected_to
+    input_refs, output_refs, artifact_refs = _event_artifact_refs(structured, body)
     return {
         "classification": PROJECTION_CLASSIFICATION,
         "validation_version": PROJECTION_VALIDATION_VERSION,
@@ -274,7 +298,9 @@ def _normalized_event(
         "workflow_from": workflow_from,
         "workflow_to": workflow_to,
         "evidence_state": "OBSERVED",
-        "artifact_refs": _safe_refs(structured.get("artifact_refs")),
+        "artifact_refs": artifact_refs,
+        "input_artifact_refs": input_refs,
+        "output_artifact_refs": output_refs,
         "hash_refs": _safe_refs(structured.get("hash_refs"), hashes=True),
     }
 
@@ -532,6 +558,11 @@ def _cache_event(
     expected_from, expected_to = TRANSITIONS[str(kind)]
     workflow_from = value.get("workflow_from")
     workflow_to = value.get("workflow_to")
+    input_refs = _safe_refs(value.get("input_artifact_refs"))
+    output_refs = _safe_refs(value.get("output_artifact_refs"))
+    artifact_refs = _safe_refs(
+        [*input_refs, *output_refs, *_safe_refs(value.get("artifact_refs"))]
+    )
     return {
         "classification": PROJECTION_CLASSIFICATION,
         "validation_version": PROJECTION_VALIDATION_VERSION,
@@ -544,7 +575,9 @@ def _cache_event(
         "workflow_from": workflow_from if isinstance(workflow_from, str) and workflow_from else expected_from,
         "workflow_to": workflow_to if isinstance(workflow_to, str) and workflow_to else expected_to,
         "evidence_state": "OBSERVED",
-        "artifact_refs": _safe_refs(value.get("artifact_refs")),
+        "artifact_refs": artifact_refs,
+        "input_artifact_refs": input_refs,
+        "output_artifact_refs": output_refs,
         "hash_refs": _safe_refs(value.get("hash_refs"), hashes=True),
     }
 
