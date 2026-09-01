@@ -324,6 +324,12 @@ def _raw_mapping(run_id: str) -> dict[str, str]:
     }
 
 
+def _optional_raw_mapping(run_id: str) -> dict[str, str]:
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,255}", run_id) is None:
+        raise EvidenceSyncError("EVIDENCE_BINDING_MISMATCH")
+    return {"runner/status.json": f"runs/{run_id}/status.json"}
+
+
 def _artifact_refs(event: dict) -> tuple[list[str], list[str]]:
     direct_input = event.get("input_artifact_refs")
     direct_output = event.get("output_artifact_refs")
@@ -412,6 +418,16 @@ def _validate_verification(mirror: Path, bindings: dict) -> None:
         raise EvidenceSyncError("EVIDENCE_SCHEMA_INVALID")
 
 
+def _validate_optional_runner_status(mirror: Path, relative: str, run_id: str) -> None:
+    status = _read_mirror_json(mirror, relative)
+    if status.get("run_id") != run_id:
+        raise EvidenceSyncError("EVIDENCE_BINDING_MISMATCH")
+    if status.get("status") != "completed" or not isinstance(
+        status.get("simulated"), bool
+    ):
+        raise EvidenceSyncError("EVIDENCE_SCHEMA_INVALID")
+
+
 def _candidate_error_code(errors: object) -> str:
     text = " ".join(str(item).lower() for item in errors) if isinstance(errors, list) else ""
     if "hash" in text or "sha" in text:
@@ -442,10 +458,17 @@ def _build_and_verify_candidate(
         )
     }
     mapping = _raw_mapping(bindings["run_id"])
+    optional_mapping = {
+        target: source
+        for target, source in _optional_raw_mapping(bindings["run_id"]).items()
+        if (mirror / source).is_file()
+    }
     missing = [source for source in mapping.values() if not (mirror / source).is_file()]
     if missing:
         raise EvidenceSyncError("EVIDENCE_INCOMPLETE")
     _validate_verification(mirror, bindings)
+    for source in optional_mapping.values():
+        _validate_optional_runner_status(mirror, source, bindings["run_id"])
     matrix_document, handoff_document = _matrix_documents(matrix_snapshot, bindings)
 
     candidate_parent = Path(
@@ -463,17 +486,22 @@ def _build_and_verify_candidate(
             destination = evidence.joinpath(*PurePosixPath(target).parts)
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(mirror / source, destination)
+        for target, source in optional_mapping.items():
+            destination = evidence.joinpath(*PurePosixPath(target).parts)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(mirror / source, destination)
         (evidence / "matrix_events.json").write_text(
             json.dumps(matrix_document, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         (evidence / "handoff_manifest.json").write_text(
             json.dumps(handoff_document, ensure_ascii=False, indent=2), encoding="utf-8"
         )
+        expected_files = set(EVIDENCE_FILES) | set(optional_mapping)
         if {
             path.relative_to(evidence).as_posix()
             for path in evidence.rglob("*")
             if path.is_file()
-        } != set(EVIDENCE_FILES):
+        } != expected_files:
             raise EvidenceSyncError("EVIDENCE_INCOMPLETE")
         verification = verify_session(project_root, candidate_parent, session_id)
         if verification.get("status") != "VERIFIED" or verification.get("errors") != []:

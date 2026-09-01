@@ -268,6 +268,53 @@ class LiveEvidenceSyncTests(unittest.TestCase):
                 },
             )
 
+    def test_simulated_session_status_is_preserved_without_rewriting_runner_result(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sessions = root / "sessions"
+            remote = root / "remote"
+            session_id = "20260902-002"
+            prepare_session(repo_root(), sessions, session_id)
+            bindings = self._complete_remote_tree(remote, session_id)
+            run_root = remote / session_id / "runs" / bindings["run_id"]
+            status = {
+                "run_id": bindings["run_id"],
+                "status": "completed",
+                "simulated": True,
+            }
+            (run_root / "status.json").write_text(
+                json.dumps(status, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+
+            def verified(_project: Path, candidate_sessions: Path, candidate_id: str) -> dict:
+                evidence = candidate_sessions / candidate_id / "evidence"
+                observed = json.loads(
+                    (evidence / "runner" / "status.json").read_text(encoding="utf-8")
+                )
+                self.assertEqual(observed, status)
+                self.assertNotIn("simulated", json.loads(
+                    (evidence / "runner" / "run_result.json").read_text(encoding="utf-8")
+                ))
+                return {"status": "VERIFIED", "errors": []}
+
+            with patch(
+                "labops.live_evidence_sync.verify_session", side_effect=verified
+            ):
+                result = sync_live_evidence(
+                    repo_root(),
+                    sessions,
+                    session_id,
+                    DirectoryEvidenceSource(remote),
+                    self._six_handoff_snapshot(bindings),
+                    datetime(2026, 9, 2, tzinfo=timezone.utc),
+                )
+
+            published_status = (
+                sessions / session_id / "evidence" / "runner" / "status.json"
+            )
+            self.assertEqual(result["status"], "VERIFIED")
+            self.assertTrue(published_status.is_file())
+
     def test_invalid_verification_stays_in_mirror_and_is_not_promoted(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

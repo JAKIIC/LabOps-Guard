@@ -172,6 +172,7 @@ files do not satisfy the contract:
 - `runs/{manifest['run_id']}/artifact_manifest.json`
 - `runs/{manifest['run_id']}/stdout.log`
 - `runs/{manifest['run_id']}/stderr.log`
+- `runs/{manifest['run_id']}/status.json`
 - `verification/verification_report.json`
 - `trace.jsonl`
 
@@ -179,8 +180,10 @@ The Gateway request must retain the exact ExperimentPlan, ApprovalGrant,
 normalized Tool Contract, a `VALID` approval binding and one `CONSUMED` approval
 record. The Gateway response and Runner files must bind the exact run ID. The
 Runner result must record completed status, `network: none`,
-`sandbox_only: true`, and the `simulated` field set to true for this
-fixture-backed demo. The
+and `sandbox_only: true`. Preserve that raw Runner result byte-for-byte. Put the
+scenario classification in the separate status document with the exact run ID,
+completed status, and the `simulated` field set to true.
+Do not edit the raw Runner result to add this classification. The
 artifact manifest must hash the immutable result, metrics, stdout and stderr
 files byte-for-byte. Trace must be a non-empty append-only hash chain containing
 all six Agent actors, the Runner invocation and the Auditor decision.

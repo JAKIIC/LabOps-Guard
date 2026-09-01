@@ -142,6 +142,7 @@ class TestLiveDemoSession(unittest.TestCase):
             f"runs/{run_id}/artifact_manifest.json",
             f"runs/{run_id}/stdout.log",
             f"runs/{run_id}/stderr.log",
+            f"runs/{run_id}/status.json",
             "verification/verification_report.json",
             "trace.jsonl",
         ):
@@ -160,6 +161,7 @@ class TestLiveDemoSession(unittest.TestCase):
         self.assertIn("DEMO_PASSED_NOT_RESOLVED", manager_task)
         self.assertIn("non-empty JSON object, never an array", manager_task)
         self.assertIn("The session namespace overrides the frozen prompt's legacy output path", manager_task)
+        self.assertIn("Do not edit the raw Runner result to add this classification", manager_task)
 
     def test_prepare_refuses_to_overwrite_existing_session(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
