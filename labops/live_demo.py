@@ -112,6 +112,30 @@ Instance bindings:
 - Runner run ID: `{manifest['run_id']}`
 - storage namespace: `{manifest['storage_namespace']}`
 
+Canonical live event contract:
+
+Each Worker must emit its own handoff in its assigned Matrix room.
+Manager must not impersonate a Worker event. Every handoff message must contain
+all five bindings below and exactly one of these plain-text machine lines:
+
+- `session_id`: `{manifest['session_id']}`
+- `task_instance_id`: `{manifest['task_instance_id']}`
+- `incident_instance_id`: `{manifest['incident_instance_id']}`
+- `attempt_id`: `{manifest['attempt_id']}`
+- `run_id`: `{manifest['run_id']}`
+- Incident Commander: `LABOPS_EVENT_KIND: manager_to_collector`
+- Evidence Collector: `LABOPS_EVENT_KIND: collector_to_rca`
+- RCA Analyst: `LABOPS_EVENT_KIND: rca_to_planner`
+- Experiment Planner: `LABOPS_EVENT_KIND: approval_pending`
+- Safe Executor: `LABOPS_EVENT_KIND: executor_to_auditor`
+- Verification Auditor: `LABOPS_EVENT_KIND: verification_completed`
+
+The final structured Verification artifact must retain those same bindings and
+must include `decision`, `verified_by`, and `resolution_status` plus its complete
+independent checks. Do not replace these fields with prose. Emit each handoff
+once; do not reuse an Approval nonce or rerun the Gateway merely to create an
+event.
+
 Keep the scenario task/incident identifiers in the ExperimentPlan for the fixed
 Gateway allowlist, and record the instance bindings above in the live context,
 Matrix handoffs, Trace and artifacts. A separate human must issue ApprovalGrant

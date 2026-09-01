@@ -61,6 +61,42 @@ class TestLiveDemoSession(unittest.TestCase):
             self.assertEqual(list((session / "evidence").iterdir()), [])
             self.assertFalse((session / "approval_grant.json").exists())
 
+    def test_manager_task_requires_sender_bound_handoffs_and_structured_verification(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            session_root = Path(
+                prepare_session(repo_root(), Path(tmp), "20260902-002")[
+                    "session_root"
+                ]
+            )
+            manager_task = (session_root / "manager_task.md").read_text(
+                encoding="utf-8"
+            )
+
+        for kind in (
+            "manager_to_collector",
+            "collector_to_rca",
+            "rca_to_planner",
+            "approval_pending",
+            "executor_to_auditor",
+            "verification_completed",
+        ):
+            with self.subTest(kind=kind):
+                self.assertIn(f"LABOPS_EVENT_KIND: {kind}", manager_task)
+        for field in (
+            "session_id",
+            "task_instance_id",
+            "incident_instance_id",
+            "attempt_id",
+            "run_id",
+            "decision",
+            "verified_by",
+            "resolution_status",
+        ):
+            with self.subTest(field=field):
+                self.assertIn(f"`{field}`", manager_task)
+        self.assertIn("Each Worker must emit its own handoff", manager_task)
+        self.assertIn("Manager must not impersonate a Worker event", manager_task)
+
     def test_prepare_refuses_to_overwrite_existing_session(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

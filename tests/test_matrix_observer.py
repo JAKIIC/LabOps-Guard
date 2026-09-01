@@ -163,6 +163,110 @@ class MatrixObserverTests(unittest.TestCase):
         })
         self.assertEqual(normalize_sync_response(payload, {room: "experiment-planner"}, SESSION), [])
 
+    def test_accepts_six_sender_bound_handoffs(self) -> None:
+        rows = (
+            (
+                "!manager:matrix-local.hiclaw.io",
+                "labops-manager",
+                "@manager:matrix-local.hiclaw.io",
+                "manager_to_collector",
+            ),
+            (
+                "!collector:matrix-local.hiclaw.io",
+                "evidence-collector",
+                "@evidence-collector:matrix-local.hiclaw.io",
+                "collector_to_rca",
+            ),
+            (
+                "!rca:matrix-local.hiclaw.io",
+                "rca-analyst",
+                "@rca-analyst:matrix-local.hiclaw.io",
+                "rca_to_planner",
+            ),
+            (
+                "!planner:matrix-local.hiclaw.io",
+                "experiment-planner",
+                "@researcher:matrix-local.hiclaw.io",
+                "approval_pending",
+            ),
+            (
+                "!executor:matrix-local.hiclaw.io",
+                "safe-executor",
+                "@controlled-executor:matrix-local.hiclaw.io",
+                "executor_to_auditor",
+            ),
+            (
+                "!auditor:matrix-local.hiclaw.io",
+                "verification-auditor",
+                "@verification-auditor:matrix-local.hiclaw.io",
+                "verification_completed",
+            ),
+        )
+        rooms = {
+            room_id: {
+                "timeline": {
+                    "events": [
+                        self._bound_event(
+                            f"$handoff-{index}",
+                            kind=kind,
+                            sender=sender,
+                        )
+                    ]
+                }
+            }
+            for index, (room_id, _role, sender, kind) in enumerate(rows, 1)
+        }
+        roles = {room_id: role for room_id, role, _sender, _kind in rows}
+
+        events = normalize_sync_response(self._sync_payload(rooms), roles, SESSION)
+
+        self.assertEqual(len(events), 6)
+        by_kind = {item["kind"]: item for item in events}
+        for index, (_room, role, _sender, kind) in enumerate(rows, 1):
+            with self.subTest(kind=kind):
+                self.assertEqual(by_kind[kind]["event_id"], f"$handoff-{index}")
+                self.assertEqual(by_kind[kind]["actor"], role)
+
+    def test_rejects_legacy_or_impersonated_handoffs(self) -> None:
+        manager_room = "!manager:matrix-local.hiclaw.io"
+        rejected = (
+            "manager_to_rca",
+            "manager_to_executor",
+            "manager_to_auditor",
+            "evidence_ready",
+            "diagnosis_ready",
+            "plan_ready",
+            "execution_complete",
+            "collector_to_rca",
+            "rca_to_planner",
+            "executor_to_auditor",
+            "verification_completed",
+        )
+        payload = self._sync_payload(
+            {
+                manager_room: {
+                    "timeline": {
+                        "events": [
+                            self._bound_event(
+                                f"$rejected-{index}",
+                                kind=kind,
+                                sender="@manager:matrix-local.hiclaw.io",
+                            )
+                            for index, kind in enumerate(rejected, 1)
+                        ]
+                    }
+                }
+            }
+        )
+
+        events = normalize_sync_response(
+            payload,
+            {manager_room: "labops-manager"},
+            SESSION,
+        )
+
+        self.assertEqual(events, [])
+
     def test_normalization_observes_evidence_gap_without_treating_it_as_terminal_proof(self) -> None:
         room = "!collector:matrix-local.hiclaw.io"
         payload = self._sync_payload({
