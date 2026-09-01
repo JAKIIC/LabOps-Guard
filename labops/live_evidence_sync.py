@@ -346,7 +346,7 @@ def _matrix_documents(matrix_snapshot: dict, bindings: dict) -> tuple[dict, dict
     selected: list[dict] = []
     handoffs: list[dict] = []
     seen_ids: set[str] = set()
-    for (source, target), kind in zip(HANDOFFS, HANDOFF_KINDS):
+    for index, ((source, target), kind) in enumerate(zip(HANDOFFS, HANDOFF_KINDS), 1):
         candidates = [
             event
             for event in events
@@ -386,6 +386,7 @@ def _matrix_documents(matrix_snapshot: dict, bindings: dict) -> tuple[dict, dict
         )
         handoffs.append(
             {
+                "handoff": index,
                 "from_agent": source,
                 "to_agent": target,
                 "matrix_event_id": event_id,

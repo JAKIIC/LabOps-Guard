@@ -151,6 +151,147 @@ class ReviewerStateTests(unittest.TestCase):
         self.assertEqual(executor["workflow_state"], "NOT_STARTED")
         self.assertEqual(executor["evidence_state"], "CONFIGURED")
 
+    def test_handoff_counts_separate_observed_from_verified(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = Path(tmp)
+            session_root = self._session(sessions)
+            empty = {
+                "connected": True,
+                "last_success_at": "2026-08-28T11:59:55Z",
+                "events": [],
+            }
+            state_empty = build_reviewer_state(
+                ROOT, sessions, "20260831-071", "live", empty, self.NOW,
+            )
+            kinds = (
+                ("manager_to_collector", "labops-manager"),
+                ("collector_to_rca", "evidence-collector"),
+                ("rca_to_planner", "rca-analyst"),
+            )
+            partial = {
+                **empty,
+                "events": [
+                    self._event(
+                        kind,
+                        f"$observed-{index}",
+                        actor,
+                        "FROM",
+                        "TO",
+                        f"2026-08-28T11:59:0{index}Z",
+                    )
+                    for index, (kind, actor) in enumerate(kinds, 1)
+                ],
+            }
+            (session_root / "observer").mkdir(exist_ok=True)
+            (session_root / "observer" / "evidence_sync.json").write_text(
+                json.dumps(
+                    {
+                        "status": "MIRRORED",
+                        "published": False,
+                        "errors": ["EVIDENCE_INCOMPLETE"],
+                        "checked_at": "2026-08-28T11:59:56Z",
+                        "mirror_digest": "a" * 64,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            state_partial = build_reviewer_state(
+                ROOT, sessions, "20260831-071", "live", partial, self.NOW,
+            )
+
+        self.assertEqual(state_empty["handoffs"], {"observed": 0, "verified": 0, "total": 6})
+        self.assertEqual(
+            state_partial["handoffs"], {"observed": 3, "verified": 0, "total": 6}
+        )
+        self.assertEqual(state_partial["evidence_sync"]["status"], "MIRRORED")
+        self.assertEqual(
+            state_partial["evidence_sync"]["errors"], ["EVIDENCE_INCOMPLETE"]
+        )
+        confidence = {
+            item["agent_id"]: item["confidence_state"]
+            for item in state_partial["agents"]
+        }
+        self.assertEqual(confidence["labops-manager"], "OBSERVED")
+        self.assertEqual(confidence["evidence-collector"], "OBSERVED")
+        self.assertEqual(confidence["rca-analyst"], "OBSERVED")
+        self.assertEqual(confidence["experiment-planner"], "CONFIGURED")
+
+    def test_verified_handoff_manifest_upgrades_all_six_agents(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = Path(tmp)
+            session_root = self._session(sessions)
+            roles = [
+                ("labops-manager", "evidence-collector", "manager_to_collector"),
+                ("evidence-collector", "rca-analyst", "collector_to_rca"),
+                ("rca-analyst", "experiment-planner", "rca_to_planner"),
+                ("experiment-planner", "safe-executor", "approval_pending"),
+                ("safe-executor", "verification-auditor", "executor_to_auditor"),
+                ("verification-auditor", "labops-manager", "verification_completed"),
+            ]
+            events = []
+            matrix_events = []
+            handoffs = []
+            for index, (source, target, kind) in enumerate(roles, 1):
+                event_id = f"$verified-{index}"
+                events.append(
+                    self._event(
+                        kind,
+                        event_id,
+                        source,
+                        "FROM",
+                        "TO",
+                        f"2026-08-28T11:59:0{index}Z",
+                    )
+                )
+                matrix_events.append(
+                    {
+                        "event_id": event_id,
+                        "sender_agent": source,
+                        "timestamp": f"2026-08-28T11:59:0{index}Z",
+                    }
+                )
+                handoffs.append(
+                    {
+                        "handoff": index,
+                        "from_agent": source,
+                        "to_agent": target,
+                        "matrix_event_id": event_id,
+                        "status": "COMPLETED",
+                        "input_artifact_refs": [f"input-{index}.json"],
+                        "output_artifact_refs": [f"output-{index}.json"],
+                    }
+                )
+            (session_root / "evidence" / "handoff_manifest.json").write_text(
+                json.dumps({"handoffs": handoffs}), encoding="utf-8"
+            )
+            (session_root / "evidence" / "matrix_events.json").write_text(
+                json.dumps({"events": matrix_events}), encoding="utf-8"
+            )
+            verified = {
+                "status": "VERIFIED",
+                "evidence_digest": "b" * 64,
+                "skill_runtime_evidence": {},
+                "errors": [],
+            }
+            with patch("labops.reviewer_state.verify_session", return_value=verified):
+                state = build_reviewer_state(
+                    ROOT,
+                    sessions,
+                    "20260831-071",
+                    "live",
+                    {
+                        "connected": True,
+                        "last_success_at": "2026-08-28T11:59:55Z",
+                        "events": events,
+                    },
+                    self.NOW,
+                )
+
+        self.assertEqual(state["handoffs"], {"observed": 6, "verified": 6, "total": 6})
+        self.assertTrue(
+            all(item["confidence_state"] == "VERIFIED" for item in state["agents"])
+        )
+
     def test_quick_mode_is_replay_with_verified_archived_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             state = build_reviewer_state(ROOT, Path(tmp), None, "quick", now=self.NOW)
@@ -325,6 +466,347 @@ class ReviewerStateTests(unittest.TestCase):
                     ROOT, sessions, "20260831-071", "live", self._matrix_snapshot(), self.NOW,
                 )
             self.assertEqual(mismatched["tool_contract"]["status"], "BLOCKED")
+
+    def test_verified_simulated_run_never_projects_resolved(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = Path(tmp)
+            session_root = self._session(sessions)
+            verification = {
+                "verified_by": "verification-auditor",
+                "decision": "PASS",
+                "incident_state": "DEMO_PASSED_NOT_RESOLVED",
+                "underlying_issue_resolved": False,
+                "verified_at": "2026-08-28T11:59:09Z",
+            }
+            (session_root / "evidence" / "verification.json").write_text(
+                json.dumps(verification, ensure_ascii=False), encoding="utf-8",
+            )
+            verified = {
+                "status": "VERIFIED",
+                "evidence_digest": "a" * 64,
+                "skill_runtime_evidence": {},
+                "errors": [],
+            }
+            with patch("labops.reviewer_state.verify_session", return_value=verified):
+                state = build_reviewer_state(
+                    ROOT, sessions, "20260831-071", "live", self._matrix_snapshot(), self.NOW,
+                )
+
+        self.assertEqual(
+            state["incident"]["workflow_state"], "DEMO_PASSED_NOT_RESOLVED",
+        )
+        auditor = next(
+            item for item in state["agents"]
+            if item["agent_id"] == "verification-auditor"
+        )
+        self.assertEqual(auditor["workflow_state"], "AUDIT_PASSED")
+        terminal = next(
+            item for item in state["timeline"] if item["kind"] == "terminal_decided"
+        )
+        self.assertEqual(terminal["workflow_to"], "DEMO_PASSED_NOT_RESOLVED")
+        self.assertEqual(state["audit"]["resolution_status"], "DEMO_PASSED_NOT_RESOLVED")
+
+    def test_verified_recovery_projects_effective_attempt_and_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = Path(tmp)
+            session_root = self._session(sessions)
+            verification = {
+                "verified_by": "verification-auditor",
+                "decision": "PASS",
+                "attempt_id": "LIVE-ATTEMPT-20260831-071-02",
+                "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-072",
+                "incident_state": "DEMO_PASSED_NOT_RESOLVED",
+                "underlying_issue_resolved": False,
+                "verified_at": "2026-08-28T11:59:09Z",
+            }
+            (session_root / "evidence" / "verification.json").write_text(
+                json.dumps(verification, ensure_ascii=False), encoding="utf-8",
+            )
+            verified = {
+                "status": "VERIFIED",
+                "effective_attempt_id": "LIVE-ATTEMPT-20260831-071-02",
+                "evidence_digest": "a" * 64,
+                "skill_runtime_evidence": {},
+                "errors": [],
+            }
+            with patch("labops.reviewer_state.verify_session", return_value=verified):
+                state = build_reviewer_state(
+                    ROOT, sessions, "20260831-071", "live", self._matrix_snapshot(), self.NOW,
+                )
+
+        self.assertEqual(state["incident"]["attempt_id"], "LIVE-ATTEMPT-20260831-071-02")
+        self.assertEqual(state["incident"]["run_id"], "RUN-LABOPS-AT-004-AGENTTEAMS-072")
+
+    def _write_runner_outcome(
+        self,
+        session_root: Path,
+        *,
+        metrics_candidate: float = 0.9781249761581421,
+        run_candidate: float = 0.9781249761581421,
+        verification_candidate: float = 0.9781249761581421,
+        run_changed_paths: list[str] | None = None,
+        verification_changed_paths: list[str] | None = None,
+    ) -> None:
+        baseline = 0.71875
+        runner_root = session_root / "evidence" / "runner"
+        runner_root.mkdir(parents=True, exist_ok=True)
+        metrics = {
+            "baseline_accuracy_values": [baseline, baseline, baseline],
+            "candidate_accuracy_values": [
+                metrics_candidate,
+                metrics_candidate,
+                metrics_candidate,
+            ],
+            "baseline_accuracy": baseline,
+            "candidate_accuracy": metrics_candidate,
+        }
+        changed = run_changed_paths or [
+            "sandbox/eval_config.json:evaluation.preprocessing_profile",
+        ]
+        run_result = {
+            "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-072",
+            "status": "completed",
+            "network": "none",
+            "sandbox_only": True,
+            "changed_paths": changed,
+            "metrics": {
+                **metrics,
+                "candidate_accuracy": run_candidate,
+            },
+            "protected_hashes": {
+                "checkpoint_unchanged": True,
+                "evaluation_protocol_unchanged": True,
+                "metric_unchanged": True,
+                "model_unchanged": True,
+                "preprocessing_unchanged": True,
+                "validation_data_unchanged": True,
+            },
+        }
+        verified_changed = verification_changed_paths or changed
+        verification = {
+            "verified_by": "verification-auditor",
+            "decision": "PASS",
+            "incident_state": "DEMO_PASSED_NOT_RESOLVED",
+            "underlying_issue_resolved": False,
+            "checks": {
+                "metrics_recomputed_from_raw_stdout": {
+                    "pass": True,
+                    "baseline_accuracy": baseline,
+                    "candidate_accuracy": verification_candidate,
+                    "baseline_repeats": [baseline, baseline, baseline],
+                    "candidate_repeats": [
+                        verification_candidate,
+                        verification_candidate,
+                        verification_candidate,
+                    ],
+                    "improvement": verification_candidate - baseline,
+                },
+                "success_criteria_met": {
+                    "pass": True,
+                    "accuracy_ge_0.97": True,
+                    "candidate_accuracy": verification_candidate,
+                    "improvement": verification_candidate - baseline,
+                    "repeats": 3,
+                },
+                "boundaries_respected": {
+                    "pass": True,
+                    "sandbox_only": True,
+                    "network": "none",
+                    "changed_paths": verified_changed,
+                },
+                "protected_hashes_immutable": {
+                    "pass": True,
+                    "all_unchanged_flags_true": True,
+                },
+            },
+        }
+        (runner_root / "metrics.json").write_text(
+            json.dumps(metrics, ensure_ascii=False), encoding="utf-8",
+        )
+        (runner_root / "run_result.json").write_text(
+            json.dumps(run_result, ensure_ascii=False), encoding="utf-8",
+        )
+        (session_root / "evidence" / "verification.json").write_text(
+            json.dumps(verification, ensure_ascii=False), encoding="utf-8",
+        )
+
+    def test_verified_runner_projects_cross_checked_outcome(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = Path(tmp)
+            session_root = self._session(sessions)
+            self._write_runner_outcome(session_root)
+            verified = {
+                "status": "VERIFIED",
+                "evidence_digest": "a" * 64,
+                "skill_runtime_evidence": {},
+                "errors": [],
+            }
+            with patch("labops.reviewer_state.verify_session", return_value=verified):
+                state = build_reviewer_state(
+                    ROOT, sessions, "20260831-071", "live", self._matrix_snapshot(), self.NOW,
+                )
+
+        runner = state["runner"]
+        self.assertEqual(runner["baseline_accuracy"], 0.71875)
+        self.assertEqual(runner["candidate_accuracy"], 0.9781249761581421)
+        self.assertEqual(runner["baseline_repeats"], 3)
+        self.assertEqual(runner["candidate_repeats"], 3)
+        self.assertEqual(runner["minimum_accuracy"], 0.97)
+        self.assertAlmostEqual(runner["accuracy_improvement"], 0.2593749761581421)
+        self.assertEqual(
+            runner["changed_paths"],
+            ["sandbox/eval_config.json:evaluation.preprocessing_profile"],
+        )
+        self.assertTrue(runner["protected_hashes_unchanged"])
+        self.assertEqual(state["limitations"], [])
+
+    def test_runner_outcome_conflict_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = Path(tmp)
+            session_root = self._session(sessions)
+            self._write_runner_outcome(
+                session_root,
+                run_candidate=0.91,
+                verification_changed_paths=["sandbox/other.json:value"],
+            )
+            verified = {
+                "status": "VERIFIED",
+                "evidence_digest": "a" * 64,
+                "skill_runtime_evidence": {},
+                "errors": [],
+            }
+            with patch("labops.reviewer_state.verify_session", return_value=verified):
+                state = build_reviewer_state(
+                    ROOT, sessions, "20260831-071", "live", self._matrix_snapshot(), self.NOW,
+                )
+
+        self.assertIsNone(state["runner"]["candidate_accuracy"])
+        self.assertIsNone(state["runner"]["accuracy_improvement"])
+        self.assertEqual(state["runner"]["changed_paths"], [])
+        self.assertIn(
+            "RUNNER_OUTCOME_CONFLICT: candidate_accuracy, changed_paths",
+            state["limitations"],
+        )
+
+    def test_runner_outcome_missing_evidence_stays_unavailable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = Path(tmp)
+            self._session(sessions)
+            verified = {
+                "status": "VERIFIED",
+                "evidence_digest": "a" * 64,
+                "skill_runtime_evidence": {},
+                "errors": [],
+            }
+            with patch("labops.reviewer_state.verify_session", return_value=verified):
+                state = build_reviewer_state(
+                    ROOT, sessions, "20260831-071", "live", self._matrix_snapshot(), self.NOW,
+                )
+
+        runner = state["runner"]
+        for field in (
+            "baseline_accuracy",
+            "candidate_accuracy",
+            "baseline_repeats",
+            "candidate_repeats",
+            "minimum_accuracy",
+            "accuracy_improvement",
+            "protected_hashes_unchanged",
+        ):
+            with self.subTest(field=field):
+                self.assertIsNone(runner[field])
+        self.assertEqual(runner["changed_paths"], [])
+
+    def test_live_timeline_uses_latest_observed_event_for_current_attempt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = Path(tmp)
+            self._session(sessions)
+            snapshot = self._matrix_snapshot()
+            snapshot["events"].append(self._event(
+                "manager_to_collector",
+                "$event-mgr-collector-attempt-02",
+                "labops-manager",
+                "RECEIVED",
+                "EVIDENCE_COLLECTING",
+                "2026-08-28T11:59:09Z",
+            ))
+            state = build_reviewer_state(
+                ROOT, sessions, "20260831-071", "live", snapshot, self.NOW,
+            )
+
+        event = next(item for item in state["timeline"] if item["kind"] == "manager_to_collector")
+        self.assertEqual(event["event_id"], "$event-mgr-collector-attempt-02")
+
+    def test_verified_handoff_manifest_projects_rca_participation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = Path(tmp)
+            session_root = self._session(sessions)
+            event_ids = [f"$handoff-{index}" for index in range(1, 7)]
+            handoffs = []
+            roles = [
+                ("labops-manager", "evidence-collector"),
+                ("evidence-collector", "rca-analyst"),
+                ("rca-analyst", "experiment-planner"),
+                ("experiment-planner", "safe-executor"),
+                ("safe-executor", "verification-auditor"),
+                ("verification-auditor", "labops-manager"),
+            ]
+            matrix_events = []
+            for index, ((source, target), event_id) in enumerate(zip(roles, event_ids), 1):
+                handoffs.append({
+                    "handoff": index,
+                    "from_agent": source,
+                    "to_agent": target,
+                    "matrix_event_id": event_id,
+                    "status": "COMPLETED",
+                    "input_artifact_refs": [f"input-{index}.json"],
+                    "output_artifact_refs": [f"output-{index}.json"],
+                })
+                matrix_events.append({
+                    "event_id": event_id,
+                    "sender_agent": source,
+                    "timestamp": f"2026-08-28T11:59:{index:02d}Z",
+                })
+            (session_root / "evidence" / "handoff_manifest.json").write_text(
+                json.dumps({"handoffs": handoffs}, ensure_ascii=False), encoding="utf-8",
+            )
+            (session_root / "evidence" / "matrix_events.json").write_text(
+                json.dumps({"events": matrix_events}, ensure_ascii=False), encoding="utf-8",
+            )
+            verified = {
+                "status": "VERIFIED",
+                "evidence_digest": "a" * 64,
+                "skill_runtime_evidence": {},
+                "errors": [],
+            }
+            with patch("labops.reviewer_state.verify_session", return_value=verified):
+                state = build_reviewer_state(
+                    ROOT,
+                    sessions,
+                    "20260831-071",
+                    "live",
+                    None,
+                    self.NOW,
+                )
+
+        rca = next(item for item in state["agents"] if item["agent_id"] == "rca-analyst")
+        planner = next(
+            item for item in state["agents"] if item["agent_id"] == "experiment-planner"
+        )
+        self.assertEqual(rca["workflow_state"], "DIAGNOSIS_READY")
+        self.assertEqual(rca["evidence_state"], "VERIFIED")
+        self.assertEqual(planner["workflow_state"], "PLAN_READY")
+        self.assertEqual(planner["evidence_state"], "VERIFIED")
+        commander = next(
+            item for item in state["agents"] if item["agent_id"] == "labops-manager"
+        )
+        self.assertEqual(commander["workflow_state"], "RESULT_PUBLISHED")
+        self.assertEqual(commander["evidence_state"], "VERIFIED")
+        by_kind = {item["kind"]: item for item in state["timeline"]}
+        self.assertEqual(by_kind["hypotheses_ranked"]["evidence_state"], "VERIFIED")
+        self.assertEqual(by_kind["rca_to_planner"]["evidence_state"], "VERIFIED")
+        self.assertEqual(by_kind["rca_to_planner"]["source"], "VERIFIED_HANDOFF_MANIFEST")
+        self.assertEqual(by_kind["rca_to_planner"]["event_id"], "$handoff-3")
 
     def test_quick_and_live_payloads_validate_against_schema(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

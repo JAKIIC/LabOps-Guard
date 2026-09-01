@@ -8,6 +8,8 @@ keeps workflow progress separate from evidence confidence.
 from __future__ import annotations
 
 import json
+import math
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -45,6 +47,24 @@ EXPECTED_TIMELINE = [
     ("commander_published", "RESOLVED", "RESOLVED"),
 ]
 EVENT_KINDS = {kind for kind, _, _ in EXPECTED_TIMELINE}
+HANDOFF_EVENT_KINDS = {
+    "manager_to_collector",
+    "collector_to_rca",
+    "rca_to_planner",
+    "approval_pending",
+    "executor_to_auditor",
+    "verification_completed",
+}
+EVIDENCE_SYNC_STATUSES = {"NOT_APPLICABLE", "NOT_STARTED", "MIRRORED", "VERIFIED", "BLOCKED"}
+EVIDENCE_SYNC_ERRORS = {
+    "EVIDENCE_SOURCE_UNAVAILABLE",
+    "EVIDENCE_SNAPSHOT_TOO_LARGE",
+    "EVIDENCE_PATH_REJECTED",
+    "EVIDENCE_BINDING_MISMATCH",
+    "EVIDENCE_SCHEMA_INVALID",
+    "EVIDENCE_HASH_CONFLICT",
+    "EVIDENCE_INCOMPLETE",
+}
 AGENT_PROGRESS = {
     "task_dispatched": ("labops-manager", "EVIDENCE_COLLECTING"),
     "manager_to_collector": ("labops-manager", "EVIDENCE_COLLECTING"),
@@ -61,6 +81,12 @@ AGENT_PROGRESS = {
     "verification_completed": ("verification-auditor", "VERIFYING"),
     "terminal_decided": ("verification-auditor", "RESOLVED"),
     "commander_published": ("labops-manager", "RESOLVED"),
+}
+VERIFIED_HANDOFF_PROGRESS = {
+    "evidence-collector": "EVIDENCE_READY",
+    "rca-analyst": "DIAGNOSIS_READY",
+    "experiment-planner": "PLAN_READY",
+    "safe-executor": "VERIFYING",
 }
 
 
@@ -237,28 +263,40 @@ def _archived_timeline(archived: dict[str, Any], verified: bool) -> list[dict[st
     return timeline
 
 
-def _live_timeline(matrix_snapshot: dict[str, Any]) -> list[dict[str, Any]]:
-    by_kind: dict[str, dict[str, Any]] = {}
+def _live_timeline(
+    matrix_snapshot: dict[str, Any],
+    preferred_attempt_id: str | None = None,
+) -> list[dict[str, Any]]:
+    candidates: dict[str, list[dict[str, Any]]] = {}
     events = matrix_snapshot.get("events", [])
     if isinstance(events, list):
         for item in events:
             if not isinstance(item, dict) or item.get("kind") not in EVENT_KINDS:
                 continue
             kind = str(item["kind"])
-            if kind in by_kind:
-                continue
-            expected = next(row for row in EXPECTED_TIMELINE if row[0] == kind)
-            by_kind[kind] = _timeline_event(
+            candidates.setdefault(kind, []).append(item)
+    by_kind: dict[str, dict[str, Any]] = {}
+    for kind, items in candidates.items():
+        current_attempt = [
+            item for item in items
+            if preferred_attempt_id and item.get("attempt_id") == preferred_attempt_id
+        ]
+        selected = max(
+            current_attempt or items,
+            key=lambda item: str(item.get("timestamp") or ""),
+        )
+        expected = next(row for row in EXPECTED_TIMELINE if row[0] == kind)
+        by_kind[kind] = _timeline_event(
                 kind,
-                str(item.get("workflow_from") or expected[1]),
-                str(item.get("workflow_to") or expected[2]),
-                evidence_state=str(item.get("evidence_state") or "OBSERVED"),
+                str(selected.get("workflow_from") or expected[1]),
+                str(selected.get("workflow_to") or expected[2]),
+                evidence_state=str(selected.get("evidence_state") or "OBSERVED"),
                 source="MATRIX",
-                event_id=item.get("event_id"),
-                timestamp=item.get("timestamp"),
-                actor=item.get("actor"),
-                artifact_refs=item.get("artifact_refs"),
-                hash_refs=item.get("hash_refs"),
+                event_id=selected.get("event_id"),
+                timestamp=selected.get("timestamp"),
+                actor=selected.get("actor"),
+                artifact_refs=selected.get("artifact_refs"),
+                hash_refs=selected.get("hash_refs"),
             )
     return [
         by_kind.get(kind) or _timeline_event(kind, workflow_from, workflow_to)
@@ -288,17 +326,290 @@ def _put_timeline_evidence(
     })
 
 
+def _apply_verified_handoffs(
+    timeline: list[dict[str, Any]],
+    handoff_manifest: dict[str, Any],
+    matrix_evidence: dict[str, Any],
+) -> set[str]:
+    handoffs = handoff_manifest.get("handoffs")
+    events = matrix_evidence.get("events")
+    if not isinstance(handoffs, list) or not isinstance(events, list):
+        return set()
+    event_map = {
+        item.get("event_id"): item
+        for item in events
+        if isinstance(item, dict) and isinstance(item.get("event_id"), str)
+    }
+    timeline_kinds = {
+        1: ("task_dispatched", "manager_to_collector"),
+        2: ("collector_to_rca",),
+        3: ("hypotheses_ranked", "rca_to_planner"),
+        4: ("approval_pending",),
+        5: ("executor_to_auditor",),
+        6: ("verification_completed", "commander_published"),
+    }
+    verified_agents: set[str] = set()
+    for index, item in enumerate(handoffs, 1):
+        if not isinstance(item, dict) or item.get("status") not in {"COMPLETED", "VALID", "PASS"}:
+            continue
+        actor = item.get("from_agent")
+        event_id = item.get("matrix_event_id")
+        handoff_number = item.get("handoff", index)
+        event = event_map.get(event_id)
+        if (
+            not isinstance(actor, str)
+            or actor not in ROLE_NAMES
+            or not isinstance(event, dict)
+            or event.get("sender_agent") != actor
+        ):
+            continue
+        verified_agents.add(actor)
+        artifact_refs = _bounded_strings(
+            list(item.get("input_artifact_refs") or [])
+            + list(item.get("output_artifact_refs") or [])
+        )
+        for kind in timeline_kinds.get(handoff_number, ()):
+            row = next(candidate for candidate in timeline if candidate["kind"] == kind)
+            row.update({
+                "source": "VERIFIED_HANDOFF_MANIFEST",
+                "evidence_state": "VERIFIED",
+                "event_id": event_id,
+                "timestamp": event.get("timestamp"),
+                "actor": actor,
+                "artifact_refs": artifact_refs,
+            })
+    return verified_agents
+
+
+def _verification_terminal_state(verification: dict[str, Any]) -> str | None:
+    incident_state = verification.get("incident_state")
+    if incident_state == "DEMO_PASSED_NOT_RESOLVED":
+        return incident_state
+    resolution_status = verification.get("resolution_status")
+    if isinstance(resolution_status, str) and resolution_status:
+        return resolution_status
+    return None
+
+
+def _empty_runner_outcome() -> dict[str, Any]:
+    return {
+        "baseline_accuracy": None,
+        "candidate_accuracy": None,
+        "baseline_repeats": None,
+        "candidate_repeats": None,
+        "minimum_accuracy": None,
+        "accuracy_improvement": None,
+        "changed_paths": [],
+        "protected_hashes_unchanged": None,
+    }
+
+
+def _number(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    numeric = float(value)
+    return numeric if math.isfinite(numeric) else None
+
+
+def _matching_number(
+    label: str,
+    values: list[object],
+    conflicts: list[str],
+) -> float | None:
+    observed = [number for value in values if (number := _number(value)) is not None]
+    if not observed:
+        return None
+    if any(not math.isclose(observed[0], item, rel_tol=1e-9, abs_tol=1e-12) for item in observed[1:]):
+        conflicts.append(label)
+        return None
+    return observed[0]
+
+
+def _repeat_count(
+    label: str,
+    values: list[object],
+    conflicts: list[str],
+) -> int | None:
+    observed: list[list[float]] = []
+    for value in values:
+        if not isinstance(value, list) or not value:
+            continue
+        numbers = [_number(item) for item in value]
+        if any(item is None for item in numbers):
+            conflicts.append(label)
+            return None
+        observed.append([float(item) for item in numbers if item is not None])
+    if not observed:
+        return None
+    reference = observed[0]
+    for candidate in observed[1:]:
+        if len(candidate) != len(reference) or any(
+            not math.isclose(left, right, rel_tol=1e-9, abs_tol=1e-12)
+            for left, right in zip(reference, candidate)
+        ):
+            conflicts.append(label)
+            return None
+    return len(reference)
+
+
+def _minimum_accuracy(success: dict[str, Any], conflicts: list[str]) -> float | None:
+    candidates: list[object] = [success.get("minimum_accuracy")]
+    for key, value in success.items():
+        match = re.fullmatch(r"accuracy_ge_([0-9]+(?:\.[0-9]+)?)", key)
+        if match and value is True:
+            candidates.append(float(match.group(1)))
+    return _matching_number("minimum_accuracy", candidates, conflicts)
+
+
+def _matching_paths(
+    run: dict[str, Any],
+    boundaries: dict[str, Any],
+    conflicts: list[str],
+) -> list[str]:
+    observed: list[list[str]] = []
+    for value in (run.get("changed_paths"), boundaries.get("changed_paths")):
+        if value is None:
+            continue
+        if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+            conflicts.append("changed_paths")
+            return []
+        observed.append(value[:16])
+    if not observed:
+        return []
+    if any(candidate != observed[0] for candidate in observed[1:]):
+        conflicts.append("changed_paths")
+        return []
+    return observed[0]
+
+
+def _protected_hash_state(
+    run: dict[str, Any],
+    protected_check: dict[str, Any],
+    conflicts: list[str],
+) -> bool | None:
+    candidates: list[bool] = []
+    protected = run.get("protected_hashes")
+    if isinstance(protected, dict):
+        flags = [value for key, value in protected.items() if key.endswith("_unchanged")]
+        if flags:
+            if any(not isinstance(value, bool) for value in flags):
+                conflicts.append("protected_hashes_unchanged")
+                return None
+            candidates.append(all(flags))
+    for key in ("pass", "all_unchanged_flags_true"):
+        value = protected_check.get(key)
+        if isinstance(value, bool):
+            candidates.append(value)
+    if not candidates:
+        return None
+    if any(value != candidates[0] for value in candidates[1:]):
+        conflicts.append("protected_hashes_unchanged")
+        return None
+    return candidates[0]
+
+
+def _runner_outcome_projection(
+    run: dict[str, Any],
+    metrics: dict[str, Any],
+    verification: dict[str, Any],
+) -> tuple[dict[str, Any], list[str]]:
+    outcome = _empty_runner_outcome()
+    conflicts: list[str] = []
+    run_metrics = run.get("metrics") if isinstance(run.get("metrics"), dict) else {}
+    checks = verification.get("checks") if isinstance(verification.get("checks"), dict) else {}
+    recomputed = (
+        checks.get("metrics_recomputed_from_raw_stdout")
+        if isinstance(checks.get("metrics_recomputed_from_raw_stdout"), dict)
+        else {}
+    )
+    success = checks.get("success_criteria_met") if isinstance(checks.get("success_criteria_met"), dict) else {}
+    boundaries = checks.get("boundaries_respected") if isinstance(checks.get("boundaries_respected"), dict) else {}
+    protected_check = (
+        checks.get("protected_hashes_immutable")
+        if isinstance(checks.get("protected_hashes_immutable"), dict)
+        else {}
+    )
+
+    baseline = _matching_number(
+        "baseline_accuracy",
+        [metrics.get("baseline_accuracy"), run_metrics.get("baseline_accuracy"), recomputed.get("baseline_accuracy")],
+        conflicts,
+    )
+    candidate = _matching_number(
+        "candidate_accuracy",
+        [
+            metrics.get("candidate_accuracy"),
+            run_metrics.get("candidate_accuracy"),
+            recomputed.get("candidate_accuracy"),
+            success.get("candidate_accuracy"),
+        ],
+        conflicts,
+    )
+    outcome["baseline_accuracy"] = baseline
+    outcome["candidate_accuracy"] = candidate
+    outcome["baseline_repeats"] = _repeat_count(
+        "baseline_repeats",
+        [
+            metrics.get("baseline_accuracy_values"),
+            run_metrics.get("baseline_accuracy_values"),
+            recomputed.get("baseline_repeats"),
+        ],
+        conflicts,
+    )
+    outcome["candidate_repeats"] = _repeat_count(
+        "candidate_repeats",
+        [
+            metrics.get("candidate_accuracy_values"),
+            run_metrics.get("candidate_accuracy_values"),
+            recomputed.get("candidate_repeats"),
+        ],
+        conflicts,
+    )
+    outcome["minimum_accuracy"] = _minimum_accuracy(success, conflicts)
+
+    if baseline is not None and candidate is not None:
+        computed_improvement = candidate - baseline
+        improvement = _matching_number(
+            "accuracy_improvement",
+            [computed_improvement, recomputed.get("improvement"), success.get("improvement")],
+            conflicts,
+        )
+        outcome["accuracy_improvement"] = improvement
+    outcome["changed_paths"] = _matching_paths(run, boundaries, conflicts)
+    outcome["protected_hashes_unchanged"] = _protected_hash_state(
+        run, protected_check, conflicts,
+    )
+
+    limitations = [f"RUNNER_OUTCOME_CONFLICT: {', '.join(dict.fromkeys(conflicts))}"] if conflicts else []
+    return outcome, limitations
+
+
 def _load_live_artifacts(
     session_root: Path,
     timeline: list[dict[str, Any]],
     verifier_status: str,
-) -> dict[str, dict[str, Any]]:
+) -> dict[str, Any]:
     evidence = session_root / "evidence"
     approval = _read_object(evidence / "approval_grant.json")
     gateway = _read_object(evidence / "gateway_request.json")
     run = _read_object(evidence / "runner" / "run_result.json")
+    metrics = _read_object(evidence / "runner" / "metrics.json")
     verification = _read_object(evidence / "verification.json")
+    handoff_manifest = _read_object(evidence / "handoff_manifest.json")
+    matrix_evidence = _read_object(evidence / "matrix_events.json")
     is_verified = verifier_status == "VERIFIED"
+    verified_handoff_agents = (
+        _apply_verified_handoffs(timeline, handoff_manifest, matrix_evidence)
+        if is_verified
+        else set()
+    )
+    terminal_state = _verification_terminal_state(verification)
+    if terminal_state:
+        terminal = next(row for row in timeline if row["kind"] == "terminal_decided")
+        terminal["workflow_to"] = terminal_state
+        published = next(row for row in timeline if row["kind"] == "commander_published")
+        published["workflow_from"] = terminal_state
+        published["workflow_to"] = terminal_state
     if approval:
         _put_timeline_evidence(
             timeline,
@@ -361,17 +672,26 @@ def _load_live_artifacts(
         "approval": approval,
         "gateway": gateway,
         "run": run,
+        "metrics": metrics,
         "verification": verification,
+        "handoff_manifest": handoff_manifest,
+        "verified_handoff_agents": verified_handoff_agents,
     }
 
 
-def _agent_nodes(timeline: list[dict[str, Any]], *, archived_verified: bool = False) -> list[dict[str, Any]]:
+def _agent_nodes(
+    timeline: list[dict[str, Any]],
+    *,
+    archived_verified: bool = False,
+    verified_agents: set[str] | None = None,
+) -> list[dict[str, Any]]:
     nodes = {
         agent_id: {
             "agent_id": agent_id,
             "role_name": ROLE_NAMES[agent_id],
             "workflow_state": "NOT_STARTED",
             "evidence_state": "VERIFIED" if archived_verified else "CONFIGURED",
+            "confidence_state": "VERIFIED" if archived_verified else "CONFIGURED",
             "runtime_identity": agent_id,
         }
         for agent_id in ROLE_ORDER
@@ -396,12 +716,83 @@ def _agent_nodes(timeline: list[dict[str, Any]], *, archived_verified: bool = Fa
         if not progress:
             continue
         agent_id, workflow_state = progress
+        if event["kind"] == "terminal_decided":
+            workflow_state = event["workflow_to"]
+        elif event["kind"] == "commander_published":
+            workflow_state = "RESULT_PUBLISHED"
         nodes[agent_id]["workflow_state"] = workflow_state
         nodes[agent_id]["evidence_state"] = event["evidence_state"]
+    for agent_id in verified_agents or set():
+        if agent_id in nodes:
+            nodes[agent_id]["evidence_state"] = "VERIFIED"
+            if nodes[agent_id]["workflow_state"] == "NOT_STARTED":
+                nodes[agent_id]["workflow_state"] = VERIFIED_HANDOFF_PROGRESS.get(
+                    agent_id, "NOT_STARTED"
+                )
+    for node in nodes.values():
+        node["confidence_state"] = node["evidence_state"]
     return [nodes[agent_id] for agent_id in ROLE_ORDER]
 
 
-def _live_incident(manifest: dict[str, Any], timeline: list[dict[str, Any]]) -> dict[str, Any]:
+def _evidence_sync_projection(session_root: Path, verifier_status: str) -> dict[str, Any]:
+    if verifier_status == "VERIFIED":
+        inferred = {
+            "status": "VERIFIED",
+            "published": True,
+            "errors": [],
+            "mirror_digest": None,
+            "checked_at": None,
+        }
+    else:
+        inferred = {
+            "status": "NOT_STARTED",
+            "published": False,
+            "errors": [],
+            "mirror_digest": None,
+            "checked_at": None,
+        }
+    path = session_root / "observer" / "evidence_sync.json"
+    if not path.exists():
+        return inferred
+    record = _read_object(path)
+    if not record:
+        return {
+            **inferred,
+            "status": "BLOCKED",
+            "published": False,
+            "errors": ["EVIDENCE_SCHEMA_INVALID"],
+        }
+    status = record.get("status")
+    errors = record.get("errors")
+    if status not in EVIDENCE_SYNC_STATUSES or not isinstance(errors, list):
+        return {
+            **inferred,
+            "status": "BLOCKED",
+            "published": False,
+            "errors": ["EVIDENCE_SCHEMA_INVALID"],
+        }
+    safe_errors = [
+        item for item in errors
+        if isinstance(item, str) and item in EVIDENCE_SYNC_ERRORS
+    ][:8]
+    digest = record.get("mirror_digest")
+    if not isinstance(digest, str) or len(digest) != 64:
+        digest = None
+    checked_at = record.get("checked_at")
+    return {
+        "status": "VERIFIED" if verifier_status == "VERIFIED" else status,
+        "published": verifier_status == "VERIFIED" or record.get("published") is True,
+        "errors": [] if verifier_status == "VERIFIED" else safe_errors,
+        "mirror_digest": digest,
+        "checked_at": checked_at if isinstance(checked_at, str) else None,
+    }
+
+
+def _live_incident(
+    manifest: dict[str, Any],
+    timeline: list[dict[str, Any]],
+    effective_binding: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     observed = [row for row in timeline if row["evidence_state"] in {"OBSERVED", "VERIFIED"}]
     last = observed[-1] if observed else None
     workflow_state = last["workflow_to"] if last else "RECEIVED"
@@ -417,17 +808,44 @@ def _live_incident(manifest: dict[str, Any], timeline: list[dict[str, Any]]) -> 
         current_owner = "Verification Auditor"
     elif workflow_state in {"RESOLVED", "ROLLED_BACK", "BLOCKED"}:
         current_owner = "Incident Commander"
+    binding = effective_binding or manifest
     return {
         "task_id": manifest.get("task_instance_id"),
         "incident_id": manifest.get("incident_instance_id"),
-        "attempt_id": manifest.get("attempt_id"),
-        "run_id": manifest.get("run_id"),
+        "attempt_id": binding.get("attempt_id"),
+        "run_id": binding.get("run_id"),
         "workflow_state": workflow_state,
         "current_owner": current_owner,
         "last_active_agent": last_active,
         "last_event": last.get("kind") if last else None,
         "last_event_at": last.get("timestamp") if last else None,
     }
+
+
+def _effective_live_binding(
+    manifest: dict[str, Any],
+    recovery: dict[str, Any],
+    verification: dict[str, Any],
+    verifier: dict[str, Any],
+) -> dict[str, Any]:
+    binding = {
+        "attempt_id": manifest.get("attempt_id"),
+        "run_id": manifest.get("run_id"),
+    }
+    latest = recovery.get("latest_attempt")
+    if recovery.get("status") != "BLOCKED" and isinstance(latest, dict):
+        if isinstance(latest.get("attempt_id"), str):
+            binding["attempt_id"] = latest["attempt_id"]
+        if isinstance(latest.get("run_id"), str):
+            binding["run_id"] = latest["run_id"]
+    if (
+        verifier.get("status") == "VERIFIED"
+        and verification.get("attempt_id") == verifier.get("effective_attempt_id")
+        and isinstance(verification.get("run_id"), str)
+    ):
+        binding["attempt_id"] = verification["attempt_id"]
+        binding["run_id"] = verification["run_id"]
+    return binding
 
 
 def _recovery_projection(session_root: Path) -> dict[str, Any]:
@@ -608,6 +1026,18 @@ def _quick_state(project_root: Path, now: datetime) -> dict[str, Any]:
             "last_event": "commander_published" if verified else None,
             "last_event_at": None,
         },
+        "handoffs": {
+            "observed": 6 if verified else 0,
+            "verified": 6 if verified else 0,
+            "total": 6,
+        },
+        "evidence_sync": {
+            "status": "NOT_APPLICABLE",
+            "published": False,
+            "errors": [],
+            "mirror_digest": None,
+            "checked_at": None,
+        },
         "agents": _agent_nodes(timeline, archived_verified=verified),
         "approval": {
             "status": "VERIFIED" if verified and approval.get("before_execution") else "BLOCKED",
@@ -646,6 +1076,7 @@ def _quick_state(project_root: Path, now: datetime) -> dict[str, Any]:
             "run_id": run.get("run_id"),
             "network": run.get("network"),
             "sandbox_only": run.get("sandbox_only"),
+            **_empty_runner_outcome(),
         },
         "audit": {
             "status": "VERIFIED" if verified else "BLOCKED",
@@ -689,6 +1120,14 @@ def _blocked_live_state(session_id: str | None, now: datetime, error: str) -> di
             "last_event": None,
             "last_event_at": None,
         },
+        "handoffs": {"observed": 0, "verified": 0, "total": 6},
+        "evidence_sync": {
+            "status": "NOT_STARTED",
+            "published": False,
+            "errors": [],
+            "mirror_digest": None,
+            "checked_at": None,
+        },
         "agents": _agent_nodes(timeline),
         "approval": {"status": "NOT_OBSERVED", "decision": None},
         "timeline": timeline,
@@ -704,7 +1143,13 @@ def _blocked_live_state(session_id: str | None, now: datetime, error: str) -> di
             "configured_policy": configured_recovery_policy(),
             "errors": [error],
         },
-        "runner": {"status": "NOT_OBSERVED", "run_id": None},
+        "runner": {
+            "status": "NOT_OBSERVED",
+            "run_id": None,
+            "network": None,
+            "sandbox_only": None,
+            **_empty_runner_outcome(),
+        },
         "audit": {"status": "BLOCKED", "decision": None, "resolution_status": None},
         "limitations": [error],
         "updated_at": _iso(now),
@@ -749,19 +1194,50 @@ def build_reviewer_state(
     )
     verifier = verify_session(project, sessions, session_id)
     verifier_status = verifier.get("status") if isinstance(verifier, dict) else "BLOCKED"
-    timeline = _live_timeline(snapshot)
+    recovery = _recovery_projection(session_root)
+    latest_attempt = recovery.get("latest_attempt")
+    preferred_attempt_id = (
+        latest_attempt.get("attempt_id")
+        if isinstance(latest_attempt, dict) and isinstance(latest_attempt.get("attempt_id"), str)
+        else None
+    )
+    timeline = _live_timeline(snapshot, preferred_attempt_id)
     artifacts = _load_live_artifacts(session_root, timeline, str(verifier_status))
-    agents = _agent_nodes(timeline)
-    incident = _live_incident(manifest, timeline)
+    verification = artifacts["verification"]
+    effective_binding = _effective_live_binding(manifest, recovery, verification, verifier)
+    agents = _agent_nodes(
+        timeline,
+        verified_agents=artifacts["verified_handoff_agents"],
+    )
+    observed_handoffs = len({
+        row["kind"]
+        for row in timeline
+        if row["kind"] in HANDOFF_EVENT_KINDS
+        and row["evidence_state"] in {"OBSERVED", "VERIFIED"}
+    })
+    verified_handoffs = len(artifacts["verified_handoff_agents"])
+    evidence_sync = _evidence_sync_projection(session_root, str(verifier_status))
+    incident = _live_incident(manifest, timeline, effective_binding)
+    terminal_state = _verification_terminal_state(verification)
     if verifier_status == "VERIFIED":
-        incident["workflow_state"] = "RESOLVED"
         incident["current_owner"] = "Incident Commander"
         incident["last_active_agent"] = "Verification Auditor"
-        incident["last_event"] = "terminal_decided"
+        published = next(row for row in timeline if row["kind"] == "commander_published")
+        terminal = next(row for row in timeline if row["kind"] == "terminal_decided")
+        last = published if published["evidence_state"] == "VERIFIED" else terminal
+        incident["last_event"] = last["kind"]
+        incident["last_event_at"] = last.get("timestamp")
+        if terminal_state:
+            incident["workflow_state"] = terminal_state
         for node in agents:
             if node["agent_id"] == "verification-auditor":
-                node["workflow_state"] = "RESOLVED"
                 node["evidence_state"] = "VERIFIED"
+                if terminal_state:
+                    node["workflow_state"] = (
+                        "AUDIT_PASSED"
+                        if verification.get("decision") == "PASS"
+                        else terminal_state
+                    )
 
     if matrix_status == "LIVE":
         source_summary = "LIVE" if verifier_status == "VERIFIED" else "LIVE_PARTIAL"
@@ -776,7 +1252,16 @@ def build_reviewer_state(
         approval_status = "NOT_OBSERVED"
     gateway = artifacts["gateway"]
     run = artifacts["run"]
-    verification = artifacts["verification"]
+    runner_outcome, runner_limitations = _runner_outcome_projection(
+        run,
+        artifacts["metrics"],
+        verification,
+    )
+    verifier_limitations = (
+        list(verifier.get("errors", []))
+        if isinstance(verifier.get("errors"), list)
+        else []
+    )
     state = {
         "schema_version": "1.0",
         "mode": "LIVE",
@@ -800,6 +1285,12 @@ def build_reviewer_state(
             "session_id": manifest.get("session_id"),
         },
         "incident": incident,
+        "handoffs": {
+            "observed": observed_handoffs,
+            "verified": verified_handoffs,
+            "total": 6,
+        },
+        "evidence_sync": evidence_sync,
         "agents": agents,
         "approval": {
             "status": approval_status,
@@ -810,20 +1301,21 @@ def build_reviewer_state(
         },
         "timeline": timeline,
         "tool_contract": _tool_contract_projection(project, gateway, verifier),
-        "recovery": _recovery_projection(session_root),
+        "recovery": recovery,
         "runner": {
             "status": "VERIFIED" if verifier_status == "VERIFIED" else ("OBSERVED" if run else "NOT_OBSERVED"),
             "run_id": run.get("run_id"),
             "network": run.get("network"),
             "sandbox_only": run.get("sandbox_only"),
+            **runner_outcome,
         },
         "audit": {
             "status": "VERIFIED" if verifier_status == "VERIFIED" else ("OBSERVED" if verification else "NOT_OBSERVED"),
             "decision": verification.get("decision"),
-            "resolution_status": verification.get("resolution_status"),
+            "resolution_status": verification.get("resolution_status") or verification.get("incident_state"),
             "verified_by": verification.get("verified_by"),
         },
-        "limitations": list(verifier.get("errors", [])) if isinstance(verifier.get("errors"), list) else [],
+        "limitations": verifier_limitations + runner_limitations,
         "updated_at": _iso(current_time),
     }
     return state

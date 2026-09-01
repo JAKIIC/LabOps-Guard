@@ -145,13 +145,14 @@ class ReviewerWebTests(unittest.TestCase):
         html, visible_text = self._html("/reviewer")
         self.assertEqual(html, (ROOT / "labops" / "reviewer.html").read_text(encoding="utf-8"))
         for marker in (
+            "事故总览",
+            "真实 Handoff",
+            "多 Agent 协作图",
             "人工审批门",
-            "当前指令",
-            "已配置策略",
-            "工作流状态",
-            "证据状态",
-            "最后活动 Agent",
-            "最后事件 / 更新时间",
+            "恢复与人工接管",
+            "验证结果",
+            "Evidence Inspector",
+            "工程证据",
             "Tool Contract",
             "Protected Resources",
         ):
@@ -166,16 +167,14 @@ class ReviewerWebTests(unittest.TestCase):
     def test_reviewer_page_uses_chinese_primary_labels_with_technical_terms_preserved(self) -> None:
         html, visible_text = self._html("/reviewer")
         for marker in (
-            "LabOps Guard · Reviewer Edition",
-            "面向生产级 Agent 系统的可信执行与治理基础设施",
-            "当前事故",
+            "LabOps Guard · Agent Mission Control",
+            "面向生产级 Agent 系统的可信协作、人工治理与可验证执行",
+            "事故总览",
             "当前责任人",
-            "最后活动 Agent",
-            "最后事件 / 更新时间",
-            "AgentTeams 协作时间线",
+            "协作时间线",
             "人工审批门",
             "Tool Contract",
-            "恢复 / 升级处理",
+            "恢复与人工接管",
             "Runner",
             "Auditor",
             "完全只读",
@@ -201,7 +200,7 @@ class ReviewerWebTests(unittest.TestCase):
 
         # Identifiers and runtime status codes remain available for evidence review.
         for technical_marker in (
-            "Reviewer Edition",
+            "Mission Control",
             "Incident ID",
             "Task ID",
             "Run ID",
@@ -222,10 +221,67 @@ class ReviewerWebTests(unittest.TestCase):
             with self.subTest(runtime_explanation=runtime_explanation):
                 self.assertIn(runtime_explanation, html)
 
+    def test_mission_control_structure_is_video_ready_and_accessible(self) -> None:
+        html, _ = self._html("/reviewer")
+        for hook in (
+            'id="mission-overview"',
+            'id="mission-kpis"',
+            'id="workflow-board"',
+            'id="agent-rail"',
+            'id="recovery-node"',
+            'id="outcome-card"',
+            'id="mission-timeline"',
+            'id="evidence-inspector"',
+            'id="engineering-evidence"',
+        ):
+            with self.subTest(hook=hook):
+                self.assertIn(hook, html)
+        self.assertIn("@media (max-width: 1366px)", html)
+        self.assertIn("@media (max-width: 560px)", html)
+        self.assertIn("@media (prefers-reduced-motion: reduce)", html)
+        self.assertIn("overflow-x: hidden", html)
+        self.assertIn("aria-live=\"polite\"", html)
+        self.assertIn("aria-label", html)
+        for forbidden in (
+            "<form",
+            "<input",
+            "<textarea",
+            "<select",
+            "<iframe",
+            "innerHTML",
+            "insertAdjacentHTML",
+            "https://cdn",
+            "http://cdn",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, html)
+
+    def test_mission_control_renderer_is_safe_and_stateful(self) -> None:
+        html, _ = self._html("/reviewer")
+        for function_name in (
+            "deriveMissionMetrics",
+            "renderMissionOverview",
+            "renderWorkflow",
+            "renderOutcome",
+            "renderInspector",
+            "selectEvidence",
+            "restoreSelection",
+        ):
+            with self.subTest(function_name=function_name):
+                self.assertIn(f"function {function_name}", html)
+        self.assertIn("selectedEvidenceKey", html)
+        self.assertIn("node.textContent = content", html)
+        self.assertIn("等待 Runner Evidence", html)
+        self.assertIn("Evidence 冲突，已隐藏指标", html)
+        self.assertIn("make('button'", html)
+        self.assertIn("button.type = 'button'", html)
+        self.assertIn("event.key === 'Enter'", html)
+        self.assertNotIn("innerHTML", html)
+
     def test_reviewer_page_polls_only_read_only_reviewer_apis(self) -> None:
         html, _ = self._html("/reviewer")
-        self.assertIn('fetch(`/api/reviewer/status', html)
-        self.assertIn('fetch(`/api/reviewer/events', html)
+        self.assertIn("fetch('/api/reviewer/status'", html)
+        self.assertIn("fetch('/api/reviewer/events'", html)
         self.assertIn("setInterval(poll, 1000)", html)
         self.assertNotIn("method:", html)
         self.assertNotIn("/api/status", html)
@@ -247,6 +303,10 @@ class ReviewerWebTests(unittest.TestCase):
             with self.subTest(selector=selector):
                 self.assertIn(selector, html)
         self.assertIn("ACTIVE: 'is-active'", html)
+        self.assertIn("AUDIT_PASSED: 'is-verified'", html)
+        self.assertIn("AUDIT_PASSED: '审计通过'", html)
+        self.assertIn("RESULT_PUBLISHED: 'is-verified'", html)
+        self.assertIn("RESULT_PUBLISHED: '结果已发布'", html)
         self.assertIn("OBSERVED: 'is-observed'", html)
         self.assertIn("WAITING: 'is-waiting'", html)
         self.assertIn("UNVERIFIED: 'is-unverified'", html)
@@ -256,6 +316,23 @@ class ReviewerWebTests(unittest.TestCase):
         self.assertNotIn("WAITING: 'is-verified'", html)
         self.assertNotIn("UNVERIFIED: 'is-verified'", html)
         self.assertNotIn("NOT_STARTED: 'is-verified'", html)
+
+    def test_mission_control_uses_explicit_observed_and_verified_handoff_counts(self) -> None:
+        html, _ = self._html("/reviewer")
+        self.assertIn("state.handoffs", html)
+        self.assertIn("handoffs.observed", html)
+        self.assertIn("handoffs.verified", html)
+        self.assertIn("已观察", html)
+        self.assertIn("Evidence 已验证", html)
+        self.assertNotIn("Math.min(6, verifiedAgents)", html)
+
+    def test_mission_control_explains_evidence_sync_status_in_chinese(self) -> None:
+        html, _ = self._html("/reviewer")
+        self.assertIn("state.evidence_sync", html)
+        self.assertIn("MIRRORED: '已镜像'", html)
+        self.assertIn("EVIDENCE_INCOMPLETE: 'Evidence 尚不完整'", html)
+        self.assertIn("EVIDENCE_SOURCE_UNAVAILABLE: 'Evidence 来源暂不可用'", html)
+        self.assertIn("连接波动", html)
 
     def test_preflight_and_status_are_read_only_and_truthful(self) -> None:
         preflight = self._json("/api/reviewer/preflight")

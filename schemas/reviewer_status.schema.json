@@ -11,6 +11,8 @@
     "sources",
     "session",
     "incident",
+    "handoffs",
+    "evidence_sync",
     "agents",
     "approval",
     "timeline",
@@ -81,6 +83,35 @@
         "last_event_at"
       ]
     },
+    "handoffs": {
+      "type": "object",
+      "required": ["observed", "verified", "total"],
+      "properties": {
+        "observed": {"type": "integer", "minimum": 0, "maximum": 6},
+        "verified": {"type": "integer", "minimum": 0, "maximum": 6},
+        "total": {"type": "integer", "enum": [6]}
+      },
+      "additionalProperties": false
+    },
+    "evidence_sync": {
+      "type": "object",
+      "required": ["status", "published", "errors", "mirror_digest", "checked_at"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["NOT_APPLICABLE", "NOT_STARTED", "MIRRORED", "VERIFIED", "BLOCKED"]
+        },
+        "published": {"type": "boolean"},
+        "errors": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {"type": "string"}
+        },
+        "mirror_digest": {"type": ["string", "null"]},
+        "checked_at": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
     "agents": {
       "type": "array",
       "minItems": 6,
@@ -92,6 +123,7 @@
           "role_name",
           "workflow_state",
           "evidence_state",
+          "confidence_state",
           "runtime_identity"
         ],
         "properties": {
@@ -99,6 +131,10 @@
           "role_name": {"type": "string"},
           "workflow_state": {"type": "string"},
           "evidence_state": {
+            "type": "string",
+            "enum": ["NOT_OBSERVED", "CONFIGURED", "OBSERVED", "VERIFIED", "BLOCKED"]
+          },
+          "confidence_state": {
             "type": "string",
             "enum": ["NOT_OBSERVED", "CONFIGURED", "OBSERVED", "VERIFIED", "BLOCKED"]
           },

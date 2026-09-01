@@ -3,205 +3,519 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LabOps Guard · Reviewer Edition</title>
+  <title>LabOps Guard · Agent Mission Control</title>
   <style>
     :root {
       color-scheme: dark;
-      --page: #06111b;
-      --surface: #0b1c2a;
-      --surface-2: #102536;
-      --line: #234359;
-      --text: #edf7fb;
-      --muted: #8eacbd;
-      --green: #5ee2ba;
-      --green-bg: #0b3129;
-      --blue: #78cdf4;
-      --blue-bg: #0b2b43;
-      --cyan: #67d9e8;
-      --cyan-bg: #0a303b;
-      --yellow: #ffd071;
-      --yellow-bg: #322512;
-      --grey: #a0b0ba;
-      --grey-bg: #18232c;
-      --red: #ff8a8a;
-      --red-bg: #391a20;
+      --page: #050d15;
+      --surface: #091824;
+      --surface-2: #0d2130;
+      --surface-3: #102838;
+      --line: #214258;
+      --line-soft: #173348;
+      --text: #edf8fc;
+      --muted: #89a9ba;
+      --dim: #638497;
+      --green: #5ee2b6;
+      --green-bg: #092f27;
+      --cyan: #62d7e6;
+      --cyan-bg: #082d39;
+      --blue: #7bcaf4;
+      --blue-bg: #0b2940;
+      --amber: #ffd071;
+      --amber-bg: #302411;
+      --red: #ff8b95;
+      --red-bg: #381820;
+      --grey: #9eb0ba;
+      --grey-bg: #17232c;
+      --shadow: 0 18px 44px #0005;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     * { box-sizing: border-box; }
-
     html, body { min-width: 0; overflow-x: hidden; }
-
     body {
       margin: 0;
       min-height: 100vh;
-      background: radial-gradient(circle at 50% -15%, #123b55 0, var(--page) 46%);
+      background:
+        radial-gradient(circle at 50% -18%, #12405b 0, transparent 43%),
+        linear-gradient(180deg, #06131e 0, var(--page) 100%);
       color: var(--text);
     }
-
-    .shell { width: min(1480px, 100%); margin: 0 auto; padding: 22px; }
-
-    .topbar {
+    button, summary { font: inherit; }
+    button { color: inherit; }
+    .shell { width: min(1680px, 100%); margin: 0 auto; padding: 18px 22px 28px; }
+    .topbar, .section-head, .incident-meta, .kpi-top, .outcome-head, .inspector-head, .footer {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      gap: 16px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--line);
+      justify-content: space-between;
+      gap: 12px;
     }
-
-    .brand { font-size: 1.35rem; font-weight: 800; letter-spacing: -.02em; }
-    .subtitle { margin-top: 4px; color: var(--muted); font-size: .82rem; }
-    .badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-
+    .topbar { min-height: 58px; padding-bottom: 13px; border-bottom: 1px solid var(--line); }
+    .brand { font-size: clamp(1.12rem, 2vw, 1.42rem); font-weight: 850; letter-spacing: -.025em; }
+    .subtitle { margin-top: 4px; color: var(--muted); font-size: .78rem; }
+    .badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
     .badge {
       display: inline-flex;
       align-items: center;
-      min-height: 27px;
-      padding: 4px 9px;
-      border: 1px solid var(--line);
+      justify-content: center;
+      min-height: 25px;
+      max-width: 100%;
+      padding: 3px 9px;
+      border: 1px solid #44545e;
       border-radius: 999px;
       background: var(--grey-bg);
       color: var(--grey);
-      font-size: .7rem;
+      font-size: .66rem;
       font-weight: 800;
-      letter-spacing: .04em;
+      line-height: 1.2;
+      letter-spacing: .02em;
+      text-align: center;
       overflow-wrap: anywhere;
     }
-
-    .is-verified, .is-resolved { color: var(--green); background: var(--green-bg); border-color: #28725f; }
-    .is-active { color: var(--blue); background: var(--blue-bg); border-color: #327ba1; }
-    .is-observed { color: var(--cyan); background: var(--cyan-bg); border-color: #2b7985; }
-    .is-waiting { color: var(--yellow); background: var(--yellow-bg); border-color: #856329; }
-    .is-configured, .is-unverified, .is-not-started { color: var(--grey); background: var(--grey-bg); border-color: #465661; }
-    .is-blocked, .is-rejected { color: var(--red); background: var(--red-bg); border-color: #8b3f4a; }
-
-    .grid { display: grid; gap: 12px; }
-    .summary { grid-template-columns: minmax(260px, 1.45fr) repeat(3, minmax(170px, .75fr)); margin-top: 16px; }
-    .ids { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 12px; }
-    .main { grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr); margin-top: 12px; }
-    .pair { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 12px; }
-
+    .is-verified, .is-resolved { color: var(--green); background: var(--green-bg); border-color: #27745e; }
+    .is-active { color: var(--blue); background: var(--blue-bg); border-color: #327ca4; }
+    .is-observed { color: var(--cyan); background: var(--cyan-bg); border-color: #277987; }
+    .is-waiting { color: var(--amber); background: var(--amber-bg); border-color: #85632b; }
+    .is-configured, .is-unverified, .is-not-started {
+      color: var(--grey);
+      background: var(--grey-bg);
+      border-color: #465965;
+    }
+    .is-blocked, .is-rejected { color: var(--red); background: var(--red-bg); border-color: #8c3f4b; }
     .card {
       min-width: 0;
-      padding: 14px;
       border: 1px solid var(--line);
-      border-radius: 14px;
+      border-radius: 15px;
       background: linear-gradient(145deg, var(--surface-2), var(--surface));
-      box-shadow: 0 15px 34px #0003;
+      box-shadow: var(--shadow);
     }
-
-    .card h2 { margin: 0 0 10px; font-size: .95rem; }
-    .label { color: #7399ad; font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-    .value { margin-top: 6px; font-size: .95rem; font-weight: 750; overflow-wrap: anywhere; }
-    .muted { margin-top: 5px; color: var(--muted); font-size: .75rem; line-height: 1.5; overflow-wrap: anywhere; }
-
-    .id-card code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
-    .short-id { display: block; margin-top: 7px; color: #bdd6e2; font-size: .76rem; overflow-wrap: anywhere; }
-
-    details { margin-top: 8px; color: var(--muted); font-size: .72rem; }
-    summary { cursor: pointer; color: #8fc6e2; }
+    .eyebrow {
+      color: #73a0b6;
+      font-size: .64rem;
+      font-weight: 850;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    .section-head { margin: 16px 0 9px; }
+    .section-head h2 { margin: 0; font-size: .92rem; letter-spacing: -.01em; }
+    .section-head p { margin: 0; color: var(--muted); font-size: .7rem; }
+    .mission-overview {
+      display: grid;
+      grid-template-columns: minmax(380px, 1.3fr) minmax(0, 2fr);
+      gap: 10px;
+      margin-top: 13px;
+    }
+    .incident-card {
+      padding: 15px 17px;
+      background:
+        linear-gradient(110deg, #11334a 0, transparent 72%),
+        linear-gradient(145deg, var(--surface-2), var(--surface));
+    }
+    .incident-title {
+      margin-top: 7px;
+      font-size: clamp(1rem, 1.7vw, 1.28rem);
+      font-weight: 850;
+      overflow-wrap: anywhere;
+    }
+    .incident-state { margin-top: 7px; color: #b9d5e1; font-size: .78rem; line-height: 1.45; }
+    .incident-meta {
+      justify-content: flex-start;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: .7rem;
+    }
+    .incident-meta strong { color: var(--text); }
+    .binding-details { margin-top: 10px; }
+    details { color: var(--muted); font-size: .68rem; }
+    summary { cursor: pointer; color: #8ec5df; }
     pre {
       margin: 7px 0 0;
       padding: 9px;
       max-width: 100%;
       overflow-x: auto;
+      border: 1px solid var(--line-soft);
+      border-radius: 9px;
+      background: #06131d;
+      color: #acc7d4;
+      font: .66rem/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
-      border: 1px solid #1e3d51;
-      border-radius: 9px;
-      background: #071721;
-      color: #a9c4d1;
-      line-height: 1.55;
     }
-
-    .flow {
+    .mission-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .kpi { min-width: 0; padding: 13px; }
+    .kpi-top { align-items: flex-start; }
+    .kpi-icon {
       display: grid;
-      grid-template-columns: repeat(7, minmax(0, 1fr));
-      gap: 9px;
-      margin-top: 14px;
+      place-items: center;
+      width: 27px;
+      height: 27px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0a1a25;
+      color: var(--cyan);
+      font: .72rem ui-monospace, SFMono-Regular, Consolas, monospace;
     }
-
-    .agent-node {
+    .kpi-value {
+      margin-top: 10px;
+      font-size: clamp(.92rem, 1.5vw, 1.14rem);
+      font-weight: 850;
+      overflow-wrap: anywhere;
+    }
+    .kpi-note { margin-top: 4px; color: var(--muted); font-size: .64rem; line-height: 1.4; }
+    .workflow-board { padding: 12px; overflow: hidden; }
+    .agent-rail { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 9px; }
+    .workflow-node {
       position: relative;
-      min-width: 0;
-      padding: 13px 8px;
-      text-align: center;
-      border: 1px solid #43545f;
-      border-radius: 13px;
-      background: #111b24;
-    }
-
-    .agent-node:not(:last-child)::after {
-      content: "→";
-      position: absolute;
-      z-index: 2;
-      top: 27px;
-      right: -11px;
-      color: #58778a;
-    }
-
-    .agent-node.gate { border-style: dashed; border-color: #856329; background: #2a2113; }
-    .node-index { color: #7895a5; font: .68rem ui-monospace, monospace; }
-    .node-name { margin-top: 7px; font-size: .78rem; font-weight: 800; overflow-wrap: anywhere; }
-    .state-row { display: flex; flex-direction: column; align-items: center; gap: 5px; margin-top: 9px; }
-    .state-row .badge { width: 100%; justify-content: center; font-size: .61rem; }
-    .state-label { color: #718f9f; font-size: .58rem; letter-spacing: .06em; text-transform: uppercase; }
-
-    .timeline { max-height: 540px; overflow-y: auto; padding-right: 5px; }
-    .event { padding: 11px 0; border-top: 1px solid #1d3b4f; }
-    .event:first-child { border-top: 0; }
-    .event-head { display: grid; grid-template-columns: 86px minmax(0, 1fr) auto; align-items: center; gap: 9px; }
-    .event-time { color: #789aac; font: .68rem ui-monospace, monospace; }
-    .event-title { display: grid; gap: 3px; font-size: .78rem; font-weight: 700; overflow-wrap: anywhere; }
-    .event-description { color: var(--text); }
-    .state-transition { color: #789aac; font: .66rem ui-monospace, SFMono-Regular, Consolas, monospace; }
-
-    .approval-card { border-color: #765a2a; background: linear-gradient(145deg, #2c2315, var(--surface)); }
-    .approval-card .value { color: var(--yellow); }
-    .read-only-note { margin-top: 12px; padding-top: 9px; border-top: 1px solid #725725; color: #c4af7e; font-size: .72rem; }
-
-    .kv-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
-    .kv { min-width: 0; padding-top: 8px; border-top: 1px solid #1e3c50; }
-    .kv span { display: block; color: #7495a7; font-size: .66rem; }
-    .kv strong { display: block; margin-top: 4px; color: #c4d8e1; font: .7rem/1.45 ui-monospace, monospace; overflow-wrap: anywhere; }
-
-    .recovery-card { border-color: #59476a; background: linear-gradient(145deg, #21172b, var(--surface)); }
-    .directive { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 9px 0; border-top: 1px solid #40314c; }
-    .directive:first-of-type { border-top: 0; }
-    .policy-list { display: grid; gap: 7px; margin-top: 9px; }
-    .policy { padding: 8px; border: 1px solid #3c3048; border-radius: 9px; color: #c4aed0; font-size: .7rem; overflow-wrap: anywhere; }
-    .policy-explanation { line-height: 1.45; }
-    .machine-rule { display: block; margin-top: 5px; color: #9c82ad; font: .66rem/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
-
-    .footer {
       display: flex;
-      justify-content: space-between;
+      min-width: 0;
+      min-height: 154px;
+      flex-direction: column;
+      align-items: stretch;
+      padding: 11px 9px 10px;
+      border: 1px solid #41545f;
+      border-radius: 13px;
+      background: linear-gradient(155deg, #12222d, #0b161f);
+      text-align: left;
+      cursor: pointer;
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    .workflow-node:hover, .workflow-node:focus-visible, .workflow-node[aria-pressed="true"] {
+      outline: none;
+      transform: translateY(-2px);
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 2px #62d7e622, 0 14px 28px #0005;
+    }
+    .workflow-node:not(:first-child)::before {
+      content: "";
+      position: absolute;
+      top: 35px;
+      left: -10px;
+      width: 10px;
+      border-top: 2px dashed #536673;
+    }
+    .workflow-node.edge-observed::before { border-top-style: solid; border-color: var(--cyan); }
+    .workflow-node.edge-verified::before { border-top-style: solid; border-color: var(--green); }
+    .workflow-node.edge-blocked::before { border-top-style: solid; border-color: var(--red); }
+    .workflow-node.gate {
+      border-style: dashed;
+      border-color: #8b682c;
+      background: linear-gradient(155deg, #332713, #1d180f);
+    }
+    .workflow-node.gate::before { border-color: var(--amber); }
+    .node-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .node-index { color: #7898a8; font: .62rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .evidence-dot {
+      width: 9px;
+      height: 9px;
+      flex: 0 0 auto;
+      border: 2px solid #536672;
+      border-radius: 50%;
+      background: #18242c;
+    }
+    .evidence-dot.is-verified { border-color: var(--green); background: var(--green); }
+    .evidence-dot.is-observed { border-color: var(--cyan); background: var(--cyan); }
+    .evidence-dot.is-blocked { border-color: var(--red); background: var(--red); }
+    .node-name {
+      margin-top: 9px;
+      min-height: 34px;
+      font-size: .73rem;
+      font-weight: 850;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+    .node-role-en { display: block; margin-top: 2px; color: var(--muted); font-size: .58rem; font-weight: 600; }
+    .node-action {
+      flex: 1;
+      margin: 8px 0;
+      color: #a8c0cb;
+      font-size: .63rem;
+      line-height: 1.42;
+      overflow-wrap: anywhere;
+    }
+    .node-status { width: 100%; }
+    .recovery-branch {
+      display: grid;
+      grid-template-columns: minmax(250px, .8fr) minmax(0, 2.2fr);
+      gap: 9px;
+      margin-top: 9px;
+    }
+    .recovery-node {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid #5f4b72;
+      border-radius: 11px;
+      background: #1d1625;
+      text-align: left;
+      cursor: pointer;
+    }
+    .recovery-node:hover, .recovery-node:focus-visible, .recovery-node[aria-pressed="true"] {
+      outline: none;
+      border-color: #b58cd0;
+      box-shadow: 0 0 0 2px #b58cd022;
+    }
+    .recovery-symbol {
+      display: grid;
+      place-items: center;
+      width: 29px;
+      height: 29px;
+      border: 1px solid #765b89;
+      border-radius: 9px;
+      color: #c6a3da;
+      font-weight: 900;
+    }
+    .branch-title { display: block; font-size: .72rem; font-weight: 800; }
+    .branch-note { display: block; margin-top: 2px; color: #a893b5; font-size: .62rem; }
+    .workflow-legend {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 11px;
+      color: var(--muted);
+      font-size: .61rem;
+    }
+    .legend-line {
+      display: inline-block;
+      width: 20px;
+      margin-right: 5px;
+      vertical-align: middle;
+      border-top: 2px dashed #536673;
+    }
+    .legend-line.observed { border-top-style: solid; border-color: var(--cyan); }
+    .legend-line.verified { border-top-style: solid; border-color: var(--green); }
+    .legend-line.human { border-top-style: solid; border-color: var(--amber); }
+    .evidence-zone {
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(300px, .82fr) minmax(320px, .92fr);
+      gap: 10px;
+    }
+    .outcome-card, .timeline-card, .inspector-card { min-height: 330px; padding: 14px; }
+    .outcome-head { align-items: flex-start; }
+    .outcome-head h3, .timeline-card h3, .inspector-card h3 { margin: 0; font-size: .9rem; }
+    .outcome-subtitle { margin-top: 4px; color: var(--muted); font-size: .65rem; }
+    .accuracy-comparison {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      align-items: center;
       gap: 12px;
       margin-top: 15px;
-      padding-top: 12px;
+    }
+    .accuracy-box {
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid var(--line-soft);
+      border-radius: 12px;
+      background: #071620;
+    }
+    .accuracy-label { color: var(--muted); font-size: .63rem; }
+    .accuracy-value {
+      margin-top: 5px;
+      font: 850 clamp(1.35rem, 3vw, 2.1rem)/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+      letter-spacing: -.05em;
+    }
+    .accuracy-repeat { margin-top: 5px; color: var(--muted); font-size: .62rem; }
+    .accuracy-arrow { color: var(--green); font-size: 1.5rem; font-weight: 900; }
+    .metric-bar { height: 5px; margin-top: 9px; overflow: hidden; border-radius: 99px; background: #172934; }
+    .metric-bar span {
+      display: block;
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--cyan);
+      transition: width .7s ease;
+    }
+    .metric-bar.after span { background: var(--green); }
+    .outcome-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 11px; }
+    .fact { min-width: 0; padding: 8px; border-top: 1px solid var(--line-soft); }
+    .fact span { display: block; color: var(--muted); font-size: .59rem; }
+    .fact strong {
+      display: block;
+      margin-top: 4px;
+      color: #c8dce5;
+      font: .64rem/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+    .outcome-truth {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border-left: 3px solid var(--blue);
+      border-radius: 5px;
+      background: #0a2234;
+      color: #b6d2df;
+      font-size: .65rem;
+      line-height: 1.45;
+    }
+    .outcome-empty {
+      display: grid;
+      min-height: 220px;
+      place-items: center;
+      color: var(--muted);
+      font-size: .75rem;
+      text-align: center;
+    }
+    .mission-timeline { max-height: 280px; margin-top: 8px; overflow-y: auto; padding-right: 3px; }
+    .timeline-event {
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 9px 3px;
+      border: 0;
+      border-top: 1px solid var(--line-soft);
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+    .timeline-event:first-child { border-top: 0; }
+    .timeline-event:hover, .timeline-event:focus-visible, .timeline-event[aria-pressed="true"] {
+      outline: none;
+      background: #102637;
+    }
+    .event-time { color: #7293a5; font: .59rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .event-copy { min-width: 0; }
+    .event-title { display: block; font-size: .66rem; font-weight: 760; overflow-wrap: anywhere; }
+    .state-transition {
+      display: block;
+      margin-top: 3px;
+      color: #7799aa;
+      font: .56rem/1.35 ui-monospace, SFMono-Regular, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+    .inspector-card {
+      border-color: #2c596f;
+      background: linear-gradient(150deg, #102b3b, #081722);
+    }
+    .inspector-head { align-items: flex-start; }
+    .inspector-kicker {
+      color: var(--cyan);
+      font-size: .6rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .inspector-summary { margin-top: 10px; color: #bfd6e0; font-size: .69rem; line-height: 1.5; }
+    .inspector-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 11px; }
+    .inspector-field {
+      min-width: 0;
+      padding: 7px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: #071721;
+    }
+    .inspector-field.wide { grid-column: 1 / -1; }
+    .inspector-field span { display: block; color: #6f94a6; font-size: .56rem; }
+    .inspector-field strong {
+      display: block;
+      margin-top: 4px;
+      color: #c3d9e3;
+      font: .59rem/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+    .inspector-boundary {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid var(--line-soft);
+      color: var(--muted);
+      font-size: .61rem;
+      line-height: 1.45;
+    }
+    .engineering-evidence { margin-top: 16px; padding-top: 4px; border-top: 1px solid var(--line); }
+    .engineering-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+    .engineering-card {
+      min-width: 0;
+      margin: 0;
+      padding: 10px 11px;
+      border: 1px solid var(--line-soft);
+      border-radius: 11px;
+      background: #081722;
+    }
+    .engineering-card summary { font-size: .69rem; font-weight: 750; }
+    .engineering-summary { margin-top: 8px; color: #a8c2ce; font-size: .63rem; line-height: 1.45; }
+    .limitations {
+      margin-top: 10px;
+      padding: 9px 11px;
+      border: 1px solid #5e4d2d;
+      border-radius: 10px;
+      background: #211b11;
+      color: #c8b889;
+      font-size: .63rem;
+      line-height: 1.5;
+    }
+    .footer {
+      flex-wrap: wrap;
+      margin-top: 14px;
+      padding-top: 11px;
       border-top: 1px solid var(--line);
-      color: #708fa0;
-      font-size: .66rem;
+      color: #6f91a2;
+      font-size: .6rem;
     }
-
-    .empty { padding: 16px; color: var(--muted); font-size: .76rem; text-align: center; }
-
-    @media (max-width: 1100px) {
-      .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .flow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-      .agent-node::after { display: none; }
-      .main, .pair { grid-template-columns: 1fr; }
+    .empty { color: var(--muted); font-size: .7rem; text-align: center; }
+    .pulse { animation: evidence-pulse 1.8s ease-out 1; }
+    @keyframes evidence-pulse {
+      0% { box-shadow: 0 0 0 0 #62d7e666; }
+      100% { box-shadow: 0 0 0 12px #62d7e600; }
     }
-
-    @media (max-width: 640px) {
-      .shell { padding: 12px; }
-      .topbar { align-items: flex-start; flex-direction: column; }
+    @media (max-width: 1366px) {
+      .shell { padding: 12px 14px 22px; }
+      .mission-overview { grid-template-columns: minmax(330px, 1fr) minmax(0, 1.75fr); }
+      .kpi { padding: 10px; }
+      .workflow-node { min-height: 146px; padding: 9px 7px; }
+      .node-name { font-size: .68rem; }
+      .node-action { font-size: .59rem; }
+      .evidence-zone { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .outcome-card { grid-column: 1 / -1; min-height: 0; }
+      .timeline-card, .inspector-card { min-height: 320px; }
+    }
+    @media (max-width: 1040px) {
+      .mission-overview { grid-template-columns: 1fr; }
+      .agent-rail { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .workflow-node:nth-child(5)::before { display: none; }
+      .recovery-branch { grid-template-columns: 1fr; }
+      .workflow-legend { justify-content: flex-start; }
+      .engineering-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 720px) {
+      .topbar, .section-head { align-items: flex-start; flex-direction: column; }
       .badges { justify-content: flex-start; }
-      .summary, .ids, .flow, .kv-grid { grid-template-columns: 1fr; }
-      .event-head { grid-template-columns: 72px minmax(0, 1fr); }
-      .event-head .badge { grid-column: 2; justify-self: start; }
-      .footer { flex-direction: column; }
+      .mission-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .agent-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .workflow-node:nth-child(odd)::before { display: none; }
+      .evidence-zone { grid-template-columns: 1fr; }
+      .outcome-card { grid-column: auto; }
+      .engineering-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      .shell { padding: 10px 9px 18px; }
+      .subtitle { max-width: 34ch; }
+      .mission-kpis { gap: 7px; }
+      .kpi-value { font-size: .86rem; }
+      .workflow-board { padding: 8px; }
+      .agent-rail { gap: 7px; }
+      .workflow-node { min-height: 142px; }
+      .accuracy-comparison { gap: 7px; }
+      .accuracy-box { padding: 9px; }
+      .accuracy-value { font-size: 1.15rem; }
+      .outcome-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .timeline-event { grid-template-columns: 44px minmax(0, 1fr); }
+      .timeline-event .badge { grid-column: 2; justify-self: start; }
+      .inspector-grid { grid-template-columns: 1fr; }
+      .inspector-field.wide { grid-column: auto; }
+      .footer { align-items: flex-start; flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
     }
   </style>
 </head>
@@ -209,8 +523,8 @@
   <main class="shell">
     <header class="topbar">
       <div>
-        <div class="brand">LabOps Guard · Reviewer Edition</div>
-        <div class="subtitle">面向生产级 Agent 系统的可信执行与治理基础设施 · 本地详细证据</div>
+        <div class="brand">LabOps Guard · Agent Mission Control</div>
+        <div class="subtitle">面向生产级 Agent 系统的可信协作、人工治理与可验证执行</div>
       </div>
       <div class="badges" aria-live="polite">
         <span id="source-badge" class="badge is-configured">连接中</span>
@@ -219,110 +533,170 @@
       </div>
     </header>
 
-    <section class="grid summary" aria-label="Incident summary">
-      <article class="card">
-        <div class="label">当前事故</div>
-        <div id="incident-summary" class="value">正在等待白名单 Reviewer 会话</div>
-        <div id="workflow-summary" class="muted">尚未加载工作流投影。</div>
-      </article>
-      <article class="card">
-        <div class="label">当前责任人</div>
-        <div id="current-owner" class="value">—</div>
-        <div class="muted">当前已观察工作流状态下的决策责任人</div>
-      </article>
-      <article class="card">
-        <div class="label">最后活动 Agent</div>
-        <div id="last-agent" class="value">—</div>
-        <details><summary>运行时身份 · Runtime identity</summary><pre id="last-agent-runtime">尚未观察</pre></details>
-      </article>
-      <article class="card">
-        <div class="label">最后事件 / 更新时间</div>
-        <div id="last-event" class="value">—</div>
-        <div id="last-updated" class="muted">尚未观察到数据源更新</div>
-      </article>
-    </section>
-
-    <section id="identity-grid" class="grid ids" aria-label="Session identifiers"></section>
-
-    <section aria-labelledby="flow-title">
-      <h2 id="flow-title" class="label" style="margin-top:16px">AgentTeams 协作链与人工审批门</h2>
-      <div class="muted">每个节点分别展示工作流状态与证据状态。</div>
-      <div id="agent-flow" class="flow"></div>
-    </section>
-
-    <section class="grid main">
-      <article class="card">
-        <h2>AgentTeams 协作时间线 · 只读证据钻取</h2>
-        <div id="timeline" class="timeline"><div class="empty">尚未加载时间线投影。</div></div>
-      </article>
-      <article class="card approval-card">
-        <div class="label">人工审批门</div>
-        <div id="approval-state" class="value">未观察</div>
-        <div id="approval-summary" class="muted">受控执行前必须观察到真实人工决策。</div>
-        <details><summary>审批 Evidence</summary><pre id="approval-details">尚未观察到审批产物。</pre></details>
-        <div class="read-only-note">人工审批在 Element 中由真人完成。本审查台不能审批、执行、重试、重派、接管或修改状态。</div>
-      </article>
-    </section>
-
-    <section class="grid pair">
-      <article class="card">
-        <h2>工具调用约束 · Tool Contract</h2>
-        <div id="tool-grid" class="kv-grid"></div>
-        <details><summary>完整绑定与 Protected Resources</summary><pre id="tool-details">尚未观察到 Gateway Tool Contract。</pre></details>
-      </article>
-      <article class="card recovery-card">
-        <h2>恢复 / 升级处理 · Recovery / Escalation</h2>
-        <div class="directive">
-          <span class="label">当前指令</span>
-          <span id="current-directive" class="badge is-configured">无</span>
+    <section id="mission-overview" class="mission-overview" aria-labelledby="overview-title">
+      <article class="card incident-card">
+        <div id="overview-title" class="eyebrow">事故总览</div>
+        <div id="incident-title" class="incident-title">正在等待白名单 Reviewer 会话</div>
+        <div id="incident-state" class="incident-state">尚未加载可信工作流投影。</div>
+        <div class="incident-meta">
+          <span>当前责任人：<strong id="current-owner">—</strong></span>
+          <span>当前 Attempt：<strong id="current-attempt">—</strong></span>
+          <span>当前 Run：<strong id="current-run">—</strong></span>
         </div>
-        <div id="resume-condition" class="muted">尚未观察到恢复事实。</div>
-        <div class="label" style="margin-top:14px">已配置策略</div>
-        <div id="configured-policy" class="policy-list"></div>
-        <details><summary>Attempt 与责任归属 Evidence</summary><pre id="recovery-details">尚未观察到恢复 Trace。</pre></details>
+        <details class="binding-details">
+          <summary>运行绑定 · Incident ID / Task ID / Attempt ID / Run ID</summary>
+          <pre id="runtime-bindings">尚未观察到运行绑定。</pre>
+        </details>
       </article>
+      <div id="mission-kpis" class="mission-kpis" aria-label="Mission KPIs">
+        <article class="card kpi">
+          <div class="kpi-top"><span class="eyebrow">真实 Handoff</span><span class="kpi-icon">H</span></div>
+          <div id="handoff-value" class="kpi-value">已观察 0 / 6</div>
+          <div id="handoff-note" class="kpi-note">Evidence 已验证 0 / 6</div>
+        </article>
+        <article class="card kpi">
+          <div class="kpi-top"><span class="eyebrow">Evidence</span><span class="kpi-icon">E</span></div>
+          <div id="evidence-value" class="kpi-value">未观察</div>
+          <div id="evidence-note" class="kpi-note">证据完整性尚未验证</div>
+        </article>
+        <article class="card kpi">
+          <div class="kpi-top"><span class="eyebrow">人工审批门</span><span class="kpi-icon">人</span></div>
+          <div id="approval-value" class="kpi-value">未观察</div>
+          <div id="approval-note" class="kpi-note">真人决策独立于 Agent</div>
+        </article>
+        <article class="card kpi">
+          <div class="kpi-top"><span class="eyebrow">最终裁决</span><span class="kpi-icon">V</span></div>
+          <div id="verdict-value" class="kpi-value">未验证</div>
+          <div id="verdict-note" class="kpi-note">由 Verification Auditor 独立给出</div>
+        </article>
+      </div>
     </section>
 
-    <section class="grid pair">
-      <article class="card">
-        <div class="label">受控执行 · Runner</div>
-        <div id="runner-state" class="value">未观察</div>
-        <details><summary>Runner 执行证据</summary><pre id="runner-details">尚未观察到 Runner 产物。</pre></details>
-      </article>
-      <article class="card">
-        <div class="label">独立审计 · Auditor</div>
-        <div id="audit-state" class="value">未验证</div>
-        <details><summary>Auditor 审计证据</summary><pre id="audit-details">尚未观察到 Auditor 裁决。</pre></details>
-      </article>
+    <section aria-labelledby="workflow-title">
+      <div class="section-head">
+        <div>
+          <h2 id="workflow-title">多 Agent 协作图</h2>
+          <p>六个职责 Agent、一个真人审批门，以及真实 Recovery / Human Takeover 支路。</p>
+        </div>
+        <span id="last-event-badge" class="badge is-configured">等待事件</span>
+      </div>
+      <div id="workflow-board" class="card workflow-board">
+        <div id="agent-rail" class="agent-rail" aria-label="AgentTeams collaboration workflow"></div>
+        <div class="recovery-branch">
+          <div id="recovery-node" aria-live="polite"><div class="empty">恢复与人工接管 · 等待 Recovery Evidence</div></div>
+          <div class="workflow-legend" aria-label="Workflow evidence legend">
+            <span><i class="legend-line"></i>已配置</span>
+            <span><i class="legend-line observed"></i>已观察</span>
+            <span><i class="legend-line verified"></i>已验证</span>
+            <span><i class="legend-line human"></i>真人责任门</span>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <section class="card" style="margin-top:12px">
-      <div class="label">Evidence 边界</div>
-      <div id="limitations" class="muted">尚未加载证据边界说明。</div>
+    <section aria-labelledby="evidence-zone-title">
+      <div class="section-head">
+        <div>
+          <h2 id="evidence-zone-title">结果与 Evidence</h2>
+          <p>业务结论优先；点击 Agent、审批门、Recovery 或时间线事件查看证据。</p>
+        </div>
+      </div>
+      <div class="evidence-zone">
+        <article id="outcome-card" class="card outcome-card">
+          <div class="outcome-head">
+            <div>
+              <h3>验证结果</h3>
+              <div class="outcome-subtitle">Runner Before / After 与 Auditor 独立复算</div>
+            </div>
+            <span id="outcome-status" class="badge is-configured">等待 Evidence</span>
+          </div>
+          <div id="outcome-content" class="outcome-empty">等待 Runner Evidence</div>
+        </article>
+        <article class="card timeline-card">
+          <div class="outcome-head">
+            <div>
+              <h3>协作时间线</h3>
+              <div class="outcome-subtitle">中文事件描述 + 机器状态转换</div>
+            </div>
+            <span id="timeline-count" class="badge is-configured">0 项</span>
+          </div>
+          <div id="mission-timeline" class="mission-timeline" aria-label="Observed collaboration events">
+            <div class="outcome-empty">尚未观察到协作事件。</div>
+          </div>
+        </article>
+        <aside id="evidence-inspector" class="card inspector-card" aria-labelledby="inspector-title">
+          <div class="inspector-head">
+            <div>
+              <div class="inspector-kicker">Evidence Inspector</div>
+              <h3 id="inspector-title">选择一个节点</h3>
+            </div>
+            <span id="inspector-status" class="badge is-configured">未观察</span>
+          </div>
+          <div id="inspector-summary" class="inspector-summary">选择 Agent、人工审批门、Recovery 或时间线事件，查看对应的 Runtime identity、状态转换、Artifact 与 Hash。</div>
+          <div id="inspector-grid" class="inspector-grid"></div>
+          <div id="inspector-boundary" class="inspector-boundary">本面板只读取白名单投影，不能审批、执行、重试、重派、接管或修改状态。</div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="engineering-evidence" class="engineering-evidence" aria-labelledby="engineering-title">
+      <div class="section-head">
+        <div>
+          <h2 id="engineering-title">工程证据</h2>
+          <p>评委需要深入复核时再展开；主叙事不依赖长 JSON。</p>
+        </div>
+      </div>
+      <div class="engineering-grid">
+        <details class="engineering-card">
+          <summary>Tool Contract · Protected Resources</summary>
+          <div id="tool-summary" class="engineering-summary">尚未观察到 Gateway Tool Contract。</div>
+          <pre id="tool-details">尚未观察</pre>
+        </details>
+        <details class="engineering-card">
+          <summary>Recovery / Escalation 策略</summary>
+          <div id="recovery-summary" class="engineering-summary">尚未观察到 Recovery Trace。</div>
+          <pre id="recovery-details">尚未观察</pre>
+        </details>
+        <details class="engineering-card">
+          <summary>Runner 执行边界</summary>
+          <div id="runner-summary" class="engineering-summary">尚未观察到 Runner 产物。</div>
+          <pre id="runner-details">尚未观察</pre>
+        </details>
+        <details class="engineering-card">
+          <summary>Auditor 独立裁决</summary>
+          <div id="audit-summary" class="engineering-summary">尚未观察到 Auditor 裁决。</div>
+          <pre id="audit-details">尚未观察</pre>
+        </details>
+      </div>
+      <div id="limitations" class="limitations">Evidence 边界尚未加载。</div>
     </section>
 
     <footer class="footer">
-      <span>绿色仅表示已验证或已解决</span>
-      <span>本地展示详细证据 · Public Demo 继续脱敏</span>
+      <span>绿色只表示 Evidence 已验证或归档结果已解决</span>
+      <span>DEMO_PASSED_NOT_RESOLVED 不等于 RESOLVED</span>
       <span>完全只读 · 所有写请求 → 405</span>
     </footer>
   </main>
-
   <script>
     'use strict';
 
     const STATUS_CLASS = Object.freeze({
       VERIFIED: 'is-verified',
       RESOLVED: 'is-resolved',
+      AUDIT_PASSED: 'is-verified',
+      RESULT_PUBLISHED: 'is-verified',
+      DEMO_PASSED_NOT_RESOLVED: 'is-active',
       ACTIVE: 'is-active',
       LIVE: 'is-active',
       OBSERVED: 'is-observed',
       WAITING: 'is-waiting',
       APPROVAL_PENDING: 'is-waiting',
       LIVE_PARTIAL: 'is-waiting',
+      MIRRORED: 'is-observed',
       STALE: 'is-waiting',
       CONFIGURED: 'is-configured',
       REPLAY: 'is-configured',
+      NOT_APPLICABLE: 'is-configured',
       UNVERIFIED: 'is-unverified',
       NOT_OBSERVED: 'is-unverified',
       NOT_STARTED: 'is-not-started',
@@ -335,15 +709,20 @@
     const STATUS_LABEL = Object.freeze({
       VERIFIED: '已验证',
       RESOLVED: '已解决',
+      AUDIT_PASSED: '审计通过',
+      RESULT_PUBLISHED: '结果已发布',
+      DEMO_PASSED_NOT_RESOLVED: '演示验证通过（未解决）',
       ACTIVE: '处理中',
       LIVE: '实时',
       OBSERVED: '已观察',
       WAITING: '等待中',
       APPROVAL_PENDING: '等待人工审批',
       LIVE_PARTIAL: '部分实时',
+      MIRRORED: '已镜像',
       STALE: '数据过期',
       CONFIGURED: '已配置',
       REPLAY: '证据重放',
+      NOT_APPLICABLE: '不适用',
       UNVERIFIED: '未验证',
       NOT_OBSERVED: '未观察',
       NOT_STARTED: '未开始',
@@ -372,14 +751,33 @@
       NONE: '无'
     });
 
+    const EVIDENCE_ERROR_LABEL = Object.freeze({
+      EVIDENCE_SOURCE_UNAVAILABLE: 'Evidence 来源暂不可用',
+      EVIDENCE_SNAPSHOT_TOO_LARGE: 'Evidence 快照超过安全上限',
+      EVIDENCE_PATH_REJECTED: 'Evidence 路径不符合安全约束',
+      EVIDENCE_BINDING_MISMATCH: 'Evidence 与当前会话绑定不一致',
+      EVIDENCE_SCHEMA_INVALID: 'Evidence 结构校验失败',
+      EVIDENCE_HASH_CONFLICT: 'Evidence 哈希交叉校验冲突',
+      EVIDENCE_INCOMPLETE: 'Evidence 尚不完整'
+    });
+
     const ROLE_LABEL = Object.freeze({
-      'Incident Commander': '事故指挥官（Incident Commander）',
-      'Evidence Collector': '证据收集员（Evidence Collector）',
-      'RCA Analyst': '根因分析员（RCA Analyst）',
-      'Experiment Planner': '实验规划员（Experiment Planner）',
-      'Safe Executor': '安全执行员（Safe Executor）',
-      'Verification Auditor': '验证审计员（Verification Auditor）',
-      'Human Approver': '人工审批人'
+      'Incident Commander': ['事故指挥官', 'Incident Commander'],
+      'Evidence Collector': ['证据收集员', 'Evidence Collector'],
+      'RCA Analyst': ['根因分析员', 'RCA Analyst'],
+      'Experiment Planner': ['实验规划员', 'Experiment Planner'],
+      'Safe Executor': ['安全执行员', 'Safe Executor'],
+      'Verification Auditor': ['验证审计员', 'Verification Auditor'],
+      'Human Approver': ['人工审批人', 'Human Approver']
+    });
+
+    const AGENT_ACTION = Object.freeze({
+      'labops-manager': '接收事故、调度协作并发布最终结果',
+      'evidence-collector': '验证输入证据并阻断不完整任务',
+      'rca-analyst': '基于 Evidence 排序根因假设',
+      'experiment-planner': '生成单变量方案并完成策略检查',
+      'safe-executor': '按 Approval Binding 在 Sandbox 受控执行',
+      'verification-auditor': '独立复算产物、指标、Hash 与边界'
     });
 
     const EVENT_LABEL = Object.freeze({
@@ -388,7 +786,7 @@
       evidence_collected: '证据收集完成',
       collector_to_rca: '证据移交根因分析',
       hypotheses_ranked: '根因假设已排序',
-      rca_to_planner: 'RCA 结论交接',
+      rca_to_planner: 'RCA 结论移交规划',
       policy_passed: '策略检查通过',
       approval_pending: '等待人工审批',
       approval_granted: '人工审批通过',
@@ -399,7 +797,7 @@
       runner_started: 'Runner 启动',
       runner_completed: 'Runner 完成执行',
       executor_to_auditor: '执行结果移交审计',
-      verification_completed: '独立验证已完成',
+      verification_completed: '独立验证完成',
       terminal_decided: '终态已裁决',
       commander_published: '事故指挥官已发布结果',
       EVIDENCE_INCOMPLETE: '证据不完整',
@@ -419,6 +817,23 @@
       'a human owner accepts and returns work to a non-terminal state': '真人责任人接受接管，并将任务恢复到非终态'
     });
 
+    const KEY_TIMELINE = new Set([
+      'manager_to_collector',
+      'evidence_collected',
+      'collector_to_rca',
+      'hypotheses_ranked',
+      'rca_to_planner',
+      'approval_pending',
+      'approval_granted',
+      'executor_to_gateway',
+      'runner_started',
+      'runner_completed',
+      'executor_to_auditor',
+      'verification_completed',
+      'terminal_decided',
+      'commander_published'
+    ]);
+
     const LIMITATION_LABEL = Object.freeze({
       'REPLAY is an immutable archived run, not a current AgentTeams execution.': 'REPLAY 为不可变的历史归档运行，不代表当前 AgentTeams 实时执行。',
       'Historical AT-004 does not contain the newer per-Skill runtime event schema.': '历史 AT-004 不包含新版逐 Skill 运行时事件 Schema。'
@@ -429,6 +844,9 @@
     let polling = false;
     let incrementalEvents = [];
     let lastRenderFingerprint = '';
+    let latestState = null;
+    let selectedEvidenceKey = null;
+    let evidenceCatalog = new Map();
 
     function byId(id) { return document.getElementById(id); }
     function text(value, fallback = '—') {
@@ -439,26 +857,26 @@
       const normalized = text(value, 'CONFIGURED');
       return STATUS_LABEL[normalized] || label(normalized);
     }
+    function statusClass(value) {
+      return STATUS_CLASS[text(value, 'CONFIGURED')] || 'is-configured';
+    }
+    function roleParts(value) {
+      return ROLE_LABEL[text(value, '')] || [text(value, '未知角色'), ''];
+    }
     function roleLabel(value) {
-      const normalized = text(value, 'Unknown role');
-      return ROLE_LABEL[normalized] || normalized;
+      const parts = roleParts(value);
+      return parts[1] ? parts[0] + '（' + parts[1] + '）' : parts[0];
     }
     function eventLabel(value) {
-      const normalized = text(value, 'unknown_event');
-      return EVENT_LABEL[normalized] || label(normalized);
+      return EVENT_LABEL[text(value, 'unknown_event')] || label(value);
     }
     function conditionLabel(value) {
       const normalized = text(value, '');
       return CONDITION_LABEL[normalized] || normalized;
     }
-    function limitationLabel(value) {
-      const normalized = text(value, '');
-      return LIMITATION_LABEL[normalized] || normalized;
-    }
-    function statusClass(value) { return STATUS_CLASS[text(value, 'CONFIGURED')] || 'is-configured'; }
-    function short(value, length = 20) {
+    function short(value, length = 24) {
       const raw = text(value, '尚未观察');
-      return raw.length <= length ? raw : `${raw.slice(0, length)}…`;
+      return raw.length <= length ? raw : raw.slice(0, length) + '…';
     }
     function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
     function make(tag, className, content) {
@@ -469,224 +887,524 @@
     }
     function setBadge(node, value) {
       const normalized = text(value, 'CONFIGURED');
-      node.className = `badge ${statusClass(normalized)}`;
+      node.className = 'badge ' + statusClass(normalized);
       node.textContent = statusLabel(normalized);
     }
-    function json(value) { return JSON.stringify(value ?? {}, null, 2); }
-
-    function detailsNode(summaryText, value) {
-      const details = make('details');
-      details.appendChild(make('summary', '', summaryText));
-      details.appendChild(make('pre', '', typeof value === 'string' ? value : json(value)));
-      return details;
+    function json(value) { return JSON.stringify(value === undefined ? {} : value, null, 2); }
+    function isNumber(value) { return typeof value === 'number' && Number.isFinite(value); }
+    function accuracy(value) {
+      if (!isNumber(value)) return '—';
+      return value.toFixed(6).replace(/0+$/, '').replace(/\.$/, '');
+    }
+    function percentWidth(value) {
+      return Math.max(0, Math.min(100, isNumber(value) ? value * 100 : 0)) + '%';
+    }
+    function safeArray(value) {
+      return Array.isArray(value) ? value.filter(function (item) {
+        return typeof item === 'string';
+      }).slice(0, 8) : [];
+    }
+    function eventDetails(event) {
+      return event && typeof event.details === 'object' && event.details ? event.details : {};
     }
 
-    function renderIdentifiers(state) {
-      const target = byId('identity-grid');
-      clear(target);
+    function deriveMissionMetrics(state) {
+      const handoffs = state.handoffs && typeof state.handoffs === 'object'
+        ? state.handoffs
+        : {};
+      const totalHandoffs = Number.isInteger(handoffs.total) ? handoffs.total : 6;
+      const observedHandoffs = Number.isInteger(handoffs.observed)
+        ? Math.max(0, Math.min(totalHandoffs, handoffs.observed))
+        : 0;
+      const verifiedHandoffs = Number.isInteger(handoffs.verified)
+        ? Math.max(0, Math.min(totalHandoffs, handoffs.verified))
+        : 0;
+      const approval = state.approval || {};
+      const audit = state.audit || {};
+      const evidenceSync = state.evidence_sync && typeof state.evidence_sync === 'object'
+        ? state.evidence_sync
+        : {};
+      return {
+        handoffs: {
+          observed: observedHandoffs,
+          verified: verifiedHandoffs,
+          total: totalHandoffs
+        },
+        evidence: evidenceSync.status || 'NOT_STARTED',
+        evidenceErrors: Array.isArray(evidenceSync.errors) ? evidenceSync.errors : [],
+        approval: approval.status || 'NOT_OBSERVED',
+        verdict: audit.status === 'VERIFIED'
+          ? (audit.decision === 'PASS' ? 'AUDIT_PASSED' : audit.decision)
+          : audit.status || 'UNVERIFIED'
+      };
+    }
+
+    function renderMissionOverview(state) {
       const incident = state.incident || {};
-      const rows = [
-        ['Incident ID', incident.incident_id],
-        ['Task ID', incident.task_id],
-        ['Attempt ID', incident.attempt_id],
-        ['Run ID', incident.run_id]
-      ];
-      rows.forEach(([name, value]) => {
-        const card = make('article', 'card id-card');
-        card.appendChild(make('div', 'label', name));
-        card.appendChild(make('code', 'short-id', short(value)));
-        card.appendChild(detailsNode(`完整 ${name}`, text(value, '尚未观察')));
-        target.appendChild(card);
+      const metrics = deriveMissionMetrics(state);
+      byId('incident-title').textContent = incident.incident_id
+        ? '已观察事故 · ' + short(incident.incident_id, 34)
+        : '尚未观察到事故 Evidence';
+      byId('incident-state').textContent =
+        '业务状态：' + statusLabel(incident.workflow_state) +
+        ' · 数据来源：' + statusLabel(state.source_summary) +
+        (state.sources && state.sources.matrix && state.sources.matrix.status === 'STALE'
+          ? ' · Matrix 连接波动，保留最近成功进度'
+          : '');
+      byId('current-owner').textContent = roleLabel(incident.current_owner);
+      byId('current-attempt').textContent = short(incident.attempt_id, 18);
+      byId('current-run').textContent = short(incident.run_id, 22);
+      byId('runtime-bindings').textContent = json({
+        'Incident ID': incident.incident_id,
+        'Task ID': incident.task_id,
+        'Attempt ID': incident.attempt_id,
+        'Run ID': incident.run_id,
+        'Session ID': state.session && state.session.session_id
       });
+
+      byId('handoff-value').textContent =
+        '已观察 ' + metrics.handoffs.observed + ' / ' + metrics.handoffs.total;
+      byId('handoff-note').textContent =
+        'Evidence 已验证 ' + metrics.handoffs.verified + ' / ' + metrics.handoffs.total;
+      byId('evidence-value').textContent = statusLabel(metrics.evidence);
+      byId('evidence-value').className = 'kpi-value ' + statusClass(metrics.evidence);
+      byId('evidence-note').textContent = metrics.evidence === 'VERIFIED'
+        ? 'Evidence Digest、会话绑定与交叉哈希校验通过'
+        : (metrics.evidenceErrors.length
+          ? (EVIDENCE_ERROR_LABEL[metrics.evidenceErrors[0]] || 'Evidence 校验仍处于阻断状态')
+          : (metrics.evidence === 'MIRRORED'
+            ? '原始产物已只读镜像，等待完整校验'
+            : '等待 Evidence 同步与完整性校验'));
+      byId('approval-value').textContent = statusLabel(metrics.approval);
+      byId('approval-value').className = 'kpi-value ' + statusClass(metrics.approval);
+      const approval = state.approval || {};
+      byId('approval-note').textContent = approval.decision
+        ? text(approval.decision) + ' · ' + text(approval.decided_by, '真人')
+        : '真人决策独立于 Agent';
+      byId('verdict-value').textContent = statusLabel(metrics.verdict);
+      byId('verdict-value').className = 'kpi-value ' + statusClass(metrics.verdict);
+      byId('verdict-note').textContent = (state.audit || {}).resolution_status
+        ? statusLabel(state.audit.resolution_status)
+        : '由 Verification Auditor 独立给出';
+      setBadge(byId('last-event-badge'), incident.workflow_state || 'CONFIGURED');
+      byId('last-event-badge').textContent = incident.last_event
+        ? eventLabel(incident.last_event)
+        : '等待事件';
     }
 
-    function renderAgents(state) {
-      const target = byId('agent-flow');
-      clear(target);
-      const agents = Array.isArray(state.agents) ? state.agents : [];
-      agents.forEach((agent, index) => {
-        const node = make('article', 'agent-node');
-        node.appendChild(make('div', 'node-index', String(index + 1).padStart(2, '0')));
-        node.appendChild(make('div', 'node-name', roleLabel(agent.role_name)));
-        const states = make('div', 'state-row');
-        states.appendChild(make('div', 'state-label', '工作流状态'));
-        const workflow = make('span');
-        setBadge(workflow, agent.workflow_state);
-        states.appendChild(workflow);
-        states.appendChild(make('div', 'state-label', '证据状态'));
-        const evidence = make('span');
-        setBadge(evidence, agent.evidence_state);
-        states.appendChild(evidence);
-        node.appendChild(states);
-        node.appendChild(detailsNode('运行时身份 · Runtime identity', text(agent.runtime_identity || agent.agent_id, '尚未观察')));
-        target.appendChild(node);
+    function evidenceEdgeClass(value) {
+      if (value === 'VERIFIED') return 'edge-verified';
+      if (value === 'OBSERVED') return 'edge-observed';
+      if (value === 'BLOCKED') return 'edge-blocked';
+      return 'edge-configured';
+    }
 
-        if (agent.agent_id === 'experiment-planner') {
-          const approval = state.approval || {};
-          const gate = make('article', 'agent-node gate');
-          gate.appendChild(make('div', 'node-index', 'H'));
-          gate.appendChild(make('div', 'node-name', '人工审批门'));
-          gate.appendChild(make('div', 'muted', '真人责任主体，不属于 Agent'));
-          const gateStates = make('div', 'state-row');
-          gateStates.appendChild(make('div', 'state-label', '工作流状态'));
-          const gateWorkflow = make('span');
-          setBadge(gateWorkflow, (state.incident || {}).workflow_state === 'APPROVAL_PENDING' ? 'WAITING' : approval.status);
-          gateStates.appendChild(gateWorkflow);
-          gateStates.appendChild(make('div', 'state-label', '证据状态'));
-          const gateEvidence = make('span');
-          setBadge(gateEvidence, approval.status);
-          gateStates.appendChild(gateEvidence);
-          gate.appendChild(gateStates);
-          target.appendChild(gate);
+    function attachSelection(button, key, ariaLabel) {
+      button.type = 'button';
+      button.dataset.inspectKey = key;
+      button.setAttribute('aria-label', ariaLabel);
+      button.setAttribute('aria-pressed', selectedEvidenceKey === key ? 'true' : 'false');
+      button.addEventListener('click', function () { selectEvidence(key); });
+      button.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          selectEvidence(key);
         }
       });
     }
 
-    function renderTimeline(state) {
-      const target = byId('timeline');
+    function registerEvidence(key, payload) {
+      evidenceCatalog.set(key, payload);
+    }
+
+    function agentEvidencePayload(agent, state) {
+      const incident = state.incident || {};
+      const confidence = agent.confidence_state || agent.evidence_state;
+      return {
+        title: roleLabel(agent.role_name),
+        summary: AGENT_ACTION[agent.agent_id] || '按职责契约处理当前工作流。',
+        status: confidence,
+        actor: agent.agent_id,
+        runtime_identity: agent.runtime_identity || agent.agent_id,
+        transition: statusLabel(agent.workflow_state),
+        source: confidence,
+        attempt_id: incident.attempt_id,
+        run_id: incident.run_id,
+        artifact_refs: [],
+        hash_refs: [],
+        boundary: 'Agent 节点只显示已观察或已验证的职责进度；配置态不代表已实际执行。'
+      };
+    }
+
+    function makeAgentNode(agent, index, state) {
+      const confidence = agent.confidence_state || agent.evidence_state;
+      const button = make('button', 'workflow-node ' + evidenceEdgeClass(confidence));
+      const top = make('div', 'node-top');
+      top.appendChild(make('span', 'node-index', String(index + 1).padStart(2, '0')));
+      const dot = make('span', 'evidence-dot ' + statusClass(confidence));
+      dot.setAttribute('aria-hidden', 'true');
+      top.appendChild(dot);
+      button.appendChild(top);
+      const parts = roleParts(agent.role_name);
+      const name = make('div', 'node-name', parts[0]);
+      if (parts[1]) name.appendChild(make('span', 'node-role-en', parts[1]));
+      button.appendChild(name);
+      button.appendChild(make('div', 'node-action', AGENT_ACTION[agent.agent_id] || '等待职责 Evidence'));
+      const status = make('span', 'node-status');
+      setBadge(status, agent.workflow_state);
+      button.appendChild(status);
+      const key = 'agent:' + agent.agent_id;
+      attachSelection(button, key, '查看' + roleLabel(agent.role_name) + '的 Evidence');
+      registerEvidence(key, agentEvidencePayload(agent, state));
+      return button;
+    }
+
+    function makeApprovalNode(state) {
+      const approval = state.approval || {};
+      const button = make('button', 'workflow-node gate ' + evidenceEdgeClass(approval.status));
+      const top = make('div', 'node-top');
+      top.appendChild(make('span', 'node-index', 'H'));
+      const dot = make('span', 'evidence-dot ' + statusClass(approval.status));
+      dot.setAttribute('aria-hidden', 'true');
+      top.appendChild(dot);
+      button.appendChild(top);
+      const name = make('div', 'node-name', '人工审批门');
+      name.appendChild(make('span', 'node-role-en', 'Human Approval'));
+      button.appendChild(name);
+      button.appendChild(make('div', 'node-action', '真人核对 Plan Hash、边界与责任绑定'));
+      const status = make('span', 'node-status');
+      setBadge(status, approval.status);
+      button.appendChild(status);
+      attachSelection(button, 'approval', '查看人工审批 Evidence');
+      registerEvidence('approval', {
+        title: '人工审批门',
+        summary: approval.decision
+          ? '真人给出 ' + text(approval.decision) + ' 决策，Agent 不得代替批准。'
+          : '尚未观察到真实人工审批决策。',
+        status: approval.status,
+        actor: approval.decided_by,
+        runtime_identity: 'Human responsibility boundary',
+        transition: approval.decision,
+        source: approval.approval_id ? 'APPROVAL_ARTIFACT' : 'NOT_OBSERVED',
+        attempt_id: (state.incident || {}).attempt_id,
+        run_id: (state.incident || {}).run_id,
+        artifact_refs: approval.approval_id ? ['evidence/approval_grant.json'] : [],
+        hash_refs: [],
+        boundary: '本审查台不能批准、拒绝或修改 Approval；APPROVED / REJECTED 为原始决策枚举。'
+      });
+      return button;
+    }
+
+    function renderRecoveryNode(state) {
+      const target = byId('recovery-node');
       clear(target);
-      const timeline = Array.isArray(state.timeline) ? state.timeline : [];
-      if (!timeline.length) {
-        target.appendChild(make('div', 'empty', '尚未加载时间线投影。'));
-        return;
-      }
-      timeline.forEach((event) => {
-        const row = make('article', 'event');
-        const head = make('div', 'event-head');
-        const timeValue = event.timestamp ? new Date(event.timestamp).toISOString().slice(11, 19) : '配置态';
-        head.appendChild(make('span', 'event-time', timeValue));
-        const title = make('span', 'event-title');
-        title.appendChild(make('span', 'event-description', eventLabel(event.kind)));
-        title.appendChild(make('code', 'state-transition', `${text(event.workflow_from, 'UNKNOWN')} → ${text(event.workflow_to, 'UNKNOWN')}`));
-        head.appendChild(title);
-        const proof = make('span');
-        setBadge(proof, event.evidence_state);
-        head.appendChild(proof);
-        row.appendChild(head);
-        row.appendChild(detailsNode('事件明细：event ID · artifact · hash · state transition', event.details || {}));
-        target.appendChild(row);
+      const recovery = state.recovery || {};
+      const active = recovery.current_directive && recovery.current_directive !== 'NONE';
+      const status = active ? recovery.status : (recovery.trace_status === 'VERIFIED' ? 'VERIFIED' : 'CONFIGURED');
+      const button = make('button', 'recovery-node');
+      button.appendChild(make('span', 'recovery-symbol', '↺'));
+      const copy = make('span');
+      copy.appendChild(make('span', 'branch-title', '恢复与人工接管'));
+      copy.appendChild(make(
+        'span',
+        'branch-note',
+        recovery.latest_attempt
+          ? '已创建新 Attempt · ' + short(recovery.latest_attempt.attempt_id, 28)
+          : '异常时从 Evidence Collector 分支，满足条件后恢复'
+      ));
+      button.appendChild(copy);
+      const badge = make('span');
+      setBadge(badge, status);
+      button.appendChild(badge);
+      attachSelection(button, 'recovery', '查看 Recovery 与 Human Takeover Evidence');
+      registerEvidence('recovery', {
+        title: '恢复与人工接管',
+        summary: active
+          ? '当前治理指令：' + statusLabel(recovery.current_directive) + '。'
+          : (recovery.latest_attempt ? '人工补齐 Evidence 后，以新 Attempt 恢复原职责链。' : '当前没有活动恢复指令。'),
+        status: status,
+        actor: recovery.pending_takeover && recovery.pending_takeover.accepted_by,
+        runtime_identity: 'Recovery governance overlay',
+        transition: recovery.current_directive || 'NONE',
+        source: recovery.trace_status,
+        attempt_id: recovery.latest_attempt && recovery.latest_attempt.attempt_id,
+        run_id: recovery.latest_attempt && recovery.latest_attempt.run_id,
+        artifact_refs: recovery.latest_attempt ? ['evidence/recovery/recovery_trace.jsonl'] : [],
+        hash_refs: [],
+        boundary: 'CAPABILITY_MISSING → REASSIGN / HUMAN_TAKEOVER；恢复必须创建新 Attempt，不回填历史事件。'
+      });
+      target.appendChild(button);
+    }
+
+    function renderWorkflow(state) {
+      evidenceCatalog = new Map();
+      const target = byId('agent-rail');
+      clear(target);
+      const agents = Array.isArray(state.agents) ? state.agents : [];
+      agents.forEach(function (agent, index) {
+        target.appendChild(makeAgentNode(agent, index, state));
+        if (agent.agent_id === 'experiment-planner') {
+          target.appendChild(makeApprovalNode(state));
+        }
+      });
+      renderRecoveryNode(state);
+    }
+
+    function outcomeConflict(state) {
+      return (Array.isArray(state.limitations) ? state.limitations : []).some(function (item) {
+        return typeof item === 'string' && item.startsWith('RUNNER_OUTCOME_CONFLICT');
       });
     }
 
-    function addKV(target, name, value) {
-      const box = make('div', 'kv');
+    function appendFact(target, name, value) {
+      const fact = make('div', 'fact');
+      fact.appendChild(make('span', '', name));
+      fact.appendChild(make('strong', '', text(value, '尚未观察')));
+      target.appendChild(fact);
+    }
+
+    function renderOutcome(state) {
+      const target = byId('outcome-content');
+      clear(target);
+      const runner = state.runner || {};
+      const audit = state.audit || {};
+      setBadge(byId('outcome-status'), audit.status || runner.status || 'NOT_OBSERVED');
+      if (outcomeConflict(state)) {
+        target.className = 'outcome-empty';
+        target.textContent = 'Evidence 冲突，已隐藏指标';
+        return;
+      }
+      if (!isNumber(runner.baseline_accuracy) || !isNumber(runner.candidate_accuracy)) {
+        target.className = 'outcome-empty';
+        target.textContent = '等待 Runner Evidence';
+        return;
+      }
+      target.className = '';
+      const comparison = make('div', 'accuracy-comparison');
+      const before = make('div', 'accuracy-box');
+      before.appendChild(make('div', 'accuracy-label', 'Before · 基线准确率'));
+      before.appendChild(make('div', 'accuracy-value', accuracy(runner.baseline_accuracy)));
+      before.appendChild(make('div', 'accuracy-repeat', '独立重复 × ' + text(runner.baseline_repeats, '—')));
+      const beforeBar = make('div', 'metric-bar');
+      const beforeFill = make('span');
+      beforeFill.style.width = percentWidth(runner.baseline_accuracy);
+      beforeBar.appendChild(beforeFill);
+      before.appendChild(beforeBar);
+      comparison.appendChild(before);
+      comparison.appendChild(make('div', 'accuracy-arrow', '→'));
+      const after = make('div', 'accuracy-box');
+      after.appendChild(make('div', 'accuracy-label', 'After · 候选准确率'));
+      after.appendChild(make('div', 'accuracy-value', accuracy(runner.candidate_accuracy)));
+      after.appendChild(make('div', 'accuracy-repeat', '独立重复 × ' + text(runner.candidate_repeats, '—')));
+      const afterBar = make('div', 'metric-bar after');
+      const afterFill = make('span');
+      afterFill.style.width = percentWidth(runner.candidate_accuracy);
+      afterBar.appendChild(afterFill);
+      after.appendChild(afterBar);
+      comparison.appendChild(after);
+      target.appendChild(comparison);
+
+      const facts = make('div', 'outcome-facts');
+      appendFact(facts, '提升幅度', isNumber(runner.accuracy_improvement) ? '+' + accuracy(runner.accuracy_improvement) : null);
+      appendFact(facts, '通过阈值', isNumber(runner.minimum_accuracy) ? '≥ ' + accuracy(runner.minimum_accuracy) : null);
+      appendFact(facts, '唯一变化路径', safeArray(runner.changed_paths).join(', ') || null);
+      appendFact(facts, 'Protected Hashes', runner.protected_hashes_unchanged === true ? '全部保持不变' : null);
+      appendFact(facts, 'Network', runner.network);
+      appendFact(facts, 'Sandbox', runner.sandbox_only === true ? '仅 Sandbox 写入' : null);
+      target.appendChild(facts);
+      target.appendChild(make(
+        'div',
+        'outcome-truth',
+        'Auditor：' + text(audit.decision, '未裁决') +
+          ' · 事故状态：' + statusLabel(audit.resolution_status || (state.incident || {}).workflow_state) +
+          '。演示运行通过独立验证，不声称真实生产事故已经解决。'
+      ));
+    }
+
+    function timelinePayload(event, state) {
+      const details = eventDetails(event);
+      return {
+        title: eventLabel(event.kind),
+        summary: text(event.workflow_from, 'UNKNOWN') + ' → ' + text(event.workflow_to, 'UNKNOWN'),
+        status: event.evidence_state,
+        actor: event.actor,
+        runtime_identity: event.actor,
+        transition: text(event.workflow_from, 'UNKNOWN') + ' → ' + text(event.workflow_to, 'UNKNOWN'),
+        source: event.source,
+        event_id: details.event_id || event.event_id,
+        attempt_id: details.attempt_id || (state.incident || {}).attempt_id,
+        run_id: details.run_id || (state.incident || {}).run_id,
+        artifact_refs: safeArray(details.artifact_refs || event.artifact_refs),
+        hash_refs: safeArray(details.hash_refs || event.hash_refs),
+        boundary: event.evidence_state === 'CONFIGURED'
+          ? '该阶段仅为配置路径，尚未观察到真实事件。'
+          : '事件来自只读白名单投影；Event ID 不包含私有 Room ID。'
+      };
+    }
+
+    function renderTimeline(state) {
+      const target = byId('mission-timeline');
+      clear(target);
+      const timeline = (Array.isArray(state.timeline) ? state.timeline : []).filter(function (event) {
+        return KEY_TIMELINE.has(event.kind) && event.evidence_state !== 'CONFIGURED';
+      });
+      setBadge(byId('timeline-count'), timeline.some(function (event) {
+        return event.evidence_state === 'VERIFIED';
+      }) ? 'VERIFIED' : 'OBSERVED');
+      byId('timeline-count').textContent = timeline.length + ' 项';
+      if (!timeline.length) {
+        target.appendChild(make('div', 'outcome-empty', '尚未观察到协作事件。'));
+        return;
+      }
+      timeline.forEach(function (event, index) {
+        const key = 'event:' + event.kind;
+        const button = make('button', 'timeline-event');
+        const timeValue = event.timestamp
+          ? new Date(event.timestamp).toISOString().slice(11, 19)
+          : '无时间';
+        button.appendChild(make('span', 'event-time', timeValue));
+        const copy = make('span', 'event-copy');
+        copy.appendChild(make('span', 'event-title', eventLabel(event.kind)));
+        copy.appendChild(make(
+          'code',
+          'state-transition',
+          text(event.workflow_from, 'UNKNOWN') + ' → ' + text(event.workflow_to, 'UNKNOWN')
+        ));
+        button.appendChild(copy);
+        const badge = make('span');
+        setBadge(badge, event.evidence_state);
+        button.appendChild(badge);
+        if (index === timeline.length - 1) button.classList.add('pulse');
+        attachSelection(button, key, '查看' + eventLabel(event.kind) + '的 Evidence');
+        registerEvidence(key, timelinePayload(event, state));
+        target.appendChild(button);
+      });
+    }
+
+    function appendInspectorField(target, name, value, wide) {
+      if (value === null || value === undefined || value === '' || (Array.isArray(value) && !value.length)) return;
+      const box = make('div', 'inspector-field' + (wide ? ' wide' : ''));
       box.appendChild(make('span', '', name));
-      box.appendChild(make('strong', '', text(value, '尚未观察')));
+      box.appendChild(make('strong', '', Array.isArray(value) ? value.join('\n') : text(value)));
       target.appendChild(box);
     }
 
-    function renderApproval(state) {
-      const approval = state.approval || {};
-      byId('approval-state').textContent = statusLabel(approval.status || 'NOT_OBSERVED');
-      byId('approval-state').className = `value ${statusClass(approval.status)}`;
-      byId('approval-summary').textContent = approval.decision
-        ? `审批决定：${text(approval.decision)} · 决策人：${roleLabel(approval.decided_by || 'Human Approver')}`
-        : '受控执行前必须观察到真实人工决策。';
-      byId('approval-details').textContent = json(approval);
-    }
-
-    function renderToolContract(state) {
-      const tool = state.tool_contract || {};
-      const grid = byId('tool-grid');
+    function renderInspector() {
+      const payload = evidenceCatalog.get(selectedEvidenceKey);
+      const grid = byId('inspector-grid');
       clear(grid);
-      addKV(grid, '状态', statusLabel(tool.status));
-      addKV(grid, 'Skill / 版本', tool.skill);
-      addKV(grid, '调用方', tool.caller);
-      addKV(grid, 'Tool', tool.tool_id);
-      addKV(grid, 'Plan Hash', tool.plan_hash);
-      addKV(grid, 'Approval Binding', tool.approval_binding);
-      addKV(grid, 'Protected Resources', tool.protected_resource_count);
-      addKV(grid, '资源预算', json(tool.resource_budget));
-      byId('tool-details').textContent = json(tool.details || {});
+      if (!payload) {
+        byId('inspector-title').textContent = '选择一个节点';
+        setBadge(byId('inspector-status'), 'NOT_OBSERVED');
+        byId('inspector-summary').textContent = '选择 Agent、人工审批门、Recovery 或时间线事件，查看对应的 Runtime identity、状态转换、Artifact 与 Hash。';
+        byId('inspector-boundary').textContent = '本面板只读取白名单投影，不能审批、执行、重试、重派、接管或修改状态。';
+        return;
+      }
+      byId('inspector-title').textContent = text(payload.title, 'Evidence');
+      setBadge(byId('inspector-status'), payload.status || 'NOT_OBSERVED');
+      byId('inspector-summary').textContent = text(payload.summary, '尚未观察到业务说明。');
+      appendInspectorField(grid, 'Actor', payload.actor, false);
+      appendInspectorField(grid, 'Runtime identity', payload.runtime_identity, false);
+      appendInspectorField(grid, '状态转换', payload.transition, true);
+      appendInspectorField(grid, 'Evidence 来源', payload.source, false);
+      appendInspectorField(grid, 'Matrix event ID', payload.event_id, true);
+      appendInspectorField(grid, 'Attempt ID', payload.attempt_id, true);
+      appendInspectorField(grid, 'Run ID', payload.run_id, true);
+      appendInspectorField(grid, 'Artifact refs', payload.artifact_refs, true);
+      appendInspectorField(grid, 'Hash refs', payload.hash_refs, true);
+      byId('inspector-boundary').textContent = text(payload.boundary, '完全只读。');
     }
 
-    function renderRecovery(state) {
+    function selectEvidence(key) {
+      if (!evidenceCatalog.has(key)) return;
+      selectedEvidenceKey = key;
+      document.querySelectorAll('[data-inspect-key]').forEach(function (node) {
+        node.setAttribute('aria-pressed', node.dataset.inspectKey === key ? 'true' : 'false');
+      });
+      renderInspector(latestState);
+    }
+
+    function restoreSelection(state) {
+      if (!selectedEvidenceKey || !evidenceCatalog.has(selectedEvidenceKey)) {
+        const currentOwner = (state.incident || {}).last_active_agent;
+        const active = (Array.isArray(state.agents) ? state.agents : []).find(function (agent) {
+          return agent.role_name === currentOwner;
+        });
+        const iterator = evidenceCatalog.keys().next();
+        const preferred = active ? 'agent:' + active.agent_id : iterator.value;
+        selectedEvidenceKey = preferred || null;
+      }
+      document.querySelectorAll('[data-inspect-key]').forEach(function (node) {
+        node.setAttribute('aria-pressed', node.dataset.inspectKey === selectedEvidenceKey ? 'true' : 'false');
+      });
+      renderInspector(state);
+    }
+
+    function renderEngineeringEvidence(state) {
+      const tool = state.tool_contract || {};
       const recovery = state.recovery || {};
-      const directive = recovery.current_directive || 'NONE';
-      setBadge(byId('current-directive'), directive === 'NONE' ? 'CONFIGURED' : recovery.status);
-      byId('current-directive').textContent = statusLabel(directive);
-      byId('resume-condition').textContent = recovery.resume_condition
-        ? `恢复条件：${conditionLabel(recovery.resume_condition)}`
-        : '尚未观察到恢复事实，当前没有恢复指令。';
-      const policies = byId('configured-policy');
-      clear(policies);
-      const configured = recovery.configured_policy || {};
-      Object.entries(configured).forEach(([failure, policy]) => {
-        const decision = policy.decision || policy.first_failure || 'CONFIGURED';
-        const condition = conditionLabel(policy.resume_condition || policy.budget_exhausted || '');
-        const item = make('div', 'policy');
-        item.appendChild(make('div', 'policy-explanation', `${eventLabel(failure)}：${condition || '按治理策略处理'}`));
-        const machineDecision = {
-          REASSIGN_OR_HUMAN_TAKEOVER: 'REASSIGN / HUMAN_TAKEOVER',
-          BOUNDED_RETRY_OR_HUMAN_TAKEOVER: 'BOUNDED_RETRY / HUMAN_TAKEOVER'
-        }[decision] || decision;
-        item.appendChild(make('code', 'machine-rule', `${failure} → ${machineDecision}`));
-        policies.appendChild(item);
-      });
-      if (!Object.keys(configured).length) policies.appendChild(make('div', 'empty', '尚未加载已配置的恢复策略。'));
-      byId('recovery-details').textContent = json({
-        status: recovery.status,
-        trace_status: recovery.trace_status,
-        latest_attempt: recovery.latest_attempt,
-        pending_takeover: recovery.pending_takeover,
-        errors: recovery.errors
-      });
-    }
-
-    function renderRunnerAudit(state) {
       const runner = state.runner || {};
       const audit = state.audit || {};
-      byId('runner-state').textContent = statusLabel(runner.status || 'NOT_OBSERVED');
-      byId('runner-state').className = `value ${statusClass(runner.status)}`;
+      byId('tool-summary').textContent =
+        statusLabel(tool.status) + ' · Skill ' + text(tool.skill) +
+        ' · Approval Binding ' + text(tool.approval_binding) +
+        ' · Protected Resources ' + text(tool.protected_resource_count, '0');
+      byId('tool-details').textContent = json(tool.details || {});
+      byId('recovery-summary').textContent = recovery.latest_attempt
+        ? statusLabel(recovery.status) + ' · ' + text(recovery.latest_attempt.attempt_id)
+        : statusLabel(recovery.status) + ' · 当前指令 ' + statusLabel(recovery.current_directive || 'NONE');
+      byId('recovery-details').textContent = json({
+        current_directive: recovery.current_directive,
+        resume_condition: conditionLabel(recovery.resume_condition),
+        latest_attempt: recovery.latest_attempt,
+        pending_takeover: recovery.pending_takeover,
+        trace_status: recovery.trace_status,
+        configured_policy: recovery.configured_policy,
+        errors: recovery.errors
+      });
+      byId('runner-summary').textContent =
+        statusLabel(runner.status) + ' · Network ' + text(runner.network) +
+        ' · Sandbox ' + (runner.sandbox_only === true ? 'true' : text(runner.sandbox_only));
       byId('runner-details').textContent = json(runner);
-      byId('audit-state').textContent = statusLabel(audit.status || 'UNVERIFIED');
-      byId('audit-state').className = `value ${statusClass(audit.status)}`;
+      byId('audit-summary').textContent =
+        statusLabel(audit.status) + ' · ' + text(audit.decision, '未裁决') +
+        ' · ' + statusLabel(audit.resolution_status || 'UNVERIFIED');
       byId('audit-details').textContent = json(audit);
+      const limitations = Array.isArray(state.limitations) ? state.limitations : [];
+      byId('limitations').textContent = limitations.length
+        ? limitations.map(function (item) {
+          return LIMITATION_LABEL[item] || text(item);
+        }).join(' · ')
+        : '当前投影未报告额外 Evidence 限制；演示结果仍遵守 DEMO_PASSED_NOT_RESOLVED 的诚实边界。';
     }
 
     function render(state) {
+      latestState = state;
       setBadge(byId('source-badge'), state.source_summary || 'DISCONNECTED');
       setBadge(byId('mode-badge'), state.mode || 'CONFIGURED');
-      const incident = state.incident || {};
-      byId('incident-summary').textContent = incident.incident_id
-        ? `已观察事故 · ${short(incident.incident_id)}`
-        : '尚未观察到事故证据';
-      byId('workflow-summary').textContent = `工作流状态：${statusLabel(incident.workflow_state)} · 证据来源：${statusLabel(state.source_summary)}`;
-      byId('current-owner').textContent = roleLabel(incident.current_owner);
-      byId('last-agent').textContent = roleLabel(incident.last_active_agent);
-      const lastAgent = (state.agents || []).find((agent) => agent.role_name === incident.last_active_agent);
-      byId('last-agent-runtime').textContent = text(lastAgent && lastAgent.runtime_identity, '尚未观察');
-      byId('last-event').textContent = incident.last_event ? eventLabel(incident.last_event) : '尚未观察到事件';
-      byId('last-updated').textContent = `事件时间：${text(incident.last_event_at, '无时间戳')} · 投影更新时间：${text(state.updated_at, '尚未更新')}`;
-      renderIdentifiers(state);
-      renderAgents(state);
+      renderMissionOverview(state);
+      renderWorkflow(state);
+      renderOutcome(state);
       renderTimeline(state);
-      renderApproval(state);
-      renderToolContract(state);
-      renderRecovery(state);
-      renderRunnerAudit(state);
-      const limitations = Array.isArray(state.limitations) ? state.limitations : [];
-      byId('limitations').textContent = limitations.length ? limitations.map(limitationLabel).join(' · ') : '当前投影未报告其他证据边界。';
+      renderEngineeringEvidence(state);
+      restoreSelection(state);
     }
 
     function captureOpenDetails() {
       return new Set(Array.from(document.querySelectorAll('details'))
-        .map((details, index) => details.open ? index : -1)
-        .filter((index) => index >= 0));
+        .map(function (details, index) { return details.open ? index : -1; })
+        .filter(function (index) { return index >= 0; }));
     }
-
     function restoreOpenDetails(openDetails) {
-      Array.from(document.querySelectorAll('details')).forEach((details, index) => {
+      Array.from(document.querySelectorAll('details')).forEach(function (details, index) {
         details.open = openDetails.has(index);
       });
     }
-
     function renderFingerprint(state) {
-      const stableState = {...state};
+      const stableState = Object.assign({}, state);
       delete stableState.updated_at;
-      return JSON.stringify({state: stableState, incrementalEvents});
+      return JSON.stringify({state: stableState, incrementalEvents: incrementalEvents});
     }
-
     function renderIfChanged(state) {
       const fingerprint = renderFingerprint(state);
       if (fingerprint === lastRenderFingerprint) return;
@@ -695,26 +1413,25 @@
       restoreOpenDetails(openDetails);
       lastRenderFingerprint = fingerprint;
     }
-
     function renderConnectionFailure(error) {
       setBadge(byId('source-badge'), 'DISCONNECTED');
-      byId('last-event').textContent = 'Reviewer 数据源不可用';
-      byId('last-updated').textContent = `只读数据请求失败：${text(error && error.message, '未知错误')}`;
+      byId('incident-title').textContent = 'Reviewer 数据源不可用';
+      byId('incident-state').textContent = '只读数据请求失败：' + text(error && error.message, '未知错误');
     }
 
     async function poll() {
       if (polling) return;
       polling = true;
       try {
-        const suffix = session ? `?session=${encodeURIComponent(session)}` : '';
-        const statusResponse = await fetch(`/api/reviewer/status${suffix}`, {cache: 'no-store'});
-        if (!statusResponse.ok) throw new Error(`status source returned ${statusResponse.status}`);
+        const suffix = session ? '?session=' + encodeURIComponent(session) : '';
+        const statusResponse = await fetch('/api/reviewer/status' + suffix, {cache: 'no-store'});
+        if (!statusResponse.ok) throw new Error('status source returned ' + statusResponse.status);
         const state = await statusResponse.json();
         const eventQuery = session
-          ? `?session=${encodeURIComponent(session)}&after=${cursor}`
-          : `?after=${cursor}`;
-        const eventResponse = await fetch(`/api/reviewer/events${eventQuery}`, {cache: 'no-store'});
-        if (!eventResponse.ok) throw new Error(`event source returned ${eventResponse.status}`);
+          ? '?session=' + encodeURIComponent(session) + '&after=' + cursor
+          : '?after=' + cursor;
+        const eventResponse = await fetch('/api/reviewer/events' + eventQuery, {cache: 'no-store'});
+        if (!eventResponse.ok) throw new Error('event source returned ' + eventResponse.status);
         const page = await eventResponse.json();
         if (Array.isArray(page.events)) incrementalEvents = incrementalEvents.concat(page.events).slice(-100);
         cursor = Number.isInteger(page.next_after) ? page.next_after : cursor;
@@ -727,8 +1444,12 @@
     }
 
     fetch('/api/reviewer/preflight', {cache: 'no-store'})
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('preflight unavailable')))
-      .then((preflight) => setBadge(byId('mode-badge'), preflight.mode || 'CONFIGURED'))
+      .then(function (response) {
+        return response.ok ? response.json() : Promise.reject(new Error('preflight unavailable'));
+      })
+      .then(function (preflight) {
+        setBadge(byId('mode-badge'), preflight.mode || 'CONFIGURED');
+      })
       .catch(renderConnectionFailure)
       .finally(poll);
     setInterval(poll, 1000);
