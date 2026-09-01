@@ -200,6 +200,8 @@ class ReviewerStateTests(unittest.TestCase):
             )
 
         self.assertEqual(state_empty["handoffs"], {"observed": 0, "verified": 0, "total": 6})
+        self.assertEqual(state_empty["recovery"]["status"], "CONFIGURED")
+        self.assertIsNone(state_empty["recovery"]["latest_attempt"])
         self.assertEqual(
             state_partial["handoffs"], {"observed": 3, "verified": 0, "total": 6}
         )

@@ -868,7 +868,11 @@ def _recovery_projection(session_root: Path) -> dict[str, Any]:
     if pending and decision == "NONE":
         decision = "HUMAN_TAKEOVER"
     attempts = overlay.get("attempts", [])
-    latest = attempts[-1] if isinstance(attempts, list) and attempts else None
+    latest = (
+        attempts[-1]
+        if isinstance(attempts, list) and len(attempts) > 1
+        else None
+    )
     display = "STOP / NO RETRY" if decision == "ROLLBACK_REQUIRED" else decision
     resume_condition = None
     if pending:
