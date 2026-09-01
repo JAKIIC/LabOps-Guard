@@ -163,10 +163,16 @@ class TestReviewerEditionPackage(unittest.TestCase):
     def test_powershell_wrapper_sets_live_evidence_defaults_only_for_live_mode(self):
         script = self.project_root / "scripts" / "start_reviewer_demo.ps1"
         text = script.read_text(encoding="utf-8")
+        source_config = json.loads(
+            (self.project_root / "config" / "reviewer-evidence-source.json").read_text(
+                encoding="utf-8"
+            )
+        )
         self.assertIn("LABOPS_LIVE_EVIDENCE_CONTAINER", text)
         self.assertIn("LABOPS_LIVE_EVIDENCE_ROOT", text)
-        self.assertIn("hiclaw-manager", text)
-        self.assertIn("/root/hiclaw-fs/shared/tasks/live-demo", text)
+        self.assertIn("reviewer-evidence-source.json", text)
+        self.assertEqual(source_config["container"], "hiclaw-manager")
+        self.assertTrue(source_config["root"].endswith("/shared/tasks/live-demo"))
         self.assertNotIn("LABOPS_MATRIX_ACCESS_TOKEN", text)
         self.assertNotIn("!manager:matrix-local", text)
 
@@ -214,9 +220,9 @@ class TestReviewerEditionPackage(unittest.TestCase):
             self.assertEqual(
                 log.read_text(encoding="utf-8").splitlines(),
                 [
-                    "hiclaw-manager|/root/hiclaw-fs/shared/tasks/live-demo",
-                    "hiclaw-manager|/root/hiclaw-fs/shared/tasks/live-demo",
-                    "hiclaw-manager|/root/hiclaw-fs/shared/tasks/live-demo",
+                    f"{source_config['container']}|{source_config['root']}",
+                    f"{source_config['container']}|{source_config['root']}",
+                    f"{source_config['container']}|{source_config['root']}",
                 ],
             )
 

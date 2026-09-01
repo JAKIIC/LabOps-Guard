@@ -10,11 +10,14 @@ param(
 $normalizedMode = $Mode.ToLowerInvariant()
 
 if ($normalizedMode -eq "live") {
+    $projectRoot = Split-Path -Parent $PSScriptRoot
+    $sourceConfigPath = Join-Path $projectRoot "config/reviewer-evidence-source.json"
+    $sourceConfig = Get-Content -Raw -LiteralPath $sourceConfigPath | ConvertFrom-Json
     if ([string]::IsNullOrWhiteSpace($env:LABOPS_LIVE_EVIDENCE_CONTAINER)) {
-        $env:LABOPS_LIVE_EVIDENCE_CONTAINER = "hiclaw-manager"
+        $env:LABOPS_LIVE_EVIDENCE_CONTAINER = [string]$sourceConfig.container
     }
     if ([string]::IsNullOrWhiteSpace($env:LABOPS_LIVE_EVIDENCE_ROOT)) {
-        $env:LABOPS_LIVE_EVIDENCE_ROOT = "/root/hiclaw-fs/shared/tasks/live-demo"
+        $env:LABOPS_LIVE_EVIDENCE_ROOT = [string]$sourceConfig.root
     }
 }
 

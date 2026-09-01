@@ -574,12 +574,16 @@ def _default_component_factory(kind: str, **options):
         )
     if kind == "evidence":
         environment = options["environment"]
+        configured_source = _read_object(
+            project_root / "config" / "reviewer-evidence-source.json"
+        )
+        container = environment.get("LABOPS_LIVE_EVIDENCE_CONTAINER") or configured_source.get("container")
+        source_root = environment.get("LABOPS_LIVE_EVIDENCE_ROOT") or configured_source.get("root")
+        if not isinstance(container, str) or not container or not isinstance(source_root, str) or not source_root:
+            raise ValueError("live Evidence source is not configured")
         source = DockerEvidenceSource(
-            environment.get("LABOPS_LIVE_EVIDENCE_CONTAINER", "hiclaw-manager"),
-            environment.get(
-                "LABOPS_LIVE_EVIDENCE_ROOT",
-                "/root/hiclaw-fs/shared/tasks/live-demo",
-            ),
+            container,
+            source_root,
         )
         return _EvidenceSynchronizer(
             project_root,

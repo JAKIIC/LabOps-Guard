@@ -212,8 +212,8 @@ class DockerEvidenceSource:
 
     def __init__(
         self,
-        container: str = "hiclaw-manager",
-        root: str = "/root/hiclaw-fs/shared/tasks/live-demo",
+        container: str,
+        root: str,
         limits: SnapshotLimits | None = None,
     ) -> None:
         if self._CONTAINER.fullmatch(container) is None:

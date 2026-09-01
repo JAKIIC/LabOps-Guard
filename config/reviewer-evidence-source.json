@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0",
+  "container": "hiclaw-manager",
+  "root": "/root/hiclaw-fs/shared/tasks/live-demo"
+}
