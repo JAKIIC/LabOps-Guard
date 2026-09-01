@@ -121,6 +121,46 @@ class TestLiveDemoSession(unittest.TestCase):
         self.assertIn("not one of the six Agent handoffs", manager_task)
         self.assertIn("only after the Auditor's verified terminal decision", manager_task)
 
+    def test_manager_task_names_exact_external_evidence_tree_and_truthful_demo_terminal_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            session_root = Path(
+                prepare_session(repo_root(), Path(tmp), "20260902-002")[
+                    "session_root"
+                ]
+            )
+            manager_task = (session_root / "manager_task.md").read_text(
+                encoding="utf-8"
+            )
+
+        run_id = "RUN-LABOPS-AT-004-AGENTTEAMS-002"
+        for relative in (
+            "artifacts/DEMO-EVAL-DRIFT-004/approval_grant.json",
+            f"runs/{run_id}/gateway_request.json",
+            f"runs/{run_id}/gateway_response.json",
+            f"runs/{run_id}/run_result.json",
+            f"runs/{run_id}/metrics.json",
+            f"runs/{run_id}/artifact_manifest.json",
+            f"runs/{run_id}/stdout.log",
+            f"runs/{run_id}/stderr.log",
+            "verification/verification_report.json",
+            "trace.jsonl",
+        ):
+            with self.subTest(relative=relative):
+                self.assertIn(f"`{relative}`", manager_task)
+        for field in (
+            "simulated",
+            "demo_verification",
+            "incident_state",
+            "underlying_issue_resolved",
+            "has_postcondition",
+            "is_demo_like",
+        ):
+            with self.subTest(terminal_field=field):
+                self.assertIn(f"`{field}`", manager_task)
+        self.assertIn("DEMO_PASSED_NOT_RESOLVED", manager_task)
+        self.assertIn("non-empty JSON object, never an array", manager_task)
+        self.assertIn("The session namespace overrides the frozen prompt's legacy output path", manager_task)
+
     def test_prepare_refuses_to_overwrite_existing_session(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

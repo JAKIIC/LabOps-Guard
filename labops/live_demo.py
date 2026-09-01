@@ -155,6 +155,46 @@ invented merely to advance the Reviewer timeline:
   `LABOPS_EVENT_KIND: commander_published`. This publication is not one of the
   six Agent handoffs and cannot replace `verification_completed`.
 
+External Evidence publication contract:
+
+The session namespace overrides the frozen prompt's legacy output path. Write
+all new session output beneath the shared task namespace
+`shared/tasks/{manifest['storage_namespace']}` and never overwrite the fixed
+`shared/tasks/LABOPS-AT-004-EVAL-DRIFT/` artifacts. Relative to the session
+namespace, publish these exact files; aliases, prose-only reports and renamed
+files do not satisfy the contract:
+
+- `artifacts/DEMO-EVAL-DRIFT-004/approval_grant.json`
+- `runs/{manifest['run_id']}/gateway_request.json`
+- `runs/{manifest['run_id']}/gateway_response.json`
+- `runs/{manifest['run_id']}/run_result.json`
+- `runs/{manifest['run_id']}/metrics.json`
+- `runs/{manifest['run_id']}/artifact_manifest.json`
+- `runs/{manifest['run_id']}/stdout.log`
+- `runs/{manifest['run_id']}/stderr.log`
+- `verification/verification_report.json`
+- `trace.jsonl`
+
+The Gateway request must retain the exact ExperimentPlan, ApprovalGrant,
+normalized Tool Contract, a `VALID` approval binding and one `CONSUMED` approval
+record. The Gateway response and Runner files must bind the exact run ID. The
+Runner result must record completed status, `network: none`,
+`sandbox_only: true`, and the `simulated` field set to true for this
+fixture-backed demo. The
+artifact manifest must hash the immutable result, metrics, stdout and stderr
+files byte-for-byte. Trace must be a non-empty append-only hash chain containing
+all six Agent actors, the Runner invocation and the Auditor decision.
+
+`verification/verification_report.json` must contain the five instance
+bindings, `decision: PASS`, `verified_by: verification-auditor`, and a `checks`
+value that is a non-empty JSON object, never an array. Because this run is a
+simulated demo rather than a repaired production incident, its truthful terminal
+fields are `resolution_status` = `DEMO_PASSED_NOT_RESOLVED`,
+`demo_verification` = `PASSED`, `incident_state` =
+`DEMO_PASSED_NOT_RESOLVED`, `underlying_issue_resolved` = false,
+`has_postcondition` = true, and `is_demo_like` = true. Do not write `RESOLVED`
+or `CLOSED` for this session.
+
 The final structured Verification artifact must retain those same bindings and
 must include `decision`, `verified_by`, and `resolution_status` plus its complete
 independent checks. Do not replace these fields with prose. Emit each handoff
