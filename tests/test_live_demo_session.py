@@ -99,6 +99,28 @@ class TestLiveDemoSession(unittest.TestCase):
         self.assertIn("LABOPS_INPUT_ARTIFACT:", manager_task)
         self.assertIn("LABOPS_OUTPUT_ARTIFACT:", manager_task)
 
+        for kind in (
+            "approval_granted",
+            "executor_to_gateway",
+            "runner_started",
+            "runner_completed",
+            "terminal_decided",
+            "commander_published",
+        ):
+            with self.subTest(stage_kind=kind):
+                self.assertIn(f"LABOPS_EVENT_KIND: {kind}", manager_task)
+        self.assertIn("LABOPS_ACTOR: human-approver", manager_task)
+        for field in (
+            "approval_id",
+            "plan_id",
+            "canonical_plan_sha256",
+            "nonce",
+        ):
+            with self.subTest(approval_field=field):
+                self.assertIn(f"`{field}`", manager_task)
+        self.assertIn("not one of the six Agent handoffs", manager_task)
+        self.assertIn("only after the Auditor's verified terminal decision", manager_task)
+
     def test_prepare_refuses_to_overwrite_existing_session(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

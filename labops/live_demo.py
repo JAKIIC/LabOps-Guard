@@ -134,6 +134,27 @@ absolute paths:
 - Safe Executor: `LABOPS_EVENT_KIND: executor_to_auditor`
 - Verification Auditor: `LABOPS_EVENT_KIND: verification_completed`
 
+Stage events are separate from the six Agent handoffs above. They use the same
+five bindings, are emitted once by the named real actor, and must never be
+invented merely to advance the Reviewer timeline:
+
+- A human-operated, non-Agent Matrix account: `LABOPS_EVENT_KIND: approval_granted`
+  and `LABOPS_ACTOR: human-approver`. This approval event is not one of the six Agent handoffs.
+  Send it only after inspecting the exact plan. The message and
+  ApprovalGrant artifact must bind `approval_id`, `plan_id`,
+  `canonical_plan_sha256`, `run_id`, `nonce`, decision `APPROVED`, scope and
+  validity window. A Manager or Worker may request approval but cannot author it.
+- Safe Executor, before the Gateway call: `LABOPS_EVENT_KIND: executor_to_gateway`
+- Safe Executor, after the Gateway accepts the bound request:
+  `LABOPS_EVENT_KIND: runner_started`
+- Safe Executor, after immutable Runner outputs exist:
+  `LABOPS_EVENT_KIND: runner_completed`
+- Verification Auditor, after independent recomputation:
+  `LABOPS_EVENT_KIND: terminal_decided`
+- Incident Commander, only after the Auditor's verified terminal decision:
+  `LABOPS_EVENT_KIND: commander_published`. This publication is not one of the
+  six Agent handoffs and cannot replace `verification_completed`.
+
 The final structured Verification artifact must retain those same bindings and
 must include `decision`, `verified_by`, and `resolution_status` plus its complete
 independent checks. Do not replace these fields with prose. Emit each handoff

@@ -34,6 +34,10 @@ EVENT_KIND = re.compile(
     r"LABOPS_EVENT_KIND\s*(?:[*`]+)?\s*[:=]\s*(?:[*`]+)?\s*([a-z_]+)",
     re.IGNORECASE,
 )
+EVENT_ACTOR = re.compile(
+    r"LABOPS_ACTOR\s*(?:[*`]+)?\s*[:=]\s*(?:[*`]+)?\s*([a-z_-]+)",
+    re.IGNORECASE,
+)
 INPUT_ARTIFACT = re.compile(
     r"LABOPS_INPUT_ARTIFACT\s*(?:[*`]+)?\s*[:=]\s*(?:[*`]+)?\s*([^\s`*]+)",
     re.IGNORECASE,
@@ -266,7 +270,11 @@ def _normalized_event(
     sender = event.get("sender")
     sender_role = _sender_role(sender, room_id)
     if kind == "approval_granted":
-        if structured.get("actor") != "human-approver" or sender_role is not None:
+        body_actor_match = EVENT_ACTOR.search(body) if isinstance(body, str) else None
+        declared_actor = structured.get("actor")
+        if declared_actor is None and body_actor_match is not None:
+            declared_actor = body_actor_match.group(1).lower()
+        if declared_actor != "human-approver" or sender_role is not None:
             return None
         if _sender_localpart(sender, room_id) is None:
             return None

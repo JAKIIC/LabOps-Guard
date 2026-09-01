@@ -412,6 +412,40 @@ class MatrixObserverTests(unittest.TestCase):
         self.assertEqual([event["event_id"] for event in events], ["$local-approval"])
         self.assertEqual(events[0]["actor"], "human-approver")
 
+    def test_human_approval_accepts_explicit_plain_text_actor_contract(self) -> None:
+        room = "!manager:matrix-local.hiclaw.io"
+        event = self._bound_event(
+            "$plain-text-approval",
+            kind="approval_granted",
+            sender="@human-reviewer:matrix-local.hiclaw.io",
+        )
+        event["content"].pop("labops_event")
+        event["content"]["body"] += " LABOPS_ACTOR: human-approver"
+        payload = self._sync_payload({
+            room: {"timeline": {"events": [event]}},
+        })
+
+        events = normalize_sync_response(payload, {room: "labops-manager"}, SESSION)
+
+        self.assertEqual([item["event_id"] for item in events], ["$plain-text-approval"])
+        self.assertEqual(events[0]["actor"], "human-approver")
+
+    def test_human_approval_rejects_plain_text_without_explicit_actor_contract(self) -> None:
+        room = "!manager:matrix-local.hiclaw.io"
+        event = self._bound_event(
+            "$ambiguous-approval",
+            kind="approval_granted",
+            sender="@human-reviewer:matrix-local.hiclaw.io",
+        )
+        event["content"].pop("labops_event")
+        payload = self._sync_payload({
+            room: {"timeline": {"events": [event]}},
+        })
+
+        events = normalize_sync_response(payload, {room: "labops-manager"}, SESSION)
+
+        self.assertEqual(events, [])
+
     def test_sync_once_uses_bearer_header_and_returns_sanitized_snapshot(self) -> None:
         room = "!rca:matrix-local.hiclaw.io"
         payload = self._sync_payload({
