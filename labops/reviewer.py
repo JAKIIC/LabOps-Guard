@@ -33,6 +33,7 @@ from labops.live_demo import (
     _session_manifest,
     prepare_session,
 )
+from labops.live_evidence_sync import DockerEvidenceSource, sync_live_evidence
 from labops.matrix_observer import (
     active_session_binding,
     load_room_map,
@@ -454,6 +455,92 @@ class _MatrixObserver:
         return self.thread.is_alive()
 
 
+class _EvidenceSynchronizer:
+    """Continuously mirror and verify live Evidence without source mutations."""
+
+    def __init__(
+        self,
+        project_root: Path,
+        sessions_root: Path,
+        session_root: Path,
+        source: object,
+        interval_seconds: float = 3.0,
+    ) -> None:
+        self.name = "evidence"
+        self.project_root = project_root.resolve()
+        self.sessions_root = sessions_root.resolve()
+        self.session_root = session_root.resolve()
+        manifest = _read_object(self.session_root / "session.json")
+        if not manifest or manifest.get("classification") != CLASSIFICATION:
+            raise ValueError("Live Evidence sync requires a valid non-formal session")
+        self.session_id = manifest.get("session_id")
+        if not isinstance(self.session_id, str) or SESSION_ID.fullmatch(self.session_id) is None:
+            raise ValueError("Live Evidence sync requires a valid session ID")
+        self.source = source
+        self.interval_seconds = interval_seconds
+        self.stopping = threading.Event()
+        self.thread = threading.Thread(
+            target=self._run,
+            name="reviewer-evidence-synchronizer",
+            daemon=True,
+        )
+
+    def _matrix_snapshot(self) -> dict[str, Any]:
+        observer = self.session_root / "observer"
+        status = _read_object(observer / "source_status.json") or {}
+        events: list[dict[str, Any]] = []
+        event_path = observer / "normalized_events.jsonl"
+        try:
+            if event_path.is_file() and event_path.stat().st_size <= 2 * 1024 * 1024:
+                for line in event_path.read_text(encoding="utf-8").splitlines()[:256]:
+                    value = json.loads(line)
+                    if isinstance(value, dict):
+                        events.append(value)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            events = []
+        return {**status, "events": events}
+
+    def _record_failure(self) -> None:
+        _atomic_json(
+            self.session_root / "observer" / "evidence_sync.json",
+            {
+                "status": "BLOCKED",
+                "mirror_digest": None,
+                "published": False,
+                "errors": ["EVIDENCE_SOURCE_UNAVAILABLE"],
+                "checked_at": _utc_now(),
+            },
+        )
+
+    def _run(self) -> None:
+        while not self.stopping.is_set():
+            try:
+                sync_live_evidence(
+                    self.project_root,
+                    self.sessions_root,
+                    self.session_id,
+                    self.source,
+                    self._matrix_snapshot(),
+                    datetime.now(timezone.utc),
+                )
+            except Exception:  # sync degradation must never stop the web surface
+                try:
+                    self._record_failure()
+                except OSError:
+                    pass
+            self.stopping.wait(self.interval_seconds)
+
+    def start(self) -> None:
+        self.thread.start()
+
+    def stop(self) -> None:
+        self.stopping.set()
+        self.thread.join(timeout=5)
+
+    def is_alive(self) -> bool:
+        return self.thread.is_alive()
+
+
 def _default_component_factory(kind: str, **options):
     project_root = Path(options["project_root"])
     if kind == "web":
@@ -484,6 +571,21 @@ def _default_component_factory(kind: str, **options):
             environment["LABOPS_MATRIX_HOMESERVER"],
             environment["LABOPS_MATRIX_ACCESS_TOKEN"],
             Path(environment["LABOPS_MATRIX_ROOM_MAP"]),
+        )
+    if kind == "evidence":
+        environment = options["environment"]
+        source = DockerEvidenceSource(
+            environment.get("LABOPS_LIVE_EVIDENCE_CONTAINER", "hiclaw-manager"),
+            environment.get(
+                "LABOPS_LIVE_EVIDENCE_ROOT",
+                "/root/hiclaw-fs/shared/tasks/live-demo",
+            ),
+        )
+        return _EvidenceSynchronizer(
+            project_root,
+            Path(options["sessions_root"]),
+            Path(options["session_root"]),
+            source,
         )
     raise ValueError(f"unknown Reviewer component: {kind}")
 
@@ -721,6 +823,7 @@ def start_reviewer(
         if normalized == "live":
             create_and_start("gateway")
             create_and_start("observer")
+            create_and_start("evidence")
         create_and_start("web")
         _atomic_json(lifecycle_path, record)
         started = {

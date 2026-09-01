@@ -159,6 +159,91 @@ class TestReviewerEditionPackage(unittest.TestCase):
                 "-B -m labops reviewer preflight --mode live",
             ])
 
+    @unittest.skipUnless(os.name == "nt", "PowerShell wrapper is exercised on Windows")
+    def test_powershell_wrapper_sets_live_evidence_defaults_only_for_live_mode(self):
+        script = self.project_root / "scripts" / "start_reviewer_demo.ps1"
+        text = script.read_text(encoding="utf-8")
+        self.assertIn("LABOPS_LIVE_EVIDENCE_CONTAINER", text)
+        self.assertIn("LABOPS_LIVE_EVIDENCE_ROOT", text)
+        self.assertIn("hiclaw-manager", text)
+        self.assertIn("/root/hiclaw-fs/shared/tasks/live-demo", text)
+        self.assertNotIn("LABOPS_MATRIX_ACCESS_TOKEN", text)
+        self.assertNotIn("!manager:matrix-local", text)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            log = root / "environment.log"
+            fake_python = root / "python.cmd"
+            fake_python.write_text(
+                "@echo off\n"
+                "echo %LABOPS_LIVE_EVIDENCE_CONTAINER%^|%LABOPS_LIVE_EVIDENCE_ROOT%>>\"%CALL_LOG%\"\n"
+                "exit /b 0\n",
+                encoding="utf-8",
+            )
+            environment = dict(os.environ)
+            environment["PATH"] = f"{root}{os.pathsep}{environment['PATH']}"
+            environment["CALL_LOG"] = str(log)
+            environment.pop("LABOPS_LIVE_EVIDENCE_CONTAINER", None)
+            environment.pop("LABOPS_LIVE_EVIDENCE_ROOT", None)
+
+            quick = subprocess.run(
+                [
+                    "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                    "-File", str(script), "-Mode", "quick",
+                ],
+                cwd=self.project_root,
+                env=environment,
+                check=False,
+                capture_output=True,
+            )
+            self.assertEqual(quick.returncode, 0)
+            self.assertEqual(log.read_text(encoding="utf-8").splitlines(), ["|", "|", "|"])
+
+            log.unlink()
+            live = subprocess.run(
+                [
+                    "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                    "-File", str(script), "-Mode", "live",
+                ],
+                cwd=self.project_root,
+                env=environment,
+                check=False,
+                capture_output=True,
+            )
+            self.assertEqual(live.returncode, 0)
+            self.assertEqual(
+                log.read_text(encoding="utf-8").splitlines(),
+                [
+                    "hiclaw-manager|/root/hiclaw-fs/shared/tasks/live-demo",
+                    "hiclaw-manager|/root/hiclaw-fs/shared/tasks/live-demo",
+                    "hiclaw-manager|/root/hiclaw-fs/shared/tasks/live-demo",
+                ],
+            )
+
+            log.unlink()
+            custom = dict(environment)
+            custom["LABOPS_LIVE_EVIDENCE_CONTAINER"] = "custom-manager"
+            custom["LABOPS_LIVE_EVIDENCE_ROOT"] = "/custom/read-only-root"
+            overridden = subprocess.run(
+                [
+                    "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                    "-File", str(script), "-Mode", "live",
+                ],
+                cwd=self.project_root,
+                env=custom,
+                check=False,
+                capture_output=True,
+            )
+            self.assertEqual(overridden.returncode, 0)
+            self.assertEqual(
+                log.read_text(encoding="utf-8").splitlines(),
+                [
+                    "custom-manager|/custom/read-only-root",
+                    "custom-manager|/custom/read-only-root",
+                    "custom-manager|/custom/read-only-root",
+                ],
+            )
+
     @unittest.skipUnless(os.name != "nt" and shutil.which("sh"), "shell wrapper is exercised on POSIX")
     def test_shell_wrapper_delegates_and_preserves_preflight_failure(self):
         script = self.project_root / "scripts" / "start_reviewer_demo.sh"

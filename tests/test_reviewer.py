@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import tempfile
+import time
 import unittest
 import subprocess
 from contextlib import redirect_stdout
@@ -336,6 +337,74 @@ class ReviewerLifecycleTests(unittest.TestCase):
         self.assertEqual(result["status"], "STOPPED")
         self.assertEqual(lifecycle["status"], "STOPPED")
 
+    def test_live_reviewer_starts_and_stops_evidence_synchronizer(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            events: list[str] = []
+            components: dict[str, _FakeComponent] = {}
+
+            def wait(_seconds: float) -> None:
+                raise KeyboardInterrupt
+
+            result = start_reviewer(
+                ROOT,
+                Path(tmp),
+                "live",
+                session_id="20260902-002",
+                component_factory=self._factory(events, components),
+                preflight_builder=lambda *_args, **_kwargs: _ready("live"),
+                wait_fn=wait,
+                open_browser=False,
+            )
+
+        self.assertEqual(result["status"], "STOPPED")
+        self.assertEqual(
+            list(components), ["gateway", "observer", "evidence", "web"]
+        )
+        self.assertEqual(
+            events[:4],
+            ["start:gateway", "start:observer", "start:evidence", "start:web"],
+        )
+        self.assertEqual(
+            events[4:],
+            ["stop:web", "stop:evidence", "stop:observer", "stop:gateway"],
+        )
+
+    def test_evidence_sync_failure_does_not_stop_synchronizer(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = Path(tmp)
+            session_id = "20260902-002"
+            reviewer_mod._ensure_live_session(ROOT, sessions, session_id)
+            synchronizer = reviewer_mod._EvidenceSynchronizer(
+                ROOT,
+                sessions,
+                sessions / session_id,
+                object(),
+                interval_seconds=0.01,
+            )
+            with patch(
+                "labops.reviewer.sync_live_evidence",
+                side_effect=RuntimeError("private source detail"),
+            ):
+                synchronizer.start()
+                status_path = (
+                    sessions
+                    / session_id
+                    / "observer"
+                    / "evidence_sync.json"
+                )
+                deadline = time.monotonic() + 2
+                while not status_path.is_file() and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertTrue(status_path.is_file())
+                self.assertTrue(synchronizer.is_alive())
+                status = json.loads(status_path.read_text(encoding="utf-8"))
+                synchronizer.stop()
+
+        self.assertEqual(status["status"], "BLOCKED")
+        self.assertEqual(status["errors"], ["EVIDENCE_SOURCE_UNAVAILABLE"])
+        self.assertNotIn("private source detail", json.dumps(status))
+        self.assertFalse(synchronizer.is_alive())
+
     def test_start_rejects_an_unresolved_ephemeral_port(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             result = start_reviewer(
@@ -479,9 +548,17 @@ class ReviewerLifecycleTests(unittest.TestCase):
             evidence_files = list((session_root / "evidence").iterdir())
 
         self.assertEqual(waits, 1)
-        self.assertEqual(list(components), ["gateway", "observer", "web"])
-        self.assertEqual(events[:3], ["start:gateway", "start:observer", "start:web"])
-        self.assertEqual(events[3:], ["stop:web", "stop:observer", "stop:gateway"])
+        self.assertEqual(
+            list(components), ["gateway", "observer", "evidence", "web"]
+        )
+        self.assertEqual(
+            events[:4],
+            ["start:gateway", "start:observer", "start:evidence", "start:web"],
+        )
+        self.assertEqual(
+            events[4:],
+            ["stop:web", "stop:evidence", "stop:observer", "stop:gateway"],
+        )
         self.assertTrue(all(item.started == 1 and item.stopped == 1 for item in components.values()))
         self.assertEqual(manifest["classification"], "NON_FORMAL_LIVE_DEMO")
         self.assertEqual(evidence_files, [])
