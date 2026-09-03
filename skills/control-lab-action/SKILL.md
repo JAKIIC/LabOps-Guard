@@ -28,6 +28,17 @@ Treat approval as a gate, never as a descriptive field. Read `references/io-sche
    training intents remain simulated even after approval.
 7. Hand the complete action result to the Verification Auditor; never claim closure.
 
+## Atomic AgentTeams completion
+
+When a live assignment supplies the five session bindings, a valid Approval Binding, and an
+exact emitter command:
+
+1. Re-read the immutable Runner result and its manifest after Gateway execution completes.
+2. Run the supplied `scripts/emit_handoff.py` command exactly once with the
+   `executor_to_auditor` event and the assigned plan/result paths.
+3. Treat only `EMITTED` or `ALREADY_EMITTED` as a completed handoff, then stop and let the
+   Manager dispatch Verification Auditor. Any other result is a safe `BLOCKED` outcome.
+
 ## Safety gates
 
 - Restrict working directories and writes to the designated workspace.
@@ -37,7 +48,7 @@ Treat approval as a gate, never as a descriptive field. Read `references/io-sche
 
 ## Version, reuse, and lifecycle
 
-- Skill version: `0.2.0`; I/O schema version: `1.0`.
+- Skill version: `0.2.1`; I/O schema version: `1.0`.
 - Reuse it with any runner that accepts a validated structured plan and returns immutable
   manifests; bind repository-specific command and path allowlists outside the skill.
 - Input lifecycle: `PLAN_READY` or `AWAITING_APPROVAL`. Output lifecycle:

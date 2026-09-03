@@ -33,6 +33,17 @@ Verify independently from raw action records. Read `references/io-schema.json` f
    `DEMO_PASSED_NOT_RESOLVED`. For any failed check, return `BLOCKED`.
 6. Hand the decision, checks, raw evidence paths, and remaining limitations to the Manager.
 
+## Atomic AgentTeams completion
+
+When a live assignment supplies the five session bindings and an exact emitter command:
+
+1. Persist and re-read `verification_report.json`; independently confirm every reported check
+   and the truthful terminal semantics.
+2. Run the supplied `scripts/emit_handoff.py` command exactly once with the
+   `verification_completed` event and the assigned Runner/verification paths.
+3. Treat only `EMITTED` or `ALREADY_EMITTED` as a completed handoff, then stop and let the
+   Incident Commander publish the result. Any other result is a safe `BLOCKED` outcome.
+
 ## Safety gates
 
 - Do not modify, repair, or regenerate the artifact under verification.
@@ -41,7 +52,7 @@ Verify independently from raw action records. Read `references/io-schema.json` f
 
 ## Version, reuse, and lifecycle
 
-- Skill version: `0.2.0`; I/O schema version: `1.0`.
+- Skill version: `0.2.1`; I/O schema version: `1.0`.
 - Reuse it by supplying project-specific postconditions and protected-file manifests; the
   independence, trace, and hash requirements remain unchanged.
 - Input lifecycle: `VERIFYING`. Output lifecycle: `RESOLVED`, `ROLLED_BACK`, `BLOCKED`, or the

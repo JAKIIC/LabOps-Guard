@@ -3,7 +3,7 @@
   "skills": [
     {
       "skill_id": "collect-lab-evidence",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "owner_agents": ["evidence-collector"],
       "io_schema": "skills/collect-lab-evidence/references/io-schema.json",
       "tool_dependencies": ["allowlisted-filesystem", "sha256"],
@@ -15,7 +15,7 @@
     },
     {
       "skill_id": "diagnose-lab-incident",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "owner_agents": ["rca-analyst"],
       "io_schema": "skills/diagnose-lab-incident/references/io-schema.json",
       "tool_dependencies": ["evidence-store"],
@@ -27,7 +27,7 @@
     },
     {
       "skill_id": "plan-lab-experiment",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "owner_agents": ["experiment-planner"],
       "io_schema": "skills/plan-lab-experiment/references/io-schema.json",
       "tool_dependencies": ["policy-engine"],
@@ -39,7 +39,7 @@
     },
     {
       "skill_id": "control-lab-action",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "owner_agents": ["safe-executor"],
       "io_schema": "skills/control-lab-action/references/io-schema.json",
       "tool_dependencies": ["runner-gateway", "sandbox-runner"],
@@ -51,7 +51,7 @@
     },
     {
       "skill_id": "verify-lab-result",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "owner_agents": ["verification-auditor"],
       "io_schema": "skills/verify-lab-result/references/io-schema.json",
       "tool_dependencies": ["runner-artifacts", "trace-verifier"],
@@ -63,7 +63,7 @@
     },
     {
       "skill_id": "pack-lab-evidence",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "owner_agents": ["labops-manager"],
       "io_schema": "skills/pack-lab-evidence/references/io-schema.json",
       "tool_dependencies": ["artifact-store", "sha256"],

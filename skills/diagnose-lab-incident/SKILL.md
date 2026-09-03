@@ -27,6 +27,17 @@ Create hypotheses only from registered evidence. Read `references/io-schema.json
 5. Hand off the artifact path, state counts, evidence links, suggested actions, and unresolved
    gaps to the Manager.
 
+## Atomic AgentTeams completion
+
+When a live assignment supplies the five session bindings and an exact emitter command:
+
+1. Re-read `diagnosis_candidates.json` and confirm every asserted hypothesis remains bound to
+   registered Evidence.
+2. Run the supplied `scripts/emit_handoff.py` command exactly once with the
+   `rca_to_planner` event and the assigned input/output paths.
+3. Treat only `EMITTED` or `ALREADY_EMITTED` as a completed handoff, then stop and let the
+   Manager dispatch the Planner. Any other result is a safe `BLOCKED` outcome.
+
 ## Safety gates
 
 - Do not open the source snapshot or excluded data; diagnose from collected artifacts only.
@@ -35,7 +46,7 @@ Create hypotheses only from registered evidence. Read `references/io-schema.json
 
 ## Version, reuse, and lifecycle
 
-- Skill version: `0.2.0`; I/O schema version: `1.0`.
+- Skill version: `0.2.1`; I/O schema version: `1.0`.
 - Reuse it for any experiment incident whose collected evidence has stable IDs; project-specific
   hypothesis types belong in the assignment, not in this skill.
 - Input lifecycle: `EVIDENCE_READY` -> `DIAGNOSING`. Output lifecycle: `DIAGNOSIS_READY` or

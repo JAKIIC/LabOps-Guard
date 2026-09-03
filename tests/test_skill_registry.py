@@ -25,6 +25,30 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class TestSkillRegistry(unittest.TestCase):
+    def test_event_emitting_skills_define_one_atomic_completion_recipe(self) -> None:
+        expected = {
+            "collect-lab-evidence": ("0.2.1", "collector_to_rca"),
+            "diagnose-lab-incident": ("0.2.1", "rca_to_planner"),
+            "plan-lab-experiment": ("0.2.2", "approval_pending"),
+            "control-lab-action": ("0.2.1", "executor_to_auditor"),
+            "verify-lab-result": ("0.2.1", "verification_completed"),
+            "pack-lab-evidence": ("0.2.1", "commander_published"),
+        }
+        registry = {item["skill_id"]: item for item in list_skills(ROOT)}
+
+        for skill_id, (version, event_kind) in expected.items():
+            with self.subTest(skill_id=skill_id):
+                text = (ROOT / "skills" / skill_id / "SKILL.md").read_text(
+                    encoding="utf-8"
+                )
+                self.assertEqual(registry[skill_id]["version"], version)
+                self.assertIn(f"Skill version: `{version}`", text)
+                self.assertEqual(text.count("## Atomic AgentTeams completion"), 1)
+                self.assertIn("scripts/emit_handoff.py", text)
+                self.assertIn(f"`{event_kind}`", text)
+                self.assertIn("`EMITTED`", text)
+                self.assertIn("`ALREADY_EMITTED`", text)
+
     def test_lists_seven_registered_skills_with_resolvable_contracts(self) -> None:
         skills = list_skills(ROOT)
 
@@ -99,7 +123,7 @@ class TestSkillRegistry(unittest.TestCase):
             ROOT,
             caller_agent_id="safe-executor",
         )
-        self.assertEqual(result, {"valid": True, "skill_id": "control-lab-action", "version": "0.2.0"})
+        self.assertEqual(result, {"valid": True, "skill_id": "control-lab-action", "version": "0.2.1"})
 
     def test_usage_event_must_bind_real_registry_identity_version_and_artifacts(self) -> None:
         event = {
@@ -109,7 +133,7 @@ class TestSkillRegistry(unittest.TestCase):
             "task_id": "LABOPS-AT-004-EVAL-DRIFT-RECORDING",
             "incident_id": "DEMO-EVAL-DRIFT-RECORDING",
             "skill_id": "control-lab-action",
-            "skill_version": "0.2.0",
+            "skill_version": "0.2.1",
             "owner_agent": "safe-executor",
             "input_schema_version": "1.0",
             "output_schema_version": "1.0",

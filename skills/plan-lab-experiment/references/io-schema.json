@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "skill_version": "0.2.1",
+  "skill_version": "0.2.2",
   "input": {
     "required": ["hypothesis_id", "evidence_ids", "claim"],
     "constraints": ["evidence_ids must contain at least one resolvable ID"]

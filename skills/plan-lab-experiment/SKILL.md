@@ -22,7 +22,20 @@ Convert one evidence-backed hypothesis into one bounded experiment plan. Never e
    - `L2`: workspace mutation requiring human approval.
    - `L3`: external, destructive, secret-bearing, or forbidden action; reject.
 6. Validate the output against `references/io-schema.json` and the project `schemas/plan.schema.json`.
-7. Hand the validated plan to the controlled executor. Do not bypass approval or verification.
+7. Hand the validated plan to the Manager and Human Approval gate. Do not dispatch the
+   controlled executor or bypass approval and verification.
+
+## Atomic AgentTeams completion
+
+When a live assignment supplies the five session bindings and an exact emitter command:
+
+1. Re-read the canonical plan, validate its one-variable boundary, and compute the Plan Hash
+   required by the approval binding.
+2. Run the supplied `scripts/emit_handoff.py` command exactly once with the
+   `approval_pending` event and the assigned input/output paths.
+3. Treat only `EMITTED` or `ALREADY_EMITTED` as a completed handoff.
+4. Stop at Human Approval. The Manager may dispatch Safe Executor only after a separately
+   bound human decision; Planner never converts its own plan into approval.
 
 ## Supported bounded patterns
 
@@ -40,7 +53,7 @@ Convert one evidence-backed hypothesis into one bounded experiment plan. Never e
 
 ## Version, reuse, and lifecycle
 
-- Skill version: `0.2.1`; I/O schema version: `1.0`.
+- Skill version: `0.2.2`; I/O schema version: `1.0`.
 - Planning is a read-only invocation. The resulting plan can still set
   `approval_required=true`; this classification never authorizes execution.
 - Input lifecycle: `DIAGNOSIS_READY` -> `PLANNING`. Output lifecycle: `PLAN_READY`, `REJECTED`,

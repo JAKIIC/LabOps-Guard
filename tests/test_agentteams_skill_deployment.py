@@ -168,7 +168,7 @@ class AgentTeamsSkillDeploymentCLITests(unittest.TestCase):
                 "controlled-executor/control-lab-action/LABOPS_RUNTIME_BINDING.json"
             ].decode("utf-8")
         )
-        self.assertEqual(binding["skill_version"], "0.2.0")
+        self.assertEqual(binding["skill_version"], "0.2.1")
         self.assertEqual(binding["canonical_owner_agent"], "safe-executor")
         self.assertEqual(binding["runtime_agent_id"], "controlled-executor")
         self.assertEqual(binding["runtime_event_emission"], "VERIFIED")
