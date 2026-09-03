@@ -22,6 +22,101 @@ def repo_root() -> Path:
 
 
 class TestLiveDemoSession(unittest.TestCase):
+    def test_manager_task_is_single_trigger_except_human_approval(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            session_root = Path(
+                prepare_session(repo_root(), Path(tmp), "20260903-003")[
+                    "session_root"
+                ]
+            )
+            manager_task = (session_root / "manager_task.md").read_text(
+                encoding="utf-8"
+            )
+
+        expected_stages = (
+            (
+                "Incident Commander",
+                "pack-lab-evidence",
+                "manager_to_collector",
+                "incident_packet.json",
+                "/root/manager-workspace/skills/pack-lab-evidence/scripts/emit_handoff.py",
+            ),
+            (
+                "Evidence Collector",
+                "collect-lab-evidence",
+                "collector_to_rca",
+                "collector-report.json",
+                "/root/hiclaw-fs/agents/evidence-collector/skills/collect-lab-evidence/scripts/emit_handoff.py",
+            ),
+            (
+                "RCA Analyst",
+                "diagnose-lab-incident",
+                "rca_to_planner",
+                "diagnosis/diagnosis_candidates.json",
+                "/root/hiclaw-fs/agents/rca-analyst/skills/diagnose-lab-incident/scripts/emit_handoff.py",
+            ),
+            (
+                "Experiment Planner",
+                "plan-lab-experiment",
+                "approval_pending",
+                "plan/plan.json",
+                "/root/hiclaw-fs/agents/researcher/skills/plan-lab-experiment/scripts/emit_handoff.py",
+            ),
+            (
+                "Safe Executor",
+                "control-lab-action",
+                "executor_to_auditor",
+                "runs/RUN-LABOPS-AT-004-AGENTTEAMS-003/run_result.json",
+                "/root/hiclaw-fs/agents/controlled-executor/skills/control-lab-action/scripts/emit_handoff.py",
+            ),
+            (
+                "Verification Auditor",
+                "verify-lab-result",
+                "verification_completed",
+                "verification/verification_report.json",
+                "/root/hiclaw-fs/agents/verification-auditor/skills/verify-lab-result/scripts/emit_handoff.py",
+            ),
+        )
+        for role, skill, event, output, emitter in expected_stages:
+            with self.subTest(role=role):
+                self.assertIn(role, manager_task)
+                self.assertIn(f"`{skill}`", manager_task)
+                self.assertIn(f"`{event}`", manager_task)
+                self.assertIn(f"`{output}`", manager_task)
+                self.assertIn(emitter, manager_task)
+
+        self.assertIn("immediately dispatch the next stage", manager_task)
+        self.assertIn("Do not wait for a heartbeat", manager_task)
+        self.assertIn("Do not copy an incoming event kind", manager_task)
+        self.assertIn("correct it internally with the same Worker", manager_task)
+        self.assertIn("Do not ask the human to send continue", manager_task)
+        self.assertIn("publish automatically after Auditor completion", manager_task)
+        self.assertIn(
+            "governs runtime sequencing and overrides any legacy routing ambiguity",
+            manager_task,
+        )
+        self.assertEqual(
+            manager_task.count("## Human Approval — the only mid-run user action"),
+            1,
+        )
+        for field in (
+            "session_id",
+            "task_instance_id",
+            "incident_instance_id",
+            "attempt_id",
+            "run_id",
+            "approval_id",
+            "plan_id",
+            "canonical_plan_sha256",
+            "nonce",
+            "decision",
+            "approved_scope",
+            "approved_at",
+            "expires_at",
+        ):
+            with self.subTest(approval_field=field):
+                self.assertIn(f"{field}:", manager_task)
+
     def test_cli_prepare_and_verify_use_the_session_helper(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             output = io.StringIO()

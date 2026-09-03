@@ -94,7 +94,203 @@ def _session_manifest(session_id: str) -> dict:
     }
 
 
+def _emitter_command(
+    manifest: dict,
+    emitter_path: str,
+    event_kind: str,
+    input_artifact: str,
+    output_artifact: str,
+) -> str:
+    session_root = f"/root/hiclaw-fs/shared/tasks/{manifest['storage_namespace'].rstrip('/')}"
+    return " ".join(
+        (
+            "python",
+            emitter_path,
+            "--session-root",
+            session_root,
+            "--session-id",
+            manifest["session_id"],
+            "--task-instance-id",
+            manifest["task_instance_id"],
+            "--incident-instance-id",
+            manifest["incident_instance_id"],
+            "--attempt-id",
+            manifest["attempt_id"],
+            "--run-id",
+            manifest["run_id"],
+            "--event-kind",
+            event_kind,
+            "--input-artifact",
+            input_artifact,
+            "--output-artifact",
+            output_artifact,
+        )
+    )
+
+
 def _manager_task(manifest: dict, frozen_prompt: str) -> str:
+    session_root = f"/root/hiclaw-fs/shared/tasks/{manifest['storage_namespace'].rstrip('/')}"
+    run_result = f"runs/{manifest['run_id']}/run_result.json"
+    stage_commands = {
+        "manager_to_collector": _emitter_command(
+            manifest,
+            "/root/manager-workspace/skills/pack-lab-evidence/scripts/emit_handoff.py",
+            "manager_to_collector",
+            "incident_packet.json",
+            "incident_packet.json",
+        ),
+        "collector_to_rca": _emitter_command(
+            manifest,
+            "/root/hiclaw-fs/agents/evidence-collector/skills/collect-lab-evidence/scripts/emit_handoff.py",
+            "collector_to_rca",
+            "incident_packet.json",
+            "collector-report.json",
+        ),
+        "rca_to_planner": _emitter_command(
+            manifest,
+            "/root/hiclaw-fs/agents/rca-analyst/skills/diagnose-lab-incident/scripts/emit_handoff.py",
+            "rca_to_planner",
+            "collector-report.json",
+            "diagnosis/diagnosis_candidates.json",
+        ),
+        "approval_pending": _emitter_command(
+            manifest,
+            "/root/hiclaw-fs/agents/researcher/skills/plan-lab-experiment/scripts/emit_handoff.py",
+            "approval_pending",
+            "diagnosis/diagnosis_candidates.json",
+            "plan/plan.json",
+        ),
+        "executor_to_auditor": _emitter_command(
+            manifest,
+            "/root/hiclaw-fs/agents/controlled-executor/skills/control-lab-action/scripts/emit_handoff.py",
+            "executor_to_auditor",
+            "plan/plan.json",
+            run_result,
+        ),
+        "verification_completed": _emitter_command(
+            manifest,
+            "/root/hiclaw-fs/agents/verification-auditor/skills/verify-lab-result/scripts/emit_handoff.py",
+            "verification_completed",
+            run_result,
+            "verification/verification_report.json",
+        ),
+        "commander_published": _emitter_command(
+            manifest,
+            "/root/manager-workspace/skills/pack-lab-evidence/scripts/emit_handoff.py",
+            "commander_published",
+            "verification/verification_report.json",
+            "evidence_bundle.zip",
+        ),
+    }
+    orchestration = f"""## Deterministic single-trigger orchestration
+
+This deterministic section governs runtime sequencing and overrides any legacy routing ambiguity
+in the frozen reference copy retained below for evidence provenance.
+
+The human sends this Manager task once. After every schema-valid atomic event,
+immediately dispatch the next stage shown below. Do not wait for a heartbeat,
+scheduled history scan, or another human message. Do not copy an incoming event kind
+into the next assignment: each role has its own outgoing kind and command.
+
+Create and validate the session namespace `{session_root}` and its canonical
+`incident_packet.json` before Stage 1. Every Worker assignment must include the
+unchanged five bindings, its named Skill, exact input/output paths, and the exact
+emitter command below.
+
+### Stage 1 — Incident Commander → Evidence Collector
+
+- Skill package: `pack-lab-evidence` (hosts the Manager emitter; packaging occurs only at final publication)
+- Input: `incident_packet.json`
+- Output: `incident_packet.json`
+- Outgoing event: `manager_to_collector`
+- On success: immediately assign Stage 2 to Evidence Collector.
+- Exact emitter command: `{stage_commands['manager_to_collector']}`
+
+### Stage 2 — Evidence Collector → RCA Analyst
+
+- Skill: `collect-lab-evidence`
+- Input: `incident_packet.json`
+- Output: `collector-report.json`
+- Outgoing event: `collector_to_rca`
+- On success: immediately assign Stage 3 to RCA Analyst.
+- Exact emitter command: `{stage_commands['collector_to_rca']}`
+
+### Stage 3 — RCA Analyst → Experiment Planner
+
+- Skill: `diagnose-lab-incident`
+- Input: `collector-report.json`
+- Output: `diagnosis/diagnosis_candidates.json`
+- Outgoing event: `rca_to_planner`
+- On success: immediately assign Stage 4 to Experiment Planner.
+- Exact emitter command: `{stage_commands['rca_to_planner']}`
+
+### Stage 4 — Experiment Planner → Human Approval
+
+- Skill: `plan-lab-experiment`
+- Input: `diagnosis/diagnosis_candidates.json`
+- Output: `plan/plan.json`
+- Outgoing event: `approval_pending`
+- On success: validate the canonical Plan Hash and display the single Human Approval block below. Do not dispatch Executor yet.
+- Exact emitter command: `{stage_commands['approval_pending']}`
+
+### Stage 5 — Safe Executor → Verification Auditor
+
+- Skill: `control-lab-action`
+- Input: `plan/plan.json`
+- Output: `{run_result}`
+- Outgoing event: `executor_to_auditor`
+- Entry condition: one valid human ApprovalGrant bound to this exact plan and run.
+- On success: immediately assign Stage 6 to Verification Auditor.
+- Exact emitter command: `{stage_commands['executor_to_auditor']}`
+
+### Stage 6 — Verification Auditor → Incident Commander
+
+- Skill: `verify-lab-result`
+- Input: `{run_result}`
+- Output: `verification/verification_report.json`
+- Outgoing event: `verification_completed`
+- On success: invoke `pack-lab-evidence`, write `evidence_bundle.zip`, emit
+  `commander_published` with `{stage_commands['commander_published']}`, and
+  publish automatically after Auditor completion.
+- Exact emitter command: `{stage_commands['verification_completed']}`
+
+If a Worker artifact is valid but its event is missing, malformed, or uses the
+wrong kind, correct it internally with the same Worker by having that Worker run
+its assigned emitter command. Do not impersonate the Worker and do not ask the
+human to repair, continue, check, or resend the stage. Do not ask the human to send continue
+before approval or after verification.
+
+## Human Approval — the only mid-run user action
+
+After the valid `approval_pending` event, generate the concrete values, show a
+Chinese plan/risk summary, and print exactly one copyable block in this shape.
+The human sends the completed block once from a non-Agent Matrix account:
+
+```text
+LABOPS_EVENT_KIND: approval_granted
+LABOPS_ACTOR: human-approver
+session_id: {manifest['session_id']}
+task_instance_id: {manifest['task_instance_id']}
+incident_instance_id: {manifest['incident_instance_id']}
+attempt_id: {manifest['attempt_id']}
+run_id: {manifest['run_id']}
+approval_id: <generated approval ID>
+plan_id: <exact plan ID>
+canonical_plan_sha256: <64 lowercase hex characters>
+nonce: <new single-use nonce>
+decision: APPROVED
+approved_scope: <exact one-variable scope>
+approved_at: <UTC timestamp>
+expires_at: <later UTC timestamp>
+```
+
+Validate every field against `plan/plan.json`; archive the resulting
+ApprovalGrant at `artifacts/DEMO-EVAL-DRIFT-004/approval_grant.json`, then
+immediately dispatch Stage 5. A bare “可以执行” is not an approval event. Human
+rejection uses `decision: REJECTED` and stops safely. No Agent may author this
+block. This is the only normal point where the workflow waits for the human.
+
+"""
     envelope = f"""# Real AgentTeams live session: {manifest['session_id']}
 
 Classification: `{CLASSIFICATION}`. This is a new live recording session, not a
@@ -214,7 +410,13 @@ approve the plan, run the Worker chain or invoke the Gateway.
         "RUN-LABOPS-AT-004-AGENTTEAMS-001",
         manifest["run_id"],
     )
-    return envelope + "\n---\n\n## Session-bound copy of the AT-004 Manager Prompt\n\n" + session_prompt
+    return (
+        envelope
+        + "\n"
+        + orchestration
+        + "\n---\n\n## Session-bound copy of the AT-004 Manager Prompt\n\n"
+        + session_prompt
+    )
 
 
 def prepare_session(project_root: str | Path, sessions_root: str | Path, session_id: str) -> dict:
