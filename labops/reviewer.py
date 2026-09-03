@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -24,6 +25,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
 
+from labops.agentteams_skill_deployment import verify_skill_packages
 from labops.demo_readiness import RUNNER_IMAGE, build_readiness
 from labops.live_demo import (
     CLASSIFICATION,
@@ -54,6 +56,8 @@ AGENTTEAMS_CONTAINERS = {
     "safe-executor": "hiclaw-worker-controlled-executor",
     "verification-auditor": "hiclaw-worker-verification-auditor",
 }
+MANAGER_STATE_PATH = "/root/manager-workspace/state.json"
+LIVE_TASK_ID = re.compile(r"^LIVE-TASK-\d{8}-\d{3}$")
 
 
 def _utc_now() -> str:
@@ -192,6 +196,121 @@ def _probe_agentteams_business_readiness(project_root: Path) -> dict[str, Any]:
     }
 
 
+def _probe_agentteams_skill_runtime(
+    project_root: Path, room_map_path: Path
+) -> dict[str, Any]:
+    """Verify deployed atomic emitters without returning private routing data."""
+
+    try:
+        report = verify_skill_packages(
+            project_root,
+            room_map_path=room_map_path,
+        )
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return {
+            "status": "UNVERIFIED",
+            "runtime_event_emission": "UNVERIFIED",
+            "skill_count": 0,
+            "emitters_verified": 0,
+        }
+    skills = report.get("skills") if isinstance(report.get("skills"), list) else []
+    skill_count = report.get("skill_count")
+    expected = skill_count if isinstance(skill_count, int) else len(skills)
+    emitters_verified = sum(
+        isinstance(item, dict) and item.get("event_emitter") == "VERIFIED"
+        for item in skills
+    )
+    return {
+        "status": report.get("status", "UNVERIFIED"),
+        "runtime_event_emission": report.get(
+            "runtime_event_emission", "UNVERIFIED"
+        ),
+        "skill_count": expected,
+        "emitters_verified": emitters_verified,
+    }
+
+
+def _active_task_ids(active_tasks: Any) -> list[str]:
+    """Extract only task identifiers from the Manager's active task registry."""
+
+    if isinstance(active_tasks, dict):
+        entries = list(active_tasks.items())
+    elif isinstance(active_tasks, list):
+        entries = [(None, item) for item in active_tasks]
+    else:
+        raise ValueError("Manager active_tasks must be an object or array")
+
+    identifiers: list[str] = []
+    for key, value in entries:
+        candidate: Any = key
+        if isinstance(value, str):
+            candidate = value if key is None else key
+        elif isinstance(value, dict):
+            candidate = next(
+                (
+                    value.get(field)
+                    for field in ("task_instance_id", "task_id", "id")
+                    if isinstance(value.get(field), str)
+                ),
+                key,
+            )
+        if not isinstance(candidate, str) or not candidate:
+            raise ValueError("Manager active task has no identifier")
+        identifiers.append(candidate)
+    return identifiers
+
+
+def _probe_manager_recording_state(project_root: Path) -> dict[str, Any]:
+    """Read only Manager active-task counts, never task contents or state paths."""
+
+    docker = shutil.which("docker")
+    if not docker:
+        return {
+            "status": "UNVERIFIED",
+            "active_task_count": 0,
+            "formal_task_count": 0,
+            "live_task_count": 0,
+        }
+    try:
+        result = subprocess.run(
+            [docker, "exec", "hiclaw-manager", "cat", MANAGER_STATE_PATH],
+            cwd=project_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="strict",
+            timeout=15,
+        )
+        if result.returncode != 0:
+            raise ValueError("Manager state is unavailable")
+        state = json.loads(result.stdout)
+        if not isinstance(state, dict) or "active_tasks" not in state:
+            raise ValueError("Manager state lacks active_tasks")
+        identifiers = _active_task_ids(state["active_tasks"])
+    except (
+        OSError,
+        UnicodeError,
+        ValueError,
+        json.JSONDecodeError,
+        subprocess.TimeoutExpired,
+    ):
+        return {
+            "status": "UNVERIFIED",
+            "active_task_count": 0,
+            "formal_task_count": 0,
+            "live_task_count": 0,
+        }
+
+    live_count = sum(bool(LIVE_TASK_ID.fullmatch(item)) for item in identifiers)
+    return {
+        "status": "VERIFIED",
+        "active_task_count": len(identifiers),
+        "formal_task_count": len(identifiers) - live_count,
+        "live_task_count": live_count,
+    }
+
+
 def _repository_projection(project_root: Path) -> tuple[dict[str, Any], bool]:
     try:
         readiness = build_readiness(project_root)
@@ -234,6 +353,8 @@ def build_preflight(
     docker_probe: Callable[[Path], dict[str, bool]] | None = None,
     agentteams_probe: Callable[[Path], dict[str, Any]] | None = None,
     matrix_probe: Callable[[str, str, dict[str, str]], dict[str, Any]] | None = None,
+    skill_runtime_probe: Callable[[Path, Path], dict[str, Any]] | None = None,
+    manager_state_probe: Callable[[Path], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Return deterministic, credential-free Reviewer readiness JSON."""
 
@@ -333,6 +454,99 @@ def build_preflight(
                 if error == "MATRIX_ROOM_MAP_UNJOINED"
                 else "MATRIX_ROOM_MEMBERSHIP_UNVERIFIED"
             )
+
+        skill_runtime_ready = False
+        skill_runtime_eligible = docker_ready and business_ready and room_map_ready
+        skill_runtime: dict[str, Any] = {
+            "status": "NOT_CHECKED",
+            "runtime_event_emission": "NOT_CHECKED",
+            "skill_count": 0,
+            "emitters_verified": 0,
+        }
+        if skill_runtime_eligible:
+            skill_runtime = (skill_runtime_probe or _probe_agentteams_skill_runtime)(
+                root, Path(room_map_value)
+            )
+            skill_count = skill_runtime.get("skill_count")
+            emitters_verified = skill_runtime.get("emitters_verified")
+            skill_runtime_ready = (
+                skill_runtime.get("status") == "VERIFIED"
+                and skill_runtime.get("runtime_event_emission") == "VERIFIED"
+                and isinstance(skill_count, int)
+                and skill_count > 0
+                and emitters_verified == skill_count
+            )
+        checks["agentteams_event_emission"] = {
+            "status": (
+                "PASS"
+                if skill_runtime_ready
+                else "FAIL"
+                if skill_runtime_eligible
+                else "NOT_CHECKED"
+            ),
+            "runtime_event_emission": skill_runtime.get(
+                "runtime_event_emission", "UNVERIFIED"
+            ),
+            "skills": (
+                skill_runtime.get("skill_count")
+                if isinstance(skill_runtime.get("skill_count"), int)
+                else 0
+            ),
+            "emitters_verified": (
+                skill_runtime.get("emitters_verified")
+                if isinstance(skill_runtime.get("emitters_verified"), int)
+                else 0
+            ),
+        }
+        if skill_runtime_eligible and not skill_runtime_ready:
+            missing.append("AGENTTEAMS_EVENT_EMISSION_UNVERIFIED")
+
+        manager_state_ready = False
+        manager_state_clean = False
+        manager_state_eligible = docker_ready and business_ready
+        manager_state: dict[str, Any] = {
+            "status": "NOT_CHECKED",
+            "active_task_count": 0,
+            "formal_task_count": 0,
+            "live_task_count": 0,
+        }
+        if manager_state_eligible:
+            manager_state = (manager_state_probe or _probe_manager_recording_state)(
+                root
+            )
+            manager_state_ready = manager_state.get("status") == "VERIFIED"
+            manager_state_clean = (
+                manager_state_ready and manager_state.get("live_task_count") == 0
+            )
+        checks["manager_recording_state"] = {
+            "status": (
+                "PASS"
+                if manager_state_clean
+                else "FAIL"
+                if manager_state_eligible
+                else "NOT_CHECKED"
+            ),
+            "active_task_count": (
+                manager_state.get("active_task_count")
+                if isinstance(manager_state.get("active_task_count"), int)
+                else 0
+            ),
+            "formal_task_count": (
+                manager_state.get("formal_task_count")
+                if isinstance(manager_state.get("formal_task_count"), int)
+                else 0
+            ),
+            "live_task_count": (
+                manager_state.get("live_task_count")
+                if isinstance(manager_state.get("live_task_count"), int)
+                else 0
+            ),
+        }
+        if manager_state_eligible and not manager_state_ready:
+            missing.append("MANAGER_RECORDING_STATE_UNVERIFIED")
+        elif manager_state_eligible and not manager_state_clean:
+            missing.append("STALE_LIVE_TASKS")
+
         if (
             repository_ready
             and docker_ready
@@ -342,6 +556,8 @@ def build_preflight(
             and token_ready
             and room_map_ready
             and membership_ready
+            and skill_runtime_ready
+            and manager_state_clean
         ):
             available_modes.append("LIVE")
 

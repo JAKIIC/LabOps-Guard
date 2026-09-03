@@ -40,6 +40,24 @@ REAL_ROOM_MAP = {
 }
 
 
+def _verified_skill_runtime(_root: Path, _room_map: Path) -> dict:
+    return {
+        "status": "VERIFIED",
+        "runtime_event_emission": "VERIFIED",
+        "skill_count": 7,
+        "emitters_verified": 7,
+    }
+
+
+def _clean_manager_state(_root: Path) -> dict:
+    return {
+        "status": "VERIFIED",
+        "active_task_count": 1,
+        "formal_task_count": 1,
+        "live_task_count": 0,
+    }
+
+
 def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -217,6 +235,8 @@ class ReviewerPreflightTests(unittest.TestCase):
                     "rooms_expected": len(roles),
                     "error": None,
                 },
+                skill_runtime_probe=_verified_skill_runtime,
+                manager_state_probe=_clean_manager_state,
             )
 
         self.assertEqual(report["status"], "READY")
@@ -224,6 +244,133 @@ class ReviewerPreflightTests(unittest.TestCase):
         rendered = json.dumps(report, ensure_ascii=False)
         self.assertNotIn("reviewer-secret-token", rendered)
         self.assertNotIn(str(room_map), rendered)
+        self.assertNotIn("!manager:matrix-local.hiclaw.io", rendered)
+        self.assertNotIn("/root/manager-workspace/state.json", rendered)
+
+    def test_live_mode_blocks_when_atomic_runtime_event_emission_is_not_implemented(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            room_map = Path(tmp) / "rooms.json"
+            room_map.write_text(json.dumps(REAL_ROOM_MAP), encoding="utf-8")
+            report = build_preflight(
+                ROOT,
+                "live",
+                environment={
+                    "LABOPS_MATRIX_HOMESERVER": "http://127.0.0.1:18080",
+                    "LABOPS_MATRIX_ACCESS_TOKEN": "reviewer-secret-token",
+                    "LABOPS_MATRIX_ROOM_MAP": str(room_map),
+                },
+                docker_probe=lambda _root: {"docker": True, "runner_image": True},
+                agentteams_probe=lambda _root: {
+                    "ready": True,
+                    "ready_count": 6,
+                    "required": 6,
+                    "components": {},
+                },
+                matrix_probe=lambda _homeserver, _token, roles: {
+                    "connected": True,
+                    "all_joined": True,
+                    "rooms_expected": len(roles),
+                    "error": None,
+                },
+                skill_runtime_probe=lambda _root, _room_map: {
+                    "status": "VERIFIED",
+                    "runtime_event_emission": "NOT_IMPLEMENTED",
+                    "skill_count": 7,
+                    "emitters_verified": 0,
+                },
+                manager_state_probe=_clean_manager_state,
+            )
+
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertIn(
+            "AGENTTEAMS_EVENT_EMISSION_UNVERIFIED",
+            report["missing_requirements"],
+        )
+
+    def test_live_mode_blocks_when_one_runtime_emitter_fails_verification(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            room_map = Path(tmp) / "rooms.json"
+            room_map.write_text(json.dumps(REAL_ROOM_MAP), encoding="utf-8")
+            report = build_preflight(
+                ROOT,
+                "live",
+                environment={
+                    "LABOPS_MATRIX_HOMESERVER": "http://127.0.0.1:18080",
+                    "LABOPS_MATRIX_ACCESS_TOKEN": "reviewer-secret-token",
+                    "LABOPS_MATRIX_ROOM_MAP": str(room_map),
+                },
+                docker_probe=lambda _root: {"docker": True, "runner_image": True},
+                agentteams_probe=lambda _root: {
+                    "ready": True,
+                    "ready_count": 6,
+                    "required": 6,
+                    "components": {},
+                },
+                matrix_probe=lambda _homeserver, _token, roles: {
+                    "connected": True,
+                    "all_joined": True,
+                    "rooms_expected": len(roles),
+                    "error": None,
+                },
+                skill_runtime_probe=lambda _root, _room_map: {
+                    "status": "VERIFIED",
+                    "runtime_event_emission": "VERIFIED",
+                    "skill_count": 7,
+                    "emitters_verified": 6,
+                },
+                manager_state_probe=_clean_manager_state,
+            )
+
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertIn(
+            "AGENTTEAMS_EVENT_EMISSION_UNVERIFIED",
+            report["missing_requirements"],
+        )
+        self.assertEqual(
+            report["checks"]["agentteams_event_emission"]["emitters_verified"],
+            6,
+        )
+
+    def test_live_mode_blocks_when_manager_has_a_stale_live_task(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            room_map = Path(tmp) / "rooms.json"
+            room_map.write_text(json.dumps(REAL_ROOM_MAP), encoding="utf-8")
+            report = build_preflight(
+                ROOT,
+                "live",
+                environment={
+                    "LABOPS_MATRIX_HOMESERVER": "http://127.0.0.1:18080",
+                    "LABOPS_MATRIX_ACCESS_TOKEN": "reviewer-secret-token",
+                    "LABOPS_MATRIX_ROOM_MAP": str(room_map),
+                },
+                docker_probe=lambda _root: {"docker": True, "runner_image": True},
+                agentteams_probe=lambda _root: {
+                    "ready": True,
+                    "ready_count": 6,
+                    "required": 6,
+                    "components": {},
+                },
+                matrix_probe=lambda _homeserver, _token, roles: {
+                    "connected": True,
+                    "all_joined": True,
+                    "rooms_expected": len(roles),
+                    "error": None,
+                },
+                skill_runtime_probe=_verified_skill_runtime,
+                manager_state_probe=lambda _root: {
+                    "status": "VERIFIED",
+                    "active_task_count": 2,
+                    "formal_task_count": 1,
+                    "live_task_count": 1,
+                },
+            )
+
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertIn("STALE_LIVE_TASKS", report["missing_requirements"])
+        self.assertEqual(
+            report["checks"]["manager_recording_state"]["live_task_count"],
+            1,
+        )
 
     def test_live_mode_blocks_a_well_formed_but_unjoined_room_map(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -250,6 +397,8 @@ class ReviewerPreflightTests(unittest.TestCase):
                     "rooms_expected": len(roles),
                     "error": "MATRIX_ROOM_MAP_UNJOINED",
                 },
+                skill_runtime_probe=_verified_skill_runtime,
+                manager_state_probe=_clean_manager_state,
             )
 
         self.assertEqual(report["status"], "BLOCKED")
@@ -284,6 +433,8 @@ class ReviewerPreflightTests(unittest.TestCase):
                     "rooms_expected": len(roles),
                     "error": None,
                 },
+                skill_runtime_probe=_verified_skill_runtime,
+                manager_state_probe=_clean_manager_state,
             )
 
         self.assertEqual(report["status"], "BLOCKED")
