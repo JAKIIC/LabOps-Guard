@@ -265,6 +265,24 @@ class TestLiveDemoSession(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 prepare_session(repo_root(), root, "20260831-001")
 
+    def test_prepare_rejects_a_run_id_reused_by_another_date(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first = prepare_session(repo_root(), root, "20260902-003")
+            first_manifest = (root / "20260902-003" / "session.json").read_bytes()
+
+            with self.assertRaisesRegex(
+                ValueError, "RUN-LABOPS-AT-004-AGENTTEAMS-003.*20260903-001"
+            ):
+                prepare_session(repo_root(), root, "20260903-003")
+
+            self.assertEqual(
+                (root / "20260902-003" / "session.json").read_bytes(),
+                first_manifest,
+            )
+            self.assertFalse((root / "20260903-003").exists())
+            self.assertEqual(first["status"], "PREPARED")
+
     def test_two_sessions_have_distinct_task_incident_attempt_and_storage_namespaces(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

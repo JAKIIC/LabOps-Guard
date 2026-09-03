@@ -327,6 +327,7 @@ def cmd_demo_readiness(args) -> int:
 
 def cmd_live_demo(args) -> int:
     from labops.live_demo import prepare_session, verify_session
+    from labops.live_demo_state import archive_live_rehearsals
 
     project_root = Path(__file__).resolve().parent.parent
     sessions_root = (
@@ -335,7 +336,13 @@ def cmd_live_demo(args) -> int:
         else project_root / "demo" / "live-sessions"
     )
     try:
-        if args.action == "prepare":
+        if args.action == "archive-rehearsals":
+            payload = archive_live_rehearsals(
+                project_root,
+                sessions_root,
+                confirm=args.confirm,
+            )
+        elif args.action == "prepare":
             payload = prepare_session(project_root, sessions_root, args.session)
         else:
             payload = verify_session(project_root, sessions_root, args.session)
@@ -343,7 +350,7 @@ def cmd_live_demo(args) -> int:
         print(json.dumps({"status": "BLOCKED", "error": str(exc)}, ensure_ascii=False, indent=2))
         return 2
     print(json.dumps(payload, ensure_ascii=False, indent=2))
-    return 0 if payload["status"] in {"PREPARED", "VERIFIED"} else 2
+    return 0 if payload["status"] in {"PREPARED", "VERIFIED", "PREVIEW", "ARCHIVED", "CLEAN"} else 2
 
 
 def cmd_recovery(args) -> int:
@@ -658,6 +665,21 @@ def build_parser() -> argparse.ArgumentParser:
             help="session storage root (default: demo/live-sessions)",
         )
         live.set_defaults(func=cmd_live_demo)
+    live_archive = live_sub.add_parser(
+        "archive-rehearsals",
+        help="preview or safely archive stale LIVE-TASK entries",
+    )
+    live_archive.add_argument(
+        "--sessions-root",
+        default=None,
+        help="session storage root (default: demo/live-sessions)",
+    )
+    live_archive.add_argument(
+        "--confirm",
+        default=None,
+        help="must exactly equal ARCHIVE_LIVE_REHEARSALS; omission is read-only preview",
+    )
+    live_archive.set_defaults(func=cmd_live_demo)
 
     sp = sub.add_parser("recovery", help="inspect or operate a governed live-session recovery overlay")
     recovery_sub = sp.add_subparsers(dest="action", required=True)

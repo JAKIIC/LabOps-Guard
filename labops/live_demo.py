@@ -20,6 +20,7 @@ from labops.trace import TraceLog
 
 CLASSIFICATION = "NON_FORMAL_LIVE_DEMO"
 SESSION_ID = re.compile(r"^(?P<date>[0-9]{8})-(?P<sequence>[0-9]{3})$")
+RUN_ID = re.compile(r"^RUN-LABOPS-AT-004-AGENTTEAMS-(?P<sequence>[0-9]{3})$")
 ROLE_ORDER = [
     "labops-manager",
     "evidence-collector",
@@ -92,6 +93,49 @@ def _session_manifest(session_id: str) -> dict:
             "creates_agent_evidence": False,
         },
     }
+
+
+def _guard_run_id_collision(sessions_root: Path, manifest: dict) -> None:
+    if not sessions_root.exists():
+        return
+    bindings: dict[str, str] = {}
+    used_sequences: set[str] = set()
+    for manifest_path in sorted(sessions_root.glob("*/session.json")):
+        try:
+            existing = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise ValueError(
+                f"cannot inspect existing session manifest: {manifest_path.parent.name}"
+            ) from exc
+        if not isinstance(existing, dict):
+            raise ValueError(
+                f"existing session manifest is not an object: {manifest_path.parent.name}"
+            )
+        run_id = existing.get("run_id")
+        session_id = existing.get("session_id")
+        if not isinstance(run_id, str) or not isinstance(session_id, str):
+            continue
+        bindings[run_id] = session_id
+        run_match = RUN_ID.fullmatch(run_id)
+        if run_match is not None:
+            used_sequences.add(run_match.group("sequence"))
+
+    owner = bindings.get(manifest["run_id"])
+    if owner is None or owner == manifest["session_id"]:
+        return
+    date = SESSION_ID.fullmatch(manifest["session_id"]).group("date")
+    suggestion = next(
+        (
+            f"{date}-{sequence:03d}"
+            for sequence in range(1, 1000)
+            if f"{sequence:03d}" not in used_sequences
+        ),
+        None,
+    )
+    message = f"Run ID {manifest['run_id']} is already bound to session {owner}"
+    if suggestion is not None:
+        message += f"; use session {suggestion}"
+    raise ValueError(message)
 
 
 def _emitter_command(
@@ -428,6 +472,7 @@ def prepare_session(project_root: str | Path, sessions_root: str | Path, session
         if _inside(sessions_root, project_root / relative):
             raise ValueError("live sessions cannot be stored inside formal Evidence roots")
     manifest = _session_manifest(session_id)
+    _guard_run_id_collision(sessions_root, manifest)
     frozen_prompt = (
         project_root / "agentteams" / "prompts" / "eval_drift_task.md"
     ).read_text(encoding="utf-8")
