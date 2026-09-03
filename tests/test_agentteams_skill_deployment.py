@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 import subprocess
 import sys
 import tempfile
@@ -18,12 +19,36 @@ from labops import cli
 
 
 ROOT = Path(__file__).resolve().parents[1]
+ROOMS_BY_ROLE = {
+    "labops-manager": "!manager:matrix.test",
+    "evidence-collector": "!collector:matrix.test",
+    "rca-analyst": "!rca:matrix.test",
+    "experiment-planner": "!planner:matrix.test",
+    "safe-executor": "!executor:matrix.test",
+    "verification-auditor": "!auditor:matrix.test",
+}
+MANAGER_USER = "@manager:matrix.test"
+
+
+def write_room_map(directory: Path) -> Path:
+    path = directory / "reviewer-room-map.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "rooms": {room_id: role for role, room_id in ROOMS_BY_ROLE.items()},
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
 
 
 class InMemoryAgentTeamsRuntime:
     def __init__(self, *, image_version: str = "v1.1.2", running: bool = True) -> None:
         self.files: dict[tuple[str, str], bytes] = {}
         self.skills: dict[str, set[str]] = {}
+        self.backups: list[dict[tuple[str, str], bytes]] = []
         self.image_version = image_version
         self.running = running
 
@@ -42,9 +67,13 @@ class InMemoryAgentTeamsRuntime:
         )
 
     def read_binding(self, container_name: str, skill_path: str) -> dict | None:
-        raw = self.files.get(
-            (container_name, skill_path.rstrip("/") + "/LABOPS_RUNTIME_BINDING.json")
+        return self.read_json(
+            container_name,
+            skill_path.rstrip("/") + "/LABOPS_RUNTIME_BINDING.json",
         )
+
+    def read_json(self, container_name: str, path: str) -> dict | None:
+        raw = self.files.get((container_name, path))
         return json.loads(raw) if raw is not None else None
 
     def copy_skill(self, source: Path, container_name: str, skills_root: str) -> None:
@@ -54,6 +83,22 @@ class InMemoryAgentTeamsRuntime:
                 relative = path.relative_to(source).as_posix()
                 self.files[(container_name, destination + "/" + relative)] = path.read_bytes()
         self.skills.setdefault(container_name, set()).add(source.name)
+
+    def replace_skill(self, source: Path, container_name: str, destination: str) -> str:
+        prefix = destination.rstrip("/") + "/"
+        snapshot = {
+            key: value
+            for key, value in self.files.items()
+            if key[0] == container_name and key[1].startswith(prefix)
+        }
+        self.backups.append(snapshot)
+        self.files = {
+            key: value
+            for key, value in self.files.items()
+            if not (key[0] == container_name and key[1].startswith(prefix))
+        }
+        self.copy_skill(source, container_name, destination.rsplit("/", 1)[0])
+        return destination + ".labops-backup-test"
 
     def file_sha256(self, container_name: str, path: str) -> str | None:
         raw = self.files.get((container_name, path))
@@ -92,11 +137,16 @@ class AgentTeamsSkillDeploymentCLITests(unittest.TestCase):
         )
 
     def test_stage_copies_contracts_and_writes_deterministic_version_bindings(self) -> None:
-        with tempfile.TemporaryDirectory() as first_tmp, tempfile.TemporaryDirectory() as second_tmp:
+        with tempfile.TemporaryDirectory() as first_tmp, tempfile.TemporaryDirectory() as second_tmp, tempfile.TemporaryDirectory() as config_tmp:
             first = Path(first_tmp) / "stage"
             second = Path(second_tmp) / "stage"
-            first_report = deployment.stage_skill_deployment(ROOT, first)
-            second_report = deployment.stage_skill_deployment(ROOT, second)
+            room_map = write_room_map(Path(config_tmp))
+            first_report = deployment.stage_skill_deployment(
+                ROOT, first, room_map_path=room_map
+            )
+            second_report = deployment.stage_skill_deployment(
+                ROOT, second, room_map_path=room_map
+            )
 
             first_files = {
                 path.relative_to(first).as_posix(): path.read_bytes()
@@ -121,11 +171,46 @@ class AgentTeamsSkillDeploymentCLITests(unittest.TestCase):
         self.assertEqual(binding["skill_version"], "0.2.0")
         self.assertEqual(binding["canonical_owner_agent"], "safe-executor")
         self.assertEqual(binding["runtime_agent_id"], "controlled-executor")
+        self.assertEqual(binding["runtime_event_emission"], "VERIFIED")
         self.assertEqual(len(binding["skill_sha256"]), 64)
+        self.assertEqual(len(binding["handoff_emitter_sha256"]), 64)
         self.assertIn(
             "controlled-executor/control-lab-action/references/io-schema.json",
             first_files,
         )
+        emitter_path = "controlled-executor/control-lab-action/scripts/emit_handoff.py"
+        self.assertIn(emitter_path, first_files)
+        self.assertEqual(
+            hashlib.sha256(first_files[emitter_path]).hexdigest(),
+            binding["handoff_emitter_sha256"],
+        )
+        collector_runtime = json.loads(
+            first_files[
+                "evidence-collector/collect-lab-evidence/LABOPS_HANDOFF_RUNTIME.json"
+            ].decode("utf-8")
+        )
+        self.assertEqual(
+            collector_runtime["events"]["collector_to_rca"]["room_id"],
+            ROOMS_BY_ROLE["evidence-collector"],
+        )
+        self.assertEqual(
+            collector_runtime["events"]["collector_to_rca"]["recipient_matrix_id"],
+            MANAGER_USER,
+        )
+        manager_runtime = json.loads(
+            first_files[
+                "labops-manager/pack-lab-evidence/LABOPS_HANDOFF_RUNTIME.json"
+            ].decode("utf-8")
+        )
+        self.assertEqual(
+            manager_runtime["events"]["manager_to_collector"]["room_id"],
+            ROOMS_BY_ROLE["evidence-collector"],
+        )
+        self.assertEqual(
+            manager_runtime["events"]["manager_to_collector"]["recipient_matrix_id"],
+            "@evidence-collector:matrix.test",
+        )
+        self.assertNotIn("token", json.dumps(manager_runtime).lower())
 
     def test_deploy_requires_an_explicit_pinned_version_confirmation(self) -> None:
         result = subprocess.run(
@@ -145,37 +230,46 @@ class AgentTeamsSkillDeploymentCLITests(unittest.TestCase):
 
     def test_deploy_verifies_runtime_discovery_without_claiming_invocation(self) -> None:
         runtime = InMemoryAgentTeamsRuntime()
-
-        report = deployment.deploy_skill_packages(
-            ROOT,
-            confirm_version="v1.1.2",
-            runtime=runtime,
-        )
+        with tempfile.TemporaryDirectory() as tmp:
+            report = deployment.deploy_skill_packages(
+                ROOT,
+                confirm_version="v1.1.2",
+                room_map_path=write_room_map(Path(tmp)),
+                runtime=runtime,
+            )
 
         self.assertEqual(report["status"], "DEPLOYED")
         self.assertEqual(report["skill_count"], 7)
-        self.assertEqual(report["runtime_event_emission"], "NOT_IMPLEMENTED")
+        self.assertEqual(report["runtime_event_emission"], "VERIFIED")
         for item in report["skills"]:
             self.assertEqual(item["discovery"], "VERIFIED")
             self.assertEqual(item["binding"], "VERIFIED")
+            self.assertEqual(item["event_emitter"], "VERIFIED")
             self.assertEqual(item["invocation"], "UNVERIFIED")
 
     def test_verify_is_read_only_and_fails_closed_until_skills_are_deployed(self) -> None:
         runtime = InMemoryAgentTeamsRuntime()
+        with tempfile.TemporaryDirectory() as tmp:
+            room_map = write_room_map(Path(tmp))
+            with self.assertRaises(deployment.AgentTeamsSkillDeploymentError):
+                deployment.verify_skill_packages(
+                    ROOT, room_map_path=room_map, runtime=runtime
+                )
+            self.assertEqual(runtime.files, {})
 
-        with self.assertRaises(deployment.AgentTeamsSkillDeploymentError):
-            deployment.verify_skill_packages(ROOT, runtime=runtime)
-        self.assertEqual(runtime.files, {})
-
-        deployment.deploy_skill_packages(
-            ROOT,
-            confirm_version="v1.1.2",
-            runtime=runtime,
-        )
-        before = dict(runtime.files)
-        report = deployment.verify_skill_packages(ROOT, runtime=runtime)
+            deployment.deploy_skill_packages(
+                ROOT,
+                confirm_version="v1.1.2",
+                room_map_path=room_map,
+                runtime=runtime,
+            )
+            before = dict(runtime.files)
+            report = deployment.verify_skill_packages(
+                ROOT, room_map_path=room_map, runtime=runtime
+            )
 
         self.assertEqual(report["status"], "VERIFIED")
+        self.assertEqual(report["runtime_event_emission"], "VERIFIED")
         self.assertEqual(report["skill_count"], 7)
         self.assertEqual(runtime.files, before)
         self.assertTrue(all(item["invocation"] == "UNVERIFIED" for item in report["skills"]))
@@ -194,15 +288,17 @@ class AgentTeamsSkillDeploymentCLITests(unittest.TestCase):
         runtime.files[("hiclaw-worker-controlled-executor", conflicting_path)] = b"{}"
         before = dict(runtime.files)
 
-        with self.assertRaisesRegex(
-            deployment.AgentTeamsSkillDeploymentError,
-            "Runtime Skill conflict",
-        ):
-            deployment.deploy_skill_packages(
-                ROOT,
-                confirm_version="v1.1.2",
-                runtime=runtime,
-            )
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(
+                deployment.AgentTeamsSkillDeploymentError,
+                "Runtime Skill conflict",
+            ):
+                deployment.deploy_skill_packages(
+                    ROOT,
+                    confirm_version="v1.1.2",
+                    room_map_path=write_room_map(Path(tmp)),
+                    runtime=runtime,
+                )
 
         self.assertEqual(runtime.files, before)
 
@@ -211,26 +307,75 @@ class AgentTeamsSkillDeploymentCLITests(unittest.TestCase):
             InMemoryAgentTeamsRuntime(running=False),
             InMemoryAgentTeamsRuntime(image_version="v1.1.3"),
         ):
-            with self.subTest(runtime=runtime):
+            with self.subTest(runtime=runtime), tempfile.TemporaryDirectory() as tmp:
                 with self.assertRaises(deployment.AgentTeamsSkillDeploymentError):
                     deployment.deploy_skill_packages(
                         ROOT,
                         confirm_version="v1.1.2",
+                        room_map_path=write_room_map(Path(tmp)),
                         runtime=runtime,
                     )
                 self.assertEqual(runtime.files, {})
+
+    def test_changed_runtime_package_requires_explicit_replacement_and_is_backed_up(self) -> None:
+        runtime = InMemoryAgentTeamsRuntime()
+        with tempfile.TemporaryDirectory() as tmp:
+            room_map = write_room_map(Path(tmp))
+            deployment.deploy_skill_packages(
+                ROOT,
+                confirm_version="v1.1.2",
+                room_map_path=room_map,
+                runtime=runtime,
+            )
+            emitter_key = next(
+                key
+                for key in runtime.files
+                if key[0] == "hiclaw-worker-evidence-collector"
+                and key[1].endswith("/collect-lab-evidence/scripts/emit_handoff.py")
+            )
+            runtime.files[emitter_key] = b"drifted emitter"
+
+            with self.assertRaisesRegex(
+                deployment.AgentTeamsSkillDeploymentError,
+                "Runtime Skill conflict",
+            ):
+                deployment.deploy_skill_packages(
+                    ROOT,
+                    confirm_version="v1.1.2",
+                    room_map_path=room_map,
+                    runtime=runtime,
+                )
+
+            report = deployment.deploy_skill_packages(
+                ROOT,
+                confirm_version="v1.1.2",
+                room_map_path=room_map,
+                replace_existing=True,
+                runtime=runtime,
+            )
+
+        collector = next(
+            item for item in report["skills"] if item["skill_id"] == "collect-lab-evidence"
+        )
+        self.assertEqual(collector["deployment"], "REPLACED")
+        self.assertEqual(collector["event_emitter"], "VERIFIED")
+        self.assertEqual(len(runtime.backups), 1)
+        self.assertIn(b"drifted emitter", runtime.backups[0].values())
 
     def test_verify_cli_emits_the_read_only_runtime_report(self) -> None:
         expected = {
             "schema_version": "1.0",
             "status": "VERIFIED",
             "skill_count": 7,
-            "runtime_event_emission": "NOT_IMPLEMENTED",
+            "runtime_event_emission": "VERIFIED",
         }
         output = StringIO()
-        with patch.object(deployment, "verify_skill_packages", return_value=expected):
-            with redirect_stdout(output):
-                rc = cli.main(["agentteams-skills", "verify"])
+        with tempfile.TemporaryDirectory() as tmp:
+            room_map = write_room_map(Path(tmp))
+            with patch.dict(os.environ, {"LABOPS_MATRIX_ROOM_MAP": str(room_map)}):
+                with patch.object(deployment, "verify_skill_packages", return_value=expected):
+                    with redirect_stdout(output):
+                        rc = cli.main(["agentteams-skills", "verify"])
 
         self.assertEqual(rc, 0)
         self.assertEqual(json.loads(output.getvalue()), expected)

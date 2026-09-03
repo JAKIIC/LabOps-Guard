@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -260,9 +261,7 @@ def cmd_agentteams_skills(args) -> int:
     try:
         if args.action == "plan":
             payload = build_deployment_plan(project_root)
-        elif args.action == "verify":
-            payload = verify_skill_packages(project_root)
-        elif args.confirm_version != "v1.1.2":
+        elif args.action == "deploy" and args.confirm_version != "v1.1.2":
             print(
                 json.dumps(
                     {
@@ -276,10 +275,23 @@ def cmd_agentteams_skills(args) -> int:
             )
             return 2
         else:
-            payload = deploy_skill_packages(
-                project_root,
-                confirm_version=args.confirm_version,
-            )
+            room_map = args.room_map or os.environ.get("LABOPS_MATRIX_ROOM_MAP")
+            if not room_map:
+                raise AgentTeamsSkillDeploymentError(
+                    "Deploy/verify requires --room-map or LABOPS_MATRIX_ROOM_MAP"
+                )
+            if args.action == "verify":
+                payload = verify_skill_packages(
+                    project_root,
+                    room_map_path=room_map,
+                )
+            else:
+                payload = deploy_skill_packages(
+                    project_root,
+                    confirm_version=args.confirm_version,
+                    room_map_path=room_map,
+                    replace_existing=args.replace_existing,
+                )
     except (OSError, ValueError, AgentTeamsSkillDeploymentError) as exc:
         print(json.dumps({"status": "BLOCKED", "error": str(exc)}, ensure_ascii=False), file=sys.stderr)
         return 2
@@ -613,10 +625,13 @@ def build_parser() -> argparse.ArgumentParser:
         "deploy", help="deploy the existing Skill packages into a running pinned AgentTeams runtime"
     )
     agentteams_skill_deploy.add_argument("--confirm-version", default=None)
+    agentteams_skill_deploy.add_argument("--room-map", default=None)
+    agentteams_skill_deploy.add_argument("--replace-existing", action="store_true")
     agentteams_skill_deploy.set_defaults(func=cmd_agentteams_skills)
     agentteams_skill_verify = agentteams_skill_sub.add_parser(
         "verify", help="read back runtime Skill bindings, hashes and OpenClaw discovery"
     )
+    agentteams_skill_verify.add_argument("--room-map", default=None)
     agentteams_skill_verify.set_defaults(func=cmd_agentteams_skills)
 
     sp = sub.add_parser("trust", help="emit the read-only Trust Layer snapshot")

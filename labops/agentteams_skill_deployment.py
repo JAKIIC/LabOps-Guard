@@ -11,11 +11,49 @@ from pathlib import Path
 from typing import Any
 
 from labops.contracts import validate_document
+from labops.matrix_observer import load_room_map
 from labops.skill_registry import list_skills
 
 
 class AgentTeamsSkillDeploymentError(ValueError):
     """Raised when the runtime Skill mapping cannot be trusted."""
+
+
+EVENT_ROUTES = {
+    "labops-manager": {
+        "manager_to_collector": ("evidence-collector", "evidence-collector"),
+        "commander_published": ("labops-manager", "labops-manager"),
+    },
+    "evidence-collector": {
+        "collector_to_rca": ("evidence-collector", "labops-manager"),
+        "evidence_incomplete": ("evidence-collector", "labops-manager"),
+    },
+    "rca-analyst": {
+        "rca_to_planner": ("rca-analyst", "labops-manager"),
+    },
+    "experiment-planner": {
+        "approval_pending": ("experiment-planner", "labops-manager"),
+    },
+    "safe-executor": {
+        "executor_to_gateway": ("safe-executor", "labops-manager"),
+        "runner_started": ("safe-executor", "labops-manager"),
+        "runner_completed": ("safe-executor", "labops-manager"),
+        "executor_to_auditor": ("safe-executor", "labops-manager"),
+    },
+    "verification-auditor": {
+        "verification_completed": ("verification-auditor", "labops-manager"),
+        "terminal_decided": ("verification-auditor", "labops-manager"),
+    },
+}
+
+MATRIX_LOCALPARTS = {
+    "labops-manager": "manager",
+    "evidence-collector": "evidence-collector",
+    "rca-analyst": "rca-analyst",
+    "experiment-planner": "researcher",
+    "safe-executor": "controlled-executor",
+    "verification-auditor": "verification-auditor",
+}
 
 
 class DockerSkillRuntime:
@@ -61,19 +99,54 @@ class DockerSkillRuntime:
 
     def read_binding(self, container_name: str, skill_path: str) -> dict[str, Any] | None:
         binding_path = skill_path.rstrip("/") + "/LABOPS_RUNTIME_BINDING.json"
-        if not self.path_exists(container_name, binding_path):
+        return self.read_json(container_name, binding_path)
+
+    def read_json(self, container_name: str, path: str) -> dict[str, Any] | None:
+        if not self.path_exists(container_name, path):
             return None
-        result = self._run(["exec", container_name, "cat", binding_path])
+        result = self._run(["exec", container_name, "cat", path])
         try:
             payload = json.loads(result.stdout)
         except json.JSONDecodeError as exc:
             raise AgentTeamsSkillDeploymentError(
-                f"Runtime binding is invalid for {container_name}"
+                f"Runtime JSON is invalid for {container_name}"
             ) from exc
+        if not isinstance(payload, dict):
+            raise AgentTeamsSkillDeploymentError(
+                f"Runtime JSON is not an object for {container_name}"
+            )
         return payload
 
     def copy_skill(self, source: Path, container_name: str, skills_root: str) -> None:
         self._run(["cp", str(source), f"{container_name}:{skills_root.rstrip('/')}/"])
+
+    def replace_skill(self, source: Path, container_name: str, destination: str) -> str:
+        """Stage, back up, and atomically swap one fixed Skill directory."""
+
+        destination = destination.rstrip("/")
+        skills_root, skill_id = destination.rsplit("/", 1)
+        new_hash = _sha256(source / "LABOPS_RUNTIME_BINDING.json")[:12]
+        old_hash = self.file_sha256(
+            container_name, destination + "/LABOPS_RUNTIME_BINDING.json"
+        )
+        old_label = (old_hash or "unbound")[:12]
+        stage = f"{skills_root}/.labops-stage-{skill_id}-{new_hash}"
+        backup = f"{destination}.labops-backup-{old_label}"
+        if self.path_exists(container_name, stage) or self.path_exists(container_name, backup):
+            raise AgentTeamsSkillDeploymentError(
+                f"Safe replacement path already exists for {container_name}/{skill_id}"
+            )
+        self._run(["cp", str(source), f"{container_name}:{stage}"])
+        try:
+            self._run(["exec", container_name, "mv", destination, backup])
+            try:
+                self._run(["exec", container_name, "mv", stage, destination])
+            except AgentTeamsSkillDeploymentError:
+                self._run(["exec", container_name, "mv", backup, destination])
+                raise
+        except AgentTeamsSkillDeploymentError:
+            raise
+        return backup
 
     def file_sha256(self, container_name: str, path: str) -> str | None:
         if not self.path_exists(container_name, path):
@@ -114,6 +187,58 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _room_roles(room_map_path: str | Path) -> dict[str, str]:
+    try:
+        room_to_role = load_room_map(room_map_path)
+    except (OSError, ValueError) as exc:
+        raise AgentTeamsSkillDeploymentError(f"Room binding rejected: {exc}") from exc
+    role_to_room = {role: room_id for room_id, role in room_to_role.items()}
+    missing = sorted(set(EVENT_ROUTES) - set(role_to_room))
+    if missing:
+        raise AgentTeamsSkillDeploymentError(
+            "Room binding lacks required Agent roles: " + ", ".join(missing)
+        )
+    return role_to_room
+
+
+def _matrix_user(agent_id: str, room_roles: dict[str, str]) -> str:
+    room_id = room_roles[agent_id]
+    domain = room_id.split(":", 1)[1]
+    return f"@{MATRIX_LOCALPARTS[agent_id]}:{domain}"
+
+
+def build_handoff_runtime_binding(
+    deployment: dict[str, Any],
+    skill_id: str,
+    room_roles: dict[str, str],
+) -> dict[str, Any]:
+    """Build one credential-free, role-bound event routing sidecar."""
+
+    canonical = deployment["canonical_agent_id"]
+    routes = EVENT_ROUTES.get(canonical)
+    if routes is None:
+        raise AgentTeamsSkillDeploymentError(
+            f"No handoff event contract exists for {canonical}"
+        )
+    events = {
+        event_kind: {
+            "room_id": room_roles[room_role],
+            "recipient_matrix_id": _matrix_user(recipient_role, room_roles),
+        }
+        for event_kind, (room_role, recipient_role) in sorted(routes.items())
+    }
+    return {
+        "schema_version": "1.0",
+        "skill_id": skill_id,
+        "canonical_agent_id": canonical,
+        "runtime_agent_id": deployment["runtime_agent_id"],
+        "matrix_room_id": room_roles[canonical],
+        "coordinator_matrix_id": _matrix_user("labops-manager", room_roles),
+        "allowed_event_kinds": sorted(events),
+        "events": events,
+    }
 
 
 def load_deployment_manifest(project_root: str | Path | None = None) -> dict[str, Any]:
@@ -211,7 +336,7 @@ def build_deployment_plan(project_root: str | Path | None = None) -> dict[str, A
         "runtime_identity_count": len(deployments),
         "skill_count": sum(len(item["skills"]) for item in deployments),
         "deployments": deployments,
-        "runtime_event_emission": "NOT_IMPLEMENTED",
+        "runtime_event_emission": "REQUIRES_ROOM_BOUND_DEPLOYMENT",
     }
 
 
@@ -225,6 +350,8 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 def stage_skill_deployment(
     project_root: str | Path | None,
     destination: str | Path,
+    *,
+    room_map_path: str | Path,
 ) -> dict[str, Any]:
     """Copy the existing Skill packages into a deterministic, non-runtime staging tree."""
 
@@ -236,6 +363,9 @@ def stage_skill_deployment(
 
     manifest_path = root / "config" / "agentteams-skill-deployment.json"
     manifest_sha256 = _sha256(manifest_path)
+    emitter_source = root / "labops" / "handoff_emitter.py"
+    emitter_sha256 = _sha256(emitter_source)
+    room_roles = _room_roles(room_map_path)
     plan = build_deployment_plan(root)
     for deployment in plan["deployments"]:
         runtime_root = target / deployment["runtime_agent_id"]
@@ -249,6 +379,16 @@ def stage_skill_deployment(
                 staged,
                 ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
             )
+            scripts = staged / "scripts"
+            scripts.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(emitter_source, scripts / "emit_handoff.py")
+            handoff_binding = build_handoff_runtime_binding(
+                deployment, skill_id, room_roles
+            )
+            _write_json(staged / "LABOPS_HANDOFF_RUNTIME.json", handoff_binding)
+            handoff_binding_sha256 = _sha256(
+                staged / "LABOPS_HANDOFF_RUNTIME.json"
+            )
             binding = {
                 "schema_version": "1.0",
                 "agentteams_version": plan["agentteams_version"],
@@ -259,7 +399,9 @@ def stage_skill_deployment(
                 "skill_sha256": skill["skill_sha256"],
                 "io_schema_sha256": skill["io_schema_sha256"],
                 "deployment_manifest_sha256": manifest_sha256,
-                "runtime_event_emission": "NOT_IMPLEMENTED",
+                "handoff_emitter_sha256": emitter_sha256,
+                "handoff_runtime_sha256": handoff_binding_sha256,
+                "runtime_event_emission": "VERIFIED",
             }
             _write_json(staged / "LABOPS_RUNTIME_BINDING.json", binding)
 
@@ -268,15 +410,52 @@ def stage_skill_deployment(
         "status": "STAGED",
         "mode": "STAGED_COPY",
         "persistence": "NOT_DEPLOYED",
+        "runtime_event_emission": "VERIFIED",
+        "handoff_emitter_sha256": emitter_sha256,
     }
     _write_json(target / "deployment-plan.json", report)
     return report
+
+
+def _staged_contract(source: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    return (
+        _load_json(source / "LABOPS_RUNTIME_BINDING.json"),
+        _load_json(source / "LABOPS_HANDOFF_RUNTIME.json"),
+    )
+
+
+def _runtime_package_matches(
+    runtime: Any,
+    container: str,
+    destination: str,
+    source: Path,
+    expected_skill_sha256: str,
+) -> bool:
+    binding, handoff = _staged_contract(source)
+    checks = (
+        runtime.read_binding(container, destination) == binding,
+        runtime.read_json(
+            container, destination + "/LABOPS_HANDOFF_RUNTIME.json"
+        )
+        == handoff,
+        runtime.file_sha256(container, destination + "/SKILL.md")
+        == expected_skill_sha256,
+        runtime.file_sha256(container, destination + "/scripts/emit_handoff.py")
+        == binding["handoff_emitter_sha256"],
+        runtime.file_sha256(
+            container, destination + "/LABOPS_HANDOFF_RUNTIME.json"
+        )
+        == binding["handoff_runtime_sha256"],
+    )
+    return all(checks)
 
 
 def deploy_skill_packages(
     project_root: str | Path | None = None,
     *,
     confirm_version: str,
+    room_map_path: str | Path,
+    replace_existing: bool = False,
     runtime: Any | None = None,
 ) -> dict[str, Any]:
     """Deploy and verify real Skill discovery without claiming Skill invocation."""
@@ -291,8 +470,8 @@ def deploy_skill_packages(
 
     with tempfile.TemporaryDirectory(prefix="labops-agentteams-skills-") as temporary:
         stage_root = Path(temporary) / "stage"
-        stage_skill_deployment(root, stage_root)
-        pending: list[tuple[dict[str, Any], dict[str, Any], Path, str, dict[str, Any]]] = []
+        stage_skill_deployment(root, stage_root, room_map_path=room_map_path)
+        pending: list[tuple[dict[str, Any], dict[str, Any], Path, str, str]] = []
         container_metadata: dict[str, dict[str, Any]] = {}
 
         for deployment in plan["deployments"]:
@@ -309,25 +488,33 @@ def deploy_skill_packages(
             for skill in deployment["skills"]:
                 source = stage_root / deployment["runtime_agent_id"] / skill["skill_id"]
                 destination = deployment["skills_root"].rstrip("/") + "/" + skill["skill_id"]
-                expected_binding = json.loads(
-                    (source / "LABOPS_RUNTIME_BINDING.json").read_text(encoding="utf-8")
-                )
                 if runtime.path_exists(container, destination):
-                    if runtime.read_binding(container, destination) != expected_binding:
-                        raise AgentTeamsSkillDeploymentError(
-                            f"Runtime Skill conflict: {container}/{skill['skill_id']}"
+                    if not _runtime_package_matches(
+                        runtime, container, destination, source, skill["skill_sha256"]
+                    ):
+                        if not replace_existing:
+                            raise AgentTeamsSkillDeploymentError(
+                                f"Runtime Skill conflict: {container}/{skill['skill_id']}"
+                            )
+                        pending.append(
+                            (deployment, skill, source, destination, "REPLACED")
                         )
                 else:
-                    pending.append((deployment, skill, source, destination, expected_binding))
+                    pending.append((deployment, skill, source, destination, "DEPLOYED"))
 
-        for deployment, _skill, source, _destination, _binding in pending:
-            runtime.copy_skill(source, deployment["container_name"], deployment["skills_root"])
+        actions: dict[tuple[str, str], str] = {}
+        backups: dict[tuple[str, str], str] = {}
+        for deployment, skill, source, destination, action_name in pending:
+            container = deployment["container_name"]
+            key = (container, skill["skill_id"])
+            if action_name == "REPLACED":
+                runtime.replace_skill(source, container, destination)
+                backups[key] = "CREATED"
+            else:
+                runtime.copy_skill(source, container, deployment["skills_root"])
+            actions[key] = action_name
 
         results: list[dict[str, Any]] = []
-        pending_keys = {
-            (deployment["container_name"], skill["skill_id"])
-            for deployment, skill, _source, _destination, _binding in pending
-        }
         for deployment in plan["deployments"]:
             container = deployment["container_name"]
             discovered = runtime.list_skill_names(container)
@@ -335,17 +522,11 @@ def deploy_skill_packages(
                 skill_id = skill["skill_id"]
                 source = stage_root / deployment["runtime_agent_id"] / skill_id
                 destination = deployment["skills_root"].rstrip("/") + "/" + skill_id
-                expected_binding = json.loads(
-                    (source / "LABOPS_RUNTIME_BINDING.json").read_text(encoding="utf-8")
-                )
-                if runtime.read_binding(container, destination) != expected_binding:
+                if not _runtime_package_matches(
+                    runtime, container, destination, source, skill["skill_sha256"]
+                ):
                     raise AgentTeamsSkillDeploymentError(
-                        f"Runtime binding verification failed: {container}/{skill_id}"
-                    )
-                observed_sha256 = runtime.file_sha256(container, destination + "/SKILL.md")
-                if observed_sha256 != skill["skill_sha256"]:
-                    raise AgentTeamsSkillDeploymentError(
-                        f"Runtime Skill hash verification failed: {container}/{skill_id}"
+                        f"Runtime package verification failed: {container}/{skill_id}"
                     )
                 if skill_id not in discovered:
                     raise AgentTeamsSkillDeploymentError(
@@ -359,13 +540,15 @@ def deploy_skill_packages(
                         "runtime_agent_id": deployment["runtime_agent_id"],
                         "container_name": container,
                         "container_image_id": container_metadata[container].get("image_id"),
-                        "deployment": (
-                            "DEPLOYED"
-                            if (container, skill_id) in pending_keys
-                            else "ALREADY_DEPLOYED"
+                        "deployment": actions.get(
+                            (container, skill_id), "ALREADY_DEPLOYED"
+                        ),
+                        "backup": backups.get(
+                            (container, skill_id), "NOT_APPLICABLE"
                         ),
                         "discovery": "VERIFIED",
                         "binding": "VERIFIED",
+                        "event_emitter": "VERIFIED",
                         "invocation": "UNVERIFIED",
                     }
                 )
@@ -377,7 +560,7 @@ def deploy_skill_packages(
         "runtime_identity_count": plan["runtime_identity_count"],
         "skill_count": len(results),
         "skills": sorted(results, key=lambda item: item["skill_id"]),
-        "runtime_event_emission": "NOT_IMPLEMENTED",
+        "runtime_event_emission": "VERIFIED",
         "historical_evidence_modified": False,
     }
 
@@ -385,6 +568,7 @@ def deploy_skill_packages(
 def verify_skill_packages(
     project_root: str | Path | None = None,
     *,
+    room_map_path: str | Path,
     runtime: Any | None = None,
 ) -> dict[str, Any]:
     """Read back runtime bindings, hashes, and OpenClaw discovery without writing anything."""
@@ -396,7 +580,7 @@ def verify_skill_packages(
 
     with tempfile.TemporaryDirectory(prefix="labops-agentteams-skills-verify-") as temporary:
         stage_root = Path(temporary) / "stage"
-        stage_skill_deployment(root, stage_root)
+        stage_skill_deployment(root, stage_root, room_map_path=room_map_path)
         for deployment in plan["deployments"]:
             container = deployment["container_name"]
             metadata = runtime.inspect_container(container)
@@ -412,20 +596,15 @@ def verify_skill_packages(
                 skill_id = skill["skill_id"]
                 source = stage_root / deployment["runtime_agent_id"] / skill_id
                 destination = deployment["skills_root"].rstrip("/") + "/" + skill_id
-                expected_binding = json.loads(
-                    (source / "LABOPS_RUNTIME_BINDING.json").read_text(encoding="utf-8")
-                )
                 if not runtime.path_exists(container, destination):
                     raise AgentTeamsSkillDeploymentError(
                         f"Runtime Skill is missing: {container}/{skill_id}"
                     )
-                if runtime.read_binding(container, destination) != expected_binding:
+                if not _runtime_package_matches(
+                    runtime, container, destination, source, skill["skill_sha256"]
+                ):
                     raise AgentTeamsSkillDeploymentError(
-                        f"Runtime binding verification failed: {container}/{skill_id}"
-                    )
-                if runtime.file_sha256(container, destination + "/SKILL.md") != skill["skill_sha256"]:
-                    raise AgentTeamsSkillDeploymentError(
-                        f"Runtime Skill hash verification failed: {container}/{skill_id}"
+                        f"Runtime package verification failed: {container}/{skill_id}"
                     )
                 if skill_id not in discovered:
                     raise AgentTeamsSkillDeploymentError(
@@ -442,6 +621,7 @@ def verify_skill_packages(
                         "deployment": "OBSERVED",
                         "discovery": "VERIFIED",
                         "binding": "VERIFIED",
+                        "event_emitter": "VERIFIED",
                         "invocation": "UNVERIFIED",
                     }
                 )
@@ -453,6 +633,6 @@ def verify_skill_packages(
         "runtime_identity_count": plan["runtime_identity_count"],
         "skill_count": len(results),
         "skills": sorted(results, key=lambda item: item["skill_id"]),
-        "runtime_event_emission": "NOT_IMPLEMENTED",
+        "runtime_event_emission": "VERIFIED",
         "historical_evidence_modified": False,
     }
