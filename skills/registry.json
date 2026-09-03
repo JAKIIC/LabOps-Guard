@@ -3,7 +3,7 @@
   "skills": [
     {
       "skill_id": "collect-lab-evidence",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "owner_agents": ["evidence-collector"],
       "io_schema": "skills/collect-lab-evidence/references/io-schema.json",
       "tool_dependencies": ["allowlisted-filesystem", "sha256"],

@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from labops.live_demo import CLASSIFICATION, FORMAL_ROOTS
+
 
 ARCHIVE_CONFIRMATION = "ARCHIVE_LIVE_REHEARSALS"
 MANAGER_CONTAINER = "hiclaw-manager"
@@ -153,7 +155,7 @@ finally:
                     "exec",
                     "-i",
                     MANAGER_CONTAINER,
-                    "python",
+                    "python3",
                     "-c",
                     self._REPLACE_SCRIPT,
                     MANAGER_STATE_PATH,
@@ -207,32 +209,92 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
             temporary.unlink()
 
 
-def _mark_aborted_sessions(
+def _inside(path: Path, boundary: Path) -> bool:
+    try:
+        path.resolve().relative_to(boundary.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def _is_link_or_reparse(path: Path) -> bool:
+    if path.is_symlink():
+        return True
+    try:
+        attributes = getattr(path.lstat(), "st_file_attributes", 0)
+    except OSError:
+        return False
+    return bool(attributes & getattr(os.stat_result, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400))
+
+
+def _safe_backup_root(
+    project_root: Path,
+    sessions_root: Path,
+    *,
+    create: bool,
+) -> Path | None:
+    candidate = sessions_root / "_runtime-backups"
+    if candidate.exists():
+        if _is_link_or_reparse(candidate) or not candidate.is_dir():
+            raise LiveDemoStateError("Manager backup directory is unsafe")
+    elif not create:
+        return None
+    else:
+        candidate.mkdir()
+    if _is_link_or_reparse(candidate):
+        raise LiveDemoStateError("Manager backup directory is unsafe")
+    resolved = candidate.resolve()
+    try:
+        resolved.relative_to(sessions_root)
+    except ValueError as exc:
+        raise LiveDemoStateError("Manager backup directory escapes live sessions") from exc
+    if any(_inside(resolved, project_root / relative) for relative in FORMAL_ROOTS):
+        raise LiveDemoStateError("Manager backup directory overlaps formal Evidence")
+    return resolved
+
+
+def _validated_abort_outcomes(
+    project_root: Path,
     sessions_root: Path,
     live_task_ids: list[str],
     state_sha256: str,
     archived_at: str,
-) -> int:
-    written = 0
+    *,
+    allow_matching_existing: bool = False,
+) -> list[tuple[Path, dict[str, Any]]]:
+    outcomes: list[tuple[Path, dict[str, Any]]] = []
     for task_id in live_task_ids:
         match = LIVE_TASK_ID.fullmatch(task_id)
         if match is None:
-            continue
+            raise LiveDemoStateError("live task identifier is invalid")
         session_id = match.group("session")
-        session_root = sessions_root / session_id
+        candidate = sessions_root / session_id
+        if candidate.is_symlink() or not candidate.is_dir():
+            raise LiveDemoStateError(f"live session root is missing or unsafe: {session_id}")
+        session_root = candidate.resolve()
+        try:
+            session_root.relative_to(sessions_root)
+        except ValueError as exc:
+            raise LiveDemoStateError(f"live session root escapes the sessions root: {session_id}") from exc
+        if any(_inside(session_root, project_root / relative) for relative in FORMAL_ROOTS):
+            raise LiveDemoStateError("live session root overlaps formal Evidence")
         manifest_path = session_root / "session.json"
+        if manifest_path.is_symlink() or not manifest_path.is_file():
+            raise LiveDemoStateError(f"live session manifest is missing or unsafe: {session_id}")
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError):
-            continue
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise LiveDemoStateError(f"live session manifest is invalid: {session_id}") from exc
         if (
             not isinstance(manifest, dict)
+            or manifest.get("schema_version") != "1.0"
+            or manifest.get("classification") != CLASSIFICATION
+            or manifest.get("session_id") != session_id
             or manifest.get("task_instance_id") != task_id
         ):
-            continue
-        _write_json_atomic(
-            session_root / "session_outcome.json",
-            {
+            raise LiveDemoStateError(f"live session manifest binding is invalid: {session_id}")
+        outcome_path = session_root / "session_outcome.json"
+        payload = {
                 "schema_version": "1.0",
                 "status": "ABORTED_REHEARSAL",
                 "session_id": session_id,
@@ -241,10 +303,157 @@ def _mark_aborted_sessions(
                 "archived_at": archived_at,
                 "manager_state_backup_sha256": state_sha256,
                 "evidence_deleted": False,
-            },
-        )
-        written += 1
+        }
+        if outcome_path.is_symlink():
+            raise LiveDemoStateError(f"existing session outcome must not be overwritten: {session_id}")
+        if outcome_path.exists():
+            if not allow_matching_existing:
+                raise LiveDemoStateError(f"existing session outcome must not be overwritten: {session_id}")
+            try:
+                existing = json.loads(outcome_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                raise LiveDemoStateError(f"existing session outcome is invalid: {session_id}") from exc
+            if existing != payload:
+                raise LiveDemoStateError(f"existing session outcome conflicts with archive: {session_id}")
+        outcomes.append((outcome_path, payload))
+    return outcomes
+
+
+def _write_abort_outcomes(
+    outcomes: list[tuple[Path, dict[str, Any]]],
+) -> list[Path]:
+    written: list[Path] = []
+    try:
+        for path, payload in outcomes:
+            encoded = (
+                json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+            ).encode("utf-8")
+            if path.exists():
+                if path.read_bytes() != encoded:
+                    raise LiveDemoStateError("existing session outcome conflicts with archive")
+                written.append(path)
+                continue
+            with path.open("xb") as handle:
+                handle.write(encoded)
+                handle.flush()
+                os.fsync(handle.fileno())
+            written.append(path)
+    except OSError as exc:
+        for path in reversed(written):
+            path.unlink(missing_ok=True)
+        raise LiveDemoStateError("session outcomes could not be written atomically") from exc
     return written
+
+
+def _write_pending_transaction(path: Path, payload: dict[str, Any]) -> None:
+    encoded = (
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+    try:
+        with path.open("xb") as handle:
+            handle.write(encoded)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except FileExistsError:
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise LiveDemoStateError("archive transaction journal is unreadable") from exc
+        if existing != payload:
+            raise LiveDemoStateError("archive transaction journal conflicts with current request")
+
+
+def _pending_transaction(backup_root: Path | None) -> tuple[Path, dict[str, Any]] | None:
+    if backup_root is None:
+        return None
+    paths = sorted(backup_root.glob("archive-*.pending.json"))
+    if len(paths) > 1:
+        raise LiveDemoStateError("multiple archive transactions require manual inspection")
+    if not paths:
+        return None
+    path = paths[0]
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 1024 * 1024:
+        raise LiveDemoStateError("archive transaction journal is unsafe")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise LiveDemoStateError("archive transaction journal is unreadable") from exc
+    if not isinstance(value, dict):
+        raise LiveDemoStateError("archive transaction journal is invalid")
+    return path, value
+
+
+def _finish_pending_transaction(
+    project: Path,
+    sessions: Path,
+    manager: Any,
+    current: bytes,
+    journal_path: Path,
+    transaction: dict[str, Any],
+) -> dict[str, Any]:
+    required = (
+        "original_sha256",
+        "replacement_sha256",
+        "archived_at",
+        "live_task_ids",
+        "formal_task_count",
+        "backup_name",
+    )
+    if any(name not in transaction for name in required):
+        raise LiveDemoStateError("archive transaction journal is incomplete")
+    live_ids = transaction["live_task_ids"]
+    if not isinstance(live_ids, list) or not live_ids or any(
+        not isinstance(item, str) or LIVE_TASK_ID.fullmatch(item) is None
+        for item in live_ids
+    ):
+        raise LiveDemoStateError("archive transaction task bindings are invalid")
+    original_sha = transaction["original_sha256"]
+    replacement_sha = transaction["replacement_sha256"]
+    if not isinstance(original_sha, str) or not isinstance(replacement_sha, str):
+        raise LiveDemoStateError("archive transaction hashes are invalid")
+    backup = journal_path.parent / str(transaction["backup_name"])
+    if backup.is_symlink() or not backup.is_file() or hashlib.sha256(backup.read_bytes()).hexdigest() != original_sha:
+        raise LiveDemoStateError("archive transaction Manager backup is invalid")
+
+    current_sha = hashlib.sha256(current).hexdigest()
+    if current_sha == original_sha:
+        try:
+            state = json.loads(current.decode("utf-8"))
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise LiveDemoStateError("Manager state is not valid UTF-8 JSON") from exc
+        retained, observed_live_ids, formal_count = _partition_active_tasks(state.get("active_tasks"))
+        if observed_live_ids != live_ids or formal_count != transaction["formal_task_count"]:
+            raise LiveDemoStateError("archive transaction no longer matches Manager state")
+        replacement_state = dict(state)
+        replacement_state["active_tasks"] = retained
+        replacement = (
+            json.dumps(replacement_state, ensure_ascii=False, indent=2) + "\n"
+        ).encode("utf-8")
+        if hashlib.sha256(replacement).hexdigest() != replacement_sha:
+            raise LiveDemoStateError("archive transaction replacement hash is invalid")
+        manager.replace_state(original_sha, replacement)
+    elif current_sha != replacement_sha:
+        raise LiveDemoStateError("Manager state diverged from pending archive transaction")
+
+    outcomes = _validated_abort_outcomes(
+        project,
+        sessions,
+        live_ids,
+        original_sha,
+        str(transaction["archived_at"]),
+        allow_matching_existing=True,
+    )
+    written = _write_abort_outcomes(outcomes)
+    journal_path.unlink()
+    return {
+        "status": "ARCHIVED",
+        "archived_live_tasks": len(live_ids),
+        "formal_task_count": int(transaction["formal_task_count"]),
+        "session_outcomes_written": len(written),
+        "backup": backup.name,
+        "manager_state_before_sha256": original_sha,
+        "evidence_deleted": False,
+    }
 
 
 def archive_live_rehearsals(
@@ -258,6 +467,8 @@ def archive_live_rehearsals(
 
     project = Path(project_root).resolve()
     sessions = Path(sessions_root).resolve()
+    if any(_inside(sessions, project / relative) for relative in FORMAL_ROOTS):
+        raise LiveDemoStateError("live sessions root overlaps formal Evidence")
     manager = runtime or DockerManagerStateRuntime(project)
     original = manager.read_state()
     original_sha256 = hashlib.sha256(original).hexdigest()
@@ -285,31 +496,45 @@ def archive_live_rehearsals(
         raise LiveDemoStateError(
             f"explicit confirmation must equal {ARCHIVE_CONFIRMATION}"
         )
+    existing_backup_root = _safe_backup_root(project, sessions, create=False)
+    pending = _pending_transaction(existing_backup_root)
+    if pending is not None:
+        return _finish_pending_transaction(
+            project,
+            sessions,
+            manager,
+            original,
+            pending[0],
+            pending[1],
+        )
     if not live_ids:
         return {**preview, "status": "CLEAN", "confirmation_required": None}
 
-    backup = (
-        sessions
-        / "_runtime-backups"
-        / f"manager-state-{original_sha256}.json"
+    archived_at = _utc_now()
+    outcomes = _validated_abort_outcomes(
+        project, sessions, live_ids, original_sha256, archived_at
     )
-    _write_backup(backup, original)
     updated = dict(state)
     updated["active_tasks"] = retained
     replacement = (
         json.dumps(updated, ensure_ascii=False, indent=2) + "\n"
     ).encode("utf-8")
-    manager.replace_state(original_sha256, replacement)
-    archived_at = _utc_now()
-    outcomes = _mark_aborted_sessions(
-        sessions, live_ids, original_sha256, archived_at
-    )
-    return {
-        "status": "ARCHIVED",
-        "archived_live_tasks": len(live_ids),
+    replacement_sha256 = hashlib.sha256(replacement).hexdigest()
+    backup_root = _safe_backup_root(project, sessions, create=True)
+    assert backup_root is not None
+    backup = backup_root / f"manager-state-{original_sha256}.json"
+    _write_backup(backup, original)
+    journal = backup_root / f"archive-{original_sha256}.pending.json"
+    transaction = {
+        "schema_version": "1.0",
+        "original_sha256": original_sha256,
+        "replacement_sha256": replacement_sha256,
+        "archived_at": archived_at,
+        "live_task_ids": live_ids,
         "formal_task_count": formal_count,
-        "session_outcomes_written": outcomes,
-        "backup": backup.name,
-        "manager_state_before_sha256": original_sha256,
-        "evidence_deleted": False,
+        "backup_name": backup.name,
     }
+    _write_pending_transaction(journal, transaction)
+    return _finish_pending_transaction(
+        project, sessions, manager, original, journal, transaction
+    )

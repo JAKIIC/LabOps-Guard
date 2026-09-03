@@ -166,6 +166,31 @@ def validate_skill_output(
     missing = sorted(name for name in required if name not in document)
     if missing:
         raise SkillInputError(f"Missing required Skill output: {', '.join(missing)}")
+    output_contract = io_contract.get("output", {})
+    allowed_states = output_contract.get("allowed_handoff_states")
+    if isinstance(allowed_states, list) and document.get("handoff_state") not in allowed_states:
+        raise SkillInputError("Skill output handoff_state is not allowed")
+    failure_contract = output_contract.get("failure_artifact")
+    if (
+        isinstance(failure_contract, dict)
+        and failure_contract.get("required_when") == "handoff_state=BLOCKED"
+        and document.get("handoff_state") == "BLOCKED"
+    ):
+        failure = document.get("failure_artifact")
+        if not isinstance(failure, dict):
+            raise SkillInputError("Missing required Skill failure artifact")
+        failure_required = failure_contract.get("required_fields", [])
+        failure_missing = sorted(
+            name for name in failure_required
+            if name not in failure or failure.get(name) is None
+        )
+        if failure_missing:
+            raise SkillInputError(
+                "Missing required Skill failure artifact fields: "
+                + ", ".join(failure_missing)
+            )
+        if failure.get("handoff_state") != "BLOCKED":
+            raise SkillInputError("Skill failure artifact handoff_state must be BLOCKED")
     return {"valid": True, "skill_id": skill_id, "version": skill["version"]}
 
 

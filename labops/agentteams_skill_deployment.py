@@ -170,6 +170,57 @@ class DockerSkillRuntime:
             if isinstance(item, dict) and isinstance(item.get("name"), str)
         }
 
+    def dry_run_emitter(self, container_name: str, skill_path: str) -> bool:
+        """Execute the deployed emitter without sending a Matrix message."""
+
+        skill_path = skill_path.rstrip("/")
+        binding_path = skill_path + "/LABOPS_HANDOFF_RUNTIME.json"
+        binding = self.read_json(container_name, binding_path)
+        events = binding.get("events") if isinstance(binding, dict) else None
+        if not isinstance(events, dict) or not events:
+            return False
+        event_kind = sorted(events)[0]
+        result = self._run(
+            [
+                "exec",
+                container_name,
+                "python3",
+                skill_path + "/scripts/emit_handoff.py",
+                "--binding",
+                binding_path,
+                "--session-root",
+                "/nonexistent/labops-emitter-dry-run",
+                "--session-id",
+                "20991231-999",
+                "--task-instance-id",
+                "LIVE-TASK-20991231-999",
+                "--incident-instance-id",
+                "LIVE-INCIDENT-20991231-999",
+                "--attempt-id",
+                "LIVE-ATTEMPT-20991231-999-01",
+                "--run-id",
+                "RUN-LABOPS-AT-004-AGENTTEAMS-999",
+                "--event-kind",
+                event_kind,
+                "--input-artifact",
+                "dry-run/input.json",
+                "--output-artifact",
+                "dry-run/output.json",
+                "--dry-run",
+            ]
+        )
+        try:
+            payload = json.loads(result.stdout)
+        except (json.JSONDecodeError, TypeError, UnicodeError):
+            return False
+        return (
+            isinstance(payload, dict)
+            and payload.get("status") == "DRY_RUN"
+            and payload.get("event_kind") == event_kind
+            and payload.get("session_id") == "20991231-999"
+            and "event_id" not in payload
+        )
+
 
 def _root(project_root: str | Path | None) -> Path:
     return Path(project_root) if project_root else Path(__file__).resolve().parent.parent
@@ -532,6 +583,10 @@ def deploy_skill_packages(
                     raise AgentTeamsSkillDeploymentError(
                         f"OpenClaw did not discover {skill_id} in {container}"
                     )
+                if not runtime.dry_run_emitter(container, destination):
+                    raise AgentTeamsSkillDeploymentError(
+                        f"Runtime emitter dry-run failed: {container}/{skill_id}"
+                    )
                 results.append(
                     {
                         "skill_id": skill_id,
@@ -549,6 +604,7 @@ def deploy_skill_packages(
                         "discovery": "VERIFIED",
                         "binding": "VERIFIED",
                         "event_emitter": "VERIFIED",
+                        "emitter_dry_run": "VERIFIED",
                         "invocation": "UNVERIFIED",
                     }
                 )
@@ -610,6 +666,10 @@ def verify_skill_packages(
                     raise AgentTeamsSkillDeploymentError(
                         f"OpenClaw did not discover {skill_id} in {container}"
                     )
+                if not runtime.dry_run_emitter(container, destination):
+                    raise AgentTeamsSkillDeploymentError(
+                        f"Runtime emitter dry-run failed: {container}/{skill_id}"
+                    )
                 results.append(
                     {
                         "skill_id": skill_id,
@@ -622,6 +682,7 @@ def verify_skill_packages(
                         "discovery": "VERIFIED",
                         "binding": "VERIFIED",
                         "event_emitter": "VERIFIED",
+                        "emitter_dry_run": "VERIFIED",
                         "invocation": "UNVERIFIED",
                     }
                 )

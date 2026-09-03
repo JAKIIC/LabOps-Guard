@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class TestSkillRegistry(unittest.TestCase):
     def test_event_emitting_skills_define_one_atomic_completion_recipe(self) -> None:
         expected = {
-            "collect-lab-evidence": ("0.2.1", "collector_to_rca"),
+            "collect-lab-evidence": ("0.2.2", "collector_to_rca"),
             "diagnose-lab-incident": ("0.2.1", "rca_to_planner"),
             "plan-lab-experiment": ("0.2.2", "approval_pending"),
             "control-lab-action": ("0.2.1", "executor_to_auditor"),
@@ -48,6 +48,81 @@ class TestSkillRegistry(unittest.TestCase):
                 self.assertIn(f"`{event_kind}`", text)
                 self.assertIn("`EMITTED`", text)
                 self.assertIn("`ALREADY_EMITTED`", text)
+
+    def test_evidence_incomplete_requires_a_validated_failure_artifact_first(self) -> None:
+        skill_root = ROOT / "skills" / "collect-lab-evidence"
+        text = (skill_root / "SKILL.md").read_text(encoding="utf-8")
+        normalized_text = " ".join(text.split())
+        contract = json.loads(
+            (skill_root / "references" / "io-schema.json").read_text(encoding="utf-8")
+        )
+
+        self.assertIn("write and validate the assigned output artifact", normalized_text)
+        self.assertIn("`handoff_state: BLOCKED`", normalized_text)
+        self.assertIn("before emitting `evidence_incomplete`", normalized_text)
+        self.assertEqual(contract["skill_version"], "0.2.2")
+        self.assertEqual(
+            contract["output"]["failure_artifact"]["required_when"],
+            "handoff_state=BLOCKED",
+        )
+        self.assertEqual(
+            set(contract["output"]["failure_artifact"]["required_fields"]),
+            {
+                "session_id",
+                "task_instance_id",
+                "incident_instance_id",
+                "attempt_id",
+                "run_id",
+                "gaps",
+                "errors",
+                "excluded_data_not_read",
+                "handoff_state",
+            },
+        )
+
+        blocked = {
+            "registry_record": {},
+            "collected_evidence": [],
+            "verification_status": "BLOCKED",
+            "evidence_count": 0,
+            "gaps_count": 1,
+            "excluded_data_not_read": True,
+            "handoff_state": "BLOCKED",
+        }
+        with self.assertRaisesRegex(SkillInputError, "failure artifact"):
+            validate_skill_output(
+                "collect-lab-evidence",
+                blocked,
+                ROOT,
+                caller_agent_id="evidence-collector",
+            )
+
+        failure = {
+            "session_id": "20260903-003",
+            "task_instance_id": "LIVE-TASK-20260903-003",
+            "incident_instance_id": "LIVE-INCIDENT-20260903-003",
+            "attempt_id": "LIVE-ATTEMPT-20260903-003-01",
+            "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-003",
+            "gaps": ["evaluation-config-snapshot-current"],
+            "errors": ["EVIDENCE_MISSING"],
+            "excluded_data_not_read": True,
+            "handoff_state": "BLOCKED",
+        }
+        result = validate_skill_output(
+            "collect-lab-evidence",
+            {**blocked, "failure_artifact": failure},
+            ROOT,
+            caller_agent_id="evidence-collector",
+        )
+        self.assertTrue(result["valid"])
+
+        with self.assertRaisesRegex(SkillInputError, "handoff_state"):
+            validate_skill_output(
+                "collect-lab-evidence",
+                {**blocked, "failure_artifact": {**failure, "handoff_state": "EVIDENCE_READY"}},
+                ROOT,
+                caller_agent_id="evidence-collector",
+            )
 
     def test_lists_seven_registered_skills_with_resolvable_contracts(self) -> None:
         skills = list_skills(ROOT)

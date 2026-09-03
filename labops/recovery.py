@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -19,6 +20,8 @@ from labops.trace import TraceLog
 
 
 CLASSIFICATION = "NON_FORMAL_LIVE_DEMO"
+SESSION_ID_PATTERN = re.compile(r"^[0-9]{8}-[0-9]{3}$")
+RUN_ID_PATTERN = re.compile(r"RUN-LABOPS-AT-004-AGENTTEAMS-[0-9]{3}")
 FAILURE_TYPES = {
     "EVIDENCE_INCOMPLETE",
     "WORKER_TIMEOUT",
@@ -304,22 +307,107 @@ def _append(root: Path, entity_type: str, entity_id: str, event: str, actor: str
     )
 
 
-def _next_attempt(manifest: dict, overlay: dict, resume_point: str, failure_type: str,
+def _known_run_owners(sessions_root: Path) -> dict[str, str]:
+    owners: dict[str, str] = {}
+    inspected = 0
+    if not sessions_root.is_dir():
+        return owners
+    for session_dir in sorted(sessions_root.iterdir()):
+        if not session_dir.is_dir() or SESSION_ID_PATTERN.fullmatch(session_dir.name) is None:
+            continue
+        if session_dir.is_symlink():
+            raise RecoveryError("cannot allocate a recovery run beside a symlinked session")
+        for path in sorted(session_dir.rglob("*")):
+            if path.suffix not in {".json", ".jsonl"} or not path.is_file():
+                continue
+            inspected += 1
+            if inspected > 4096 or path.is_symlink() or path.stat().st_size > 4 * 1024 * 1024:
+                raise RecoveryError("cannot safely inspect live-session run bindings")
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError) as exc:
+                raise RecoveryError("cannot inspect live-session run bindings") from exc
+            for match in RUN_ID_PATTERN.finditer(text):
+                run_id = match.group(0)
+                owner = owners.get(run_id)
+                if owner is not None and owner != session_dir.name:
+                    raise RecoveryError(f"run binding conflict already exists for {run_id}")
+                owners[run_id] = session_dir.name
+    return owners
+
+
+def _reserve_recovery_run(root: Path, manifest: dict, attempt_number: int) -> str:
+    initial = str(manifest["run_id"])
+    match = re.fullmatch(r"(RUN-LABOPS-AT-004-AGENTTEAMS-)([0-9]{3})", initial)
+    if match is None:
+        raise RecoveryError("initial run_id cannot allocate a recovery run")
+    sessions_root = root.parent.resolve()
+    owners = _known_run_owners(sessions_root)
+    reservation_root = sessions_root / ".labops-run-reservations"
+    if reservation_root.exists() and (
+        reservation_root.is_symlink() or not reservation_root.is_dir()
+    ):
+        raise RecoveryError("recovery run reservation root is unsafe")
+    reservation_root.mkdir(exist_ok=True)
+    try:
+        reservation_root.resolve().relative_to(sessions_root)
+    except ValueError as exc:
+        raise RecoveryError("recovery run reservation root escapes live sessions") from exc
+
+    attempt_id = f"LIVE-ATTEMPT-{manifest['session_id']}-{attempt_number:02d}"
+    first_sequence = int(match.group(2)) + attempt_number - 1
+    for sequence in range(first_sequence, 1000):
+        run_id = f"{match.group(1)}{sequence:03d}"
+        if run_id in owners:
+            continue
+        reservation = reservation_root / f"{run_id}.json"
+        payload = {
+            "schema_version": "1.0",
+            "session_id": manifest["session_id"],
+            "attempt_id": attempt_id,
+            "run_id": run_id,
+        }
+        encoded = (json.dumps(payload, sort_keys=True) + "\n").encode("utf-8")
+        try:
+            descriptor = os.open(
+                reservation,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+        except FileExistsError:
+            try:
+                existing = _read_object(reservation)
+            except RecoveryError:
+                continue
+            if (
+                existing.get("session_id") == manifest["session_id"]
+                and existing.get("attempt_id") == attempt_id
+                and existing.get("run_id") == run_id
+            ):
+                return run_id
+            continue
+        try:
+            with os.fdopen(descriptor, "wb") as handle:
+                descriptor = -1
+                handle.write(encoded)
+                handle.flush()
+                os.fsync(handle.fileno())
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+        return run_id
+    raise RecoveryError("recovery run_id namespace exhausted")
+
+
+def _next_attempt(root: Path, manifest: dict, overlay: dict, resume_point: str, failure_type: str,
                   assigned_worker_id: str | None = None,
                   alternate_worker_evidence: dict | None = None) -> dict:
     attempt_number = len(overlay["attempts"]) + 1
-    run_id = str(manifest["run_id"])
-    try:
-        prefix, suffix = run_id.rsplit("-", 1)
-        next_suffix = int(suffix) + attempt_number - 1
-    except (ValueError, TypeError) as exc:
-        raise RecoveryError("initial run_id cannot allocate a recovery run") from exc
-    if next_suffix > 999:
-        raise RecoveryError("recovery run_id namespace exhausted")
+    run_id = _reserve_recovery_run(root, manifest, attempt_number)
     return {
         "attempt_id": f"LIVE-ATTEMPT-{manifest['session_id']}-{attempt_number:02d}",
         "parent_attempt_id": overlay["attempts"][-1]["attempt_id"],
-        "run_id": f"{prefix}-{next_suffix:03d}",
+        "run_id": run_id,
         "start_state": "RECEIVED",
         "resume_point": resume_point,
         "owner_id": "labops-manager",
@@ -487,6 +575,7 @@ def request_recovery(session_root: str | Path, *, failure_type: str,
     })
     overlay = load_recovery_overlay(root)
     attempt = _next_attempt(
+        root,
         manifest,
         overlay,
         resume_point,
@@ -544,6 +633,7 @@ def resume_human_takeover(session_root: str | Path, *, takeover_id: str,
     if pending.get("accepted_by") != resumed_by:
         raise RecoveryError("only the accepted Human Takeover owner may resume")
     attempt = _next_attempt(
+        root,
         manifest,
         overlay,
         resume_point,

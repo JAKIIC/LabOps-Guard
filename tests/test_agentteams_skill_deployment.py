@@ -45,12 +45,20 @@ def write_room_map(directory: Path) -> Path:
 
 
 class InMemoryAgentTeamsRuntime:
-    def __init__(self, *, image_version: str = "v1.1.2", running: bool = True) -> None:
+    def __init__(
+        self,
+        *,
+        image_version: str = "v1.1.2",
+        running: bool = True,
+        dry_run_ok: bool = True,
+    ) -> None:
         self.files: dict[tuple[str, str], bytes] = {}
         self.skills: dict[str, set[str]] = {}
         self.backups: list[dict[tuple[str, str], bytes]] = []
         self.image_version = image_version
         self.running = running
+        self.dry_run_ok = dry_run_ok
+        self.dry_runs: list[tuple[str, str]] = []
 
     def inspect_container(self, container_name: str) -> dict:
         return {
@@ -106,6 +114,10 @@ class InMemoryAgentTeamsRuntime:
 
     def list_skill_names(self, container_name: str) -> set[str]:
         return set(self.skills.get(container_name, set()))
+
+    def dry_run_emitter(self, container_name: str, skill_path: str) -> bool:
+        self.dry_runs.append((container_name, skill_path))
+        return self.dry_run_ok
 
 
 class AgentTeamsSkillDeploymentCLITests(unittest.TestCase):
@@ -189,6 +201,12 @@ class AgentTeamsSkillDeploymentCLITests(unittest.TestCase):
                 "evidence-collector/collect-lab-evidence/LABOPS_HANDOFF_RUNTIME.json"
             ].decode("utf-8")
         )
+        collector_binding = json.loads(
+            first_files[
+                "evidence-collector/collect-lab-evidence/LABOPS_RUNTIME_BINDING.json"
+            ].decode("utf-8")
+        )
+        self.assertEqual(collector_binding["skill_version"], "0.2.2")
         self.assertEqual(
             collector_runtime["events"]["collector_to_rca"]["room_id"],
             ROOMS_BY_ROLE["evidence-collector"],
@@ -245,7 +263,9 @@ class AgentTeamsSkillDeploymentCLITests(unittest.TestCase):
             self.assertEqual(item["discovery"], "VERIFIED")
             self.assertEqual(item["binding"], "VERIFIED")
             self.assertEqual(item["event_emitter"], "VERIFIED")
+            self.assertEqual(item["emitter_dry_run"], "VERIFIED")
             self.assertEqual(item["invocation"], "UNVERIFIED")
+        self.assertEqual(len(runtime.dry_runs), 7)
 
     def test_verify_is_read_only_and_fails_closed_until_skills_are_deployed(self) -> None:
         runtime = InMemoryAgentTeamsRuntime()
@@ -273,6 +293,27 @@ class AgentTeamsSkillDeploymentCLITests(unittest.TestCase):
         self.assertEqual(report["skill_count"], 7)
         self.assertEqual(runtime.files, before)
         self.assertTrue(all(item["invocation"] == "UNVERIFIED" for item in report["skills"]))
+        self.assertTrue(all(item["emitter_dry_run"] == "VERIFIED" for item in report["skills"]))
+
+    def test_verify_fails_closed_when_a_runtime_emitter_cannot_dry_run(self) -> None:
+        runtime = InMemoryAgentTeamsRuntime()
+        with tempfile.TemporaryDirectory() as tmp:
+            room_map = write_room_map(Path(tmp))
+            deployment.deploy_skill_packages(
+                ROOT,
+                confirm_version="v1.1.2",
+                room_map_path=room_map,
+                runtime=runtime,
+            )
+            runtime.dry_run_ok = False
+
+            with self.assertRaisesRegex(
+                deployment.AgentTeamsSkillDeploymentError,
+                "emitter dry-run",
+            ):
+                deployment.verify_skill_packages(
+                    ROOT, room_map_path=room_map, runtime=runtime
+                )
 
     def test_deploy_fails_before_copying_when_any_runtime_binding_conflicts(self) -> None:
         runtime = InMemoryAgentTeamsRuntime()

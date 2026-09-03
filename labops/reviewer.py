@@ -175,7 +175,7 @@ def _probe_agentteams_business_readiness(project_root: Path) -> dict[str, Any]:
             return role, "MATRIX_STOPPED"
         account = next(
             (item for item in accounts if isinstance(item, dict) and item.get("accountId") == "default"),
-            accounts[0] if accounts and isinstance(accounts[0], dict) else {},
+            {},
         )
         if not account:
             return role, "MATRIX_ACCOUNT_MISSING"
@@ -212,12 +212,17 @@ def _probe_agentteams_skill_runtime(
             "runtime_event_emission": "UNVERIFIED",
             "skill_count": 0,
             "emitters_verified": 0,
+            "dry_runs_verified": 0,
         }
     skills = report.get("skills") if isinstance(report.get("skills"), list) else []
     skill_count = report.get("skill_count")
     expected = skill_count if isinstance(skill_count, int) else len(skills)
     emitters_verified = sum(
         isinstance(item, dict) and item.get("event_emitter") == "VERIFIED"
+        for item in skills
+    )
+    dry_runs_verified = sum(
+        isinstance(item, dict) and item.get("emitter_dry_run") == "VERIFIED"
         for item in skills
     )
     return {
@@ -227,6 +232,7 @@ def _probe_agentteams_skill_runtime(
         ),
         "skill_count": expected,
         "emitters_verified": emitters_verified,
+        "dry_runs_verified": dry_runs_verified,
     }
 
 
@@ -462,6 +468,7 @@ def build_preflight(
             "runtime_event_emission": "NOT_CHECKED",
             "skill_count": 0,
             "emitters_verified": 0,
+            "dry_runs_verified": 0,
         }
         if skill_runtime_eligible:
             skill_runtime = (skill_runtime_probe or _probe_agentteams_skill_runtime)(
@@ -469,12 +476,14 @@ def build_preflight(
             )
             skill_count = skill_runtime.get("skill_count")
             emitters_verified = skill_runtime.get("emitters_verified")
+            dry_runs_verified = skill_runtime.get("dry_runs_verified")
             skill_runtime_ready = (
                 skill_runtime.get("status") == "VERIFIED"
                 and skill_runtime.get("runtime_event_emission") == "VERIFIED"
                 and isinstance(skill_count, int)
                 and skill_count > 0
                 and emitters_verified == skill_count
+                and dry_runs_verified == skill_count
             )
         checks["agentteams_event_emission"] = {
             "status": (
@@ -495,6 +504,11 @@ def build_preflight(
             "emitters_verified": (
                 skill_runtime.get("emitters_verified")
                 if isinstance(skill_runtime.get("emitters_verified"), int)
+                else 0
+            ),
+            "dry_runs_verified": (
+                skill_runtime.get("dry_runs_verified")
+                if isinstance(skill_runtime.get("dry_runs_verified"), int)
                 else 0
             ),
         }

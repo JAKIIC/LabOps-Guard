@@ -16,6 +16,7 @@ from labops.reviewer_state import (
     classify_source_status,
     configured_recovery_policy,
 )
+from labops.skill_registry import list_skills
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -438,7 +439,15 @@ class ReviewerStateTests(unittest.TestCase):
                     ROOT, sessions, "20260831-071", "live", self._matrix_snapshot(), self.NOW,
                 )
             self.assertEqual(state["tool_contract"]["status"], "VERIFIED")
-            self.assertEqual(state["tool_contract"]["skill"], "control-lab-action@0.2.0")
+            current_version = next(
+                item["version"]
+                for item in list_skills(ROOT)
+                if item["skill_id"] == "control-lab-action"
+            )
+            self.assertEqual(
+                state["tool_contract"]["skill"],
+                f"control-lab-action@{current_version}",
+            )
             self.assertEqual(state["tool_contract"]["caller"], "safe-executor")
             self.assertEqual(state["tool_contract"]["plan_hash"], "bbbbbbbbbbbb…")
             self.assertEqual(state["tool_contract"]["details"]["canonical_plan_sha256"], plan_hash)
@@ -507,6 +516,83 @@ class ReviewerStateTests(unittest.TestCase):
         )
         self.assertEqual(terminal["workflow_to"], "DEMO_PASSED_NOT_RESOLVED")
         self.assertEqual(state["audit"]["resolution_status"], "DEMO_PASSED_NOT_RESOLVED")
+
+    def test_unverified_terminal_and_publication_events_do_not_advance_incident(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = Path(tmp)
+            self._session(sessions)
+            snapshot = self._matrix_snapshot()
+            snapshot["events"].extend([
+                self._event(
+                    "terminal_decided",
+                    "$unverified-terminal",
+                    "verification-auditor",
+                    "VERIFYING",
+                    "DEMO_PASSED_NOT_RESOLVED",
+                    "2026-08-28T11:59:09Z",
+                ),
+                self._event(
+                    "commander_published",
+                    "$unverified-publication",
+                    "labops-manager",
+                    "DEMO_PASSED_NOT_RESOLVED",
+                    "DEMO_PASSED_NOT_RESOLVED",
+                    "2026-08-28T11:59:10Z",
+                ),
+            ])
+            with patch(
+                "labops.reviewer_state.verify_session",
+                return_value={"status": "BLOCKED", "skill_runtime_evidence": {}},
+            ):
+                state = build_reviewer_state(
+                    ROOT, sessions, "20260831-071", "live", snapshot, self.NOW,
+                )
+
+        by_kind = {item["kind"]: item for item in state["timeline"]}
+        self.assertEqual(by_kind["terminal_decided"]["evidence_state"], "CONFIGURED")
+        self.assertEqual(by_kind["commander_published"]["evidence_state"], "CONFIGURED")
+        self.assertEqual(state["incident"]["workflow_state"], "APPROVAL_PENDING")
+        self.assertEqual(state["incident"]["last_event"], "approval_pending")
+
+    def test_verified_terminal_requires_later_independent_manager_publication(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = Path(tmp)
+            session_root = self._session(sessions)
+            verification = {
+                "verified_by": "verification-auditor",
+                "decision": "PASS",
+                "incident_state": "DEMO_PASSED_NOT_RESOLVED",
+                "underlying_issue_resolved": False,
+                "verified_at": "2026-08-28T11:59:09Z",
+            }
+            (session_root / "evidence" / "verification.json").write_text(
+                json.dumps(verification, ensure_ascii=False), encoding="utf-8",
+            )
+            snapshot = self._matrix_snapshot()
+            snapshot["events"].append(self._event(
+                "commander_published",
+                "$manager-publication",
+                "labops-manager",
+                "DEMO_PASSED_NOT_RESOLVED",
+                "DEMO_PASSED_NOT_RESOLVED",
+                "2026-08-28T11:59:10Z",
+            ))
+            verified = {
+                "status": "VERIFIED",
+                "evidence_digest": "a" * 64,
+                "skill_runtime_evidence": {},
+                "errors": [],
+            }
+            with patch("labops.reviewer_state.verify_session", return_value=verified):
+                state = build_reviewer_state(
+                    ROOT, sessions, "20260831-071", "live", snapshot, self.NOW,
+                )
+
+        by_kind = {item["kind"]: item for item in state["timeline"]}
+        self.assertEqual(by_kind["terminal_decided"]["evidence_state"], "VERIFIED")
+        self.assertEqual(by_kind["commander_published"]["evidence_state"], "VERIFIED")
+        self.assertEqual(by_kind["commander_published"]["event_id"], "$manager-publication")
+        self.assertEqual(state["incident"]["last_event"], "commander_published")
 
     def test_verified_recovery_projects_effective_attempt_and_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -802,13 +888,15 @@ class ReviewerStateTests(unittest.TestCase):
         commander = next(
             item for item in state["agents"] if item["agent_id"] == "labops-manager"
         )
-        self.assertEqual(commander["workflow_state"], "RESULT_PUBLISHED")
+        self.assertEqual(commander["workflow_state"], "EVIDENCE_COLLECTING")
         self.assertEqual(commander["evidence_state"], "VERIFIED")
         by_kind = {item["kind"]: item for item in state["timeline"]}
         self.assertEqual(by_kind["hypotheses_ranked"]["evidence_state"], "VERIFIED")
         self.assertEqual(by_kind["rca_to_planner"]["evidence_state"], "VERIFIED")
         self.assertEqual(by_kind["rca_to_planner"]["source"], "VERIFIED_HANDOFF_MANIFEST")
         self.assertEqual(by_kind["rca_to_planner"]["event_id"], "$handoff-3")
+        self.assertEqual(by_kind["verification_completed"]["evidence_state"], "VERIFIED")
+        self.assertEqual(by_kind["commander_published"]["evidence_state"], "CONFIGURED")
 
     def test_quick_and_live_payloads_validate_against_schema(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

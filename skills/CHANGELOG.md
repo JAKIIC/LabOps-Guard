@@ -1,5 +1,12 @@
 # Skill changelog
 
+## collect-lab-evidence 0.2.2 - 2026-09-03
+
+- Require a validated, structured failure artifact with complete live-session bindings and
+  exact gap/error fields before `evidence_incomplete` may be emitted.
+- Preserve the fail-closed boundary: the Collector records a missing artifact but never
+  invents, reads, or diagnoses its contents.
+
 ## Atomic AgentTeams handoffs - 2026-09-03
 
 - Upgraded the six event-emitting Skills with one positive completion recipe: validate the

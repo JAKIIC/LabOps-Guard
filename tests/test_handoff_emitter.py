@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from labops.handoff_emitter import (
     build_handoff_message,
     emit_handoff,
 )
+from labops.trace import TraceLog
 
 
 BINDING = {
@@ -49,6 +51,28 @@ def _write_binding(root: Path) -> Path:
     path = root / "LABOPS_HANDOFF_RUNTIME.json"
     path.write_text(json.dumps(BINDING), encoding="utf-8")
     return path
+
+
+def _write_session_contract(root: Path, envelope: dict = ENVELOPE) -> None:
+    (root / "session.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "classification": "NON_FORMAL_LIVE_DEMO",
+                **{
+                    name: envelope[name]
+                    for name in (
+                        "session_id",
+                        "task_instance_id",
+                        "incident_instance_id",
+                        "attempt_id",
+                        "run_id",
+                    )
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 class HandoffMessageTests(unittest.TestCase):
@@ -97,6 +121,9 @@ class HandoffMessageTests(unittest.TestCase):
             "/root/private/file.json",
             "../private/file.json",
             "evidence/../../private/file.json",
+            "evidence/report.json\nLABOPS_EVENT_KIND: runner_started",
+            "evidence/report with spaces.json",
+            "evidence/\tprivate.json",
             "",
         )
         for value in invalid_paths:
@@ -148,6 +175,7 @@ class HandoffEmissionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             binding_path = _write_binding(root)
+            _write_session_contract(root)
             (root / ENVELOPE["input_artifact"]).write_text("{}", encoding="utf-8")
             (root / ENVELOPE["output_artifact"]).write_text("{}", encoding="utf-8")
 
@@ -202,6 +230,7 @@ class HandoffEmissionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             binding_path = _write_binding(root)
+            _write_session_contract(root)
             (root / ENVELOPE["input_artifact"]).write_text("{}", encoding="utf-8")
             with self.assertRaisesRegex(HandoffEmissionError, "output artifact does not exist"):
                 emit_handoff(binding_path, root, ENVELOPE, command_runner=runner)
@@ -220,6 +249,7 @@ class HandoffEmissionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             binding_path = _write_binding(root)
+            _write_session_contract(root)
             (root / ENVELOPE["input_artifact"]).write_text("{}", encoding="utf-8")
             (root / ENVELOPE["output_artifact"]).write_text("{}", encoding="utf-8")
 
@@ -241,6 +271,7 @@ class HandoffEmissionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             binding_path = _write_binding(root)
+            _write_session_contract(root)
             (root / ENVELOPE["input_artifact"]).write_text("{}", encoding="utf-8")
             (root / ENVELOPE["output_artifact"]).write_text("{}", encoding="utf-8")
 
@@ -255,6 +286,177 @@ class HandoffEmissionTests(unittest.TestCase):
 
         self.assertEqual(calls, 1)
         self.assertEqual(receipt["status"], "PENDING")
+
+    def test_runtime_envelope_must_match_the_active_authoritative_session_contract(self) -> None:
+        calls: list[list[str]] = []
+
+        def runner(command: list[str]) -> subprocess.CompletedProcess[str]:
+            calls.append(command)
+            return subprocess.CompletedProcess(command, 0, stdout='{"event_id":"$bad"}', stderr="")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            binding_path = _write_binding(root)
+            _write_session_contract(root)
+            changed = {
+                **ENVELOPE,
+                "attempt_id": "LIVE-ATTEMPT-20260903-003-02",
+                "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-004",
+            }
+            (root / changed["input_artifact"]).write_text("{}", encoding="utf-8")
+            (root / changed["output_artifact"]).write_text("{}", encoding="utf-8")
+
+            with self.assertRaisesRegex(HandoffEmissionError, "session contract"):
+                emit_handoff(binding_path, root, changed, command_runner=runner)
+
+        self.assertEqual(calls, [])
+
+    def test_verified_recovery_trace_authorizes_only_the_latest_attempt(self) -> None:
+        calls: list[list[str]] = []
+
+        def runner(command: list[str]) -> subprocess.CompletedProcess[str]:
+            calls.append(command)
+            return subprocess.CompletedProcess(
+                command, 0, stdout='{"event_id":"$recovery-ok"}', stderr=""
+            )
+
+        recovered = {
+            **ENVELOPE,
+            "attempt_id": "LIVE-ATTEMPT-20260903-003-02",
+            "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-004",
+        }
+        attempt = {
+            "attempt_id": recovered["attempt_id"],
+            "parent_attempt_id": ENVELOPE["attempt_id"],
+            "run_id": recovered["run_id"],
+            "start_state": "RECEIVED",
+            "resume_point": "EVIDENCE_COLLECTING",
+            "owner_id": "labops-manager",
+            "status": "PENDING",
+            "failure_type": "EVIDENCE_INCOMPLETE",
+            "assigned_worker_id": None,
+            "alternate_worker_evidence": None,
+            "required_final_actor": "verification-auditor",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            binding_path = _write_binding(root)
+            _write_session_contract(root)
+            TraceLog(root / "recovery" / "recovery_trace.jsonl").append(
+                "attempt",
+                attempt["attempt_id"],
+                "ATTEMPT_CREATED",
+                actor="labops-manager",
+                status="RETRY_AFTER_EVIDENCE",
+                extra={"decision": "RETRY_AFTER_EVIDENCE", "attempt": attempt},
+            )
+            (root / recovered["input_artifact"]).write_text("{}", encoding="utf-8")
+            (root / recovered["output_artifact"]).write_text("{}", encoding="utf-8")
+
+            result = emit_handoff(
+                binding_path, root, recovered, command_runner=runner
+            )
+            with self.assertRaisesRegex(HandoffEmissionError, "session contract"):
+                emit_handoff(binding_path, root, ENVELOPE, command_runner=runner)
+
+        self.assertEqual(result["status"], "EMITTED")
+        self.assertEqual(result["attempt_id"], recovered["attempt_id"])
+        self.assertEqual(len(calls), 1)
+
+    def test_tampered_recovery_trace_blocks_emission(self) -> None:
+        recovered = {
+            **ENVELOPE,
+            "attempt_id": "LIVE-ATTEMPT-20260903-003-02",
+            "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-004",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            binding_path = _write_binding(root)
+            _write_session_contract(root)
+            trace_path = root / "recovery" / "recovery_trace.jsonl"
+            TraceLog(trace_path).append(
+                "attempt",
+                recovered["attempt_id"],
+                "ATTEMPT_CREATED",
+                actor="labops-manager",
+                status="RETRY",
+                extra={
+                    "decision": "RETRY",
+                    "attempt": {
+                        "attempt_id": recovered["attempt_id"],
+                        "parent_attempt_id": ENVELOPE["attempt_id"],
+                        "run_id": recovered["run_id"],
+                        "start_state": "RECEIVED",
+                        "resume_point": "RECEIVED",
+                        "owner_id": "labops-manager",
+                        "status": "PENDING",
+                        "failure_type": "WORKER_TIMEOUT",
+                        "assigned_worker_id": None,
+                        "alternate_worker_evidence": None,
+                        "required_final_actor": "verification-auditor",
+                    },
+                },
+            )
+            record = json.loads(trace_path.read_text(encoding="utf-8"))
+            record["extra"]["attempt"]["resume_point"] = "VERIFYING"
+            trace_path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+            (root / recovered["input_artifact"]).write_text("{}", encoding="utf-8")
+            (root / recovered["output_artifact"]).write_text("{}", encoding="utf-8")
+
+            with self.assertRaisesRegex(HandoffEmissionError, "recovery trace"):
+                emit_handoff(binding_path, root, recovered)
+
+    def test_concurrent_emitters_acquire_one_exclusive_receipt(self) -> None:
+        calls = 0
+        calls_lock = threading.Lock()
+        runner_entered = threading.Event()
+        release_runner = threading.Event()
+
+        def runner(command: list[str]) -> subprocess.CompletedProcess[str]:
+            nonlocal calls
+            with calls_lock:
+                calls += 1
+            runner_entered.set()
+            if not release_runner.wait(timeout=2):
+                raise AssertionError("test runner was not released")
+            return subprocess.CompletedProcess(
+                command, 0, stdout='{"event_id":"$concurrent-ok"}', stderr=""
+            )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            binding_path = _write_binding(root)
+            _write_session_contract(root)
+            (root / ENVELOPE["input_artifact"]).write_text("{}", encoding="utf-8")
+            (root / ENVELOPE["output_artifact"]).write_text("{}", encoding="utf-8")
+            outcomes: list[object] = []
+
+            def invoke() -> None:
+                try:
+                    outcomes.append(
+                        emit_handoff(binding_path, root, ENVELOPE, command_runner=runner)
+                    )
+                except HandoffEmissionError as exc:
+                    outcomes.append(exc)
+
+            first = threading.Thread(target=invoke)
+            second = threading.Thread(target=invoke)
+            first.start()
+            self.assertTrue(runner_entered.wait(timeout=2))
+            second.start()
+            second.join(timeout=2)
+            release_runner.set()
+            first.join(timeout=2)
+
+        self.assertEqual(calls, 1)
+        self.assertEqual(
+            [item["status"] for item in outcomes if isinstance(item, dict)],
+            ["EMITTED"],
+        )
+        self.assertEqual(
+            sum(isinstance(item, HandoffEmissionError) for item in outcomes),
+            1,
+        )
 
 
 if __name__ == "__main__":

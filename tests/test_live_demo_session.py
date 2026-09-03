@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import hashlib
 import io
+import re
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -23,6 +24,16 @@ def repo_root() -> Path:
 
 class TestLiveDemoSession(unittest.TestCase):
     def test_manager_task_is_single_trigger_except_human_approval(self) -> None:
+        deployment = json.loads(
+            (repo_root() / "config" / "agentteams-skill-deployment.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        emitter_by_skill = {
+            skill_id: f"{item['skills_root'].rstrip('/')}/{skill_id}/scripts/emit_handoff.py"
+            for item in deployment["deployments"]
+            for skill_id in item["skill_ids"]
+        }
         with tempfile.TemporaryDirectory() as tmp:
             session_root = Path(
                 prepare_session(repo_root(), Path(tmp), "20260903-003")[
@@ -39,42 +50,42 @@ class TestLiveDemoSession(unittest.TestCase):
                 "pack-lab-evidence",
                 "manager_to_collector",
                 "incident_packet.json",
-                "/root/manager-workspace/skills/pack-lab-evidence/scripts/emit_handoff.py",
+                emitter_by_skill["pack-lab-evidence"],
             ),
             (
                 "Evidence Collector",
                 "collect-lab-evidence",
                 "collector_to_rca",
                 "collector-report.json",
-                "/root/hiclaw-fs/agents/evidence-collector/skills/collect-lab-evidence/scripts/emit_handoff.py",
+                emitter_by_skill["collect-lab-evidence"],
             ),
             (
                 "RCA Analyst",
                 "diagnose-lab-incident",
                 "rca_to_planner",
                 "diagnosis/diagnosis_candidates.json",
-                "/root/hiclaw-fs/agents/rca-analyst/skills/diagnose-lab-incident/scripts/emit_handoff.py",
+                emitter_by_skill["diagnose-lab-incident"],
             ),
             (
                 "Experiment Planner",
                 "plan-lab-experiment",
                 "approval_pending",
                 "plan/plan.json",
-                "/root/hiclaw-fs/agents/researcher/skills/plan-lab-experiment/scripts/emit_handoff.py",
+                emitter_by_skill["plan-lab-experiment"],
             ),
             (
                 "Safe Executor",
                 "control-lab-action",
                 "executor_to_auditor",
                 "runs/RUN-LABOPS-AT-004-AGENTTEAMS-003/run_result.json",
-                "/root/hiclaw-fs/agents/controlled-executor/skills/control-lab-action/scripts/emit_handoff.py",
+                emitter_by_skill["control-lab-action"],
             ),
             (
                 "Verification Auditor",
                 "verify-lab-result",
                 "verification_completed",
                 "verification/verification_report.json",
-                "/root/hiclaw-fs/agents/verification-auditor/skills/verify-lab-result/scripts/emit_handoff.py",
+                emitter_by_skill["verify-lab-result"],
             ),
         )
         for role, skill, event, output, emitter in expected_stages:
@@ -90,7 +101,52 @@ class TestLiveDemoSession(unittest.TestCase):
         self.assertIn("Do not copy an incoming event kind", manager_task)
         self.assertIn("correct it internally with the same Worker", manager_task)
         self.assertIn("Do not ask the human to send continue", manager_task)
-        self.assertIn("publish automatically after Auditor completion", manager_task)
+        self.assertIn(
+            "publish automatically only after the Auditor terminal decision",
+            manager_task,
+        )
+        self.assertIn(
+            "write `session.json` with the exact five bindings",
+            manager_task,
+        )
+        self.assertIn('"schema_version": "1.0"', manager_task)
+        self.assertIn('"classification": "NON_FORMAL_LIVE_DEMO"', manager_task)
+        self.assertIn('"session_id": "20260903-003"', manager_task)
+        self.assertIn(
+            '"attempt_id": "LIVE-ATTEMPT-20260903-003-01"',
+            manager_task,
+        )
+        self.assertIn(
+            '"run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-003"',
+            manager_task,
+        )
+        self.assertIn("--event-kind evidence_incomplete", manager_task)
+        self.assertIn(
+            "only after the structured BLOCKED failure artifact validates",
+            manager_task,
+        )
+        terminal_event = "--event-kind terminal_decided"
+        publication_event = "--event-kind commander_published"
+        self.assertIn(terminal_event, manager_task)
+        self.assertLess(
+            manager_task.index(terminal_event),
+            manager_task.index(publication_event),
+        )
+        for stage_event in (
+            "executor_to_gateway",
+            "runner_started",
+            "runner_completed",
+        ):
+            self.assertIn(f"--event-kind {stage_event}", manager_task)
+        emitted_commands = re.findall(
+            r"`(python\S*\s+[^`]*emit_handoff\.py[^`]*)`",
+            manager_task,
+        )
+        self.assertGreaterEqual(len(emitted_commands), 10)
+        self.assertTrue(
+            all(command.startswith("python3 ") for command in emitted_commands),
+            emitted_commands,
+        )
         self.assertIn(
             "governs runtime sequencing and overrides any legacy routing ambiguity",
             manager_task,
@@ -282,6 +338,30 @@ class TestLiveDemoSession(unittest.TestCase):
             )
             self.assertFalse((root / "20260903-003").exists())
             self.assertEqual(first["status"], "PREPARED")
+
+    def test_prepare_detects_run_id_collisions_in_recovery_and_runner_namespaces(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            prior = root / "20260902-099"
+            (prior / "recovery").mkdir(parents=True)
+            (prior / "recovery" / "attempt.json").write_text(
+                json.dumps(
+                    {
+                        "session_id": "20260902-099",
+                        "attempt_id": "LIVE-ATTEMPT-20260902-099-02",
+                        "run_id": "RUN-LABOPS-AT-004-AGENTTEAMS-003",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "RUN-LABOPS-AT-004-AGENTTEAMS-003.*20260902-099",
+            ):
+                prepare_session(repo_root(), root, "20260903-003")
+
+            self.assertFalse((root / "20260903-003").exists())
 
     def test_two_sessions_have_distinct_task_incident_attempt_and_storage_namespaces(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

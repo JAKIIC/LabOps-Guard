@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -25,7 +26,16 @@ MATRIX_USER_ID = re.compile(r"^@[^:\s]+:\S+$")
 EVENT_KIND = re.compile(r"^[a-z][a-z_]*$")
 RUN_ID = re.compile(r"^RUN-LABOPS-AT-004-AGENTTEAMS-[0-9]{3}$")
 MATRIX_EVENT_ID = re.compile(r"^\$\S+$")
+ARTIFACT_REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$")
 RECEIPT_DIRECTORY = ".labops-handoff-receipts"
+MAX_RECOVERY_TRACE_BYTES = 4 * 1024 * 1024
+MAX_RECOVERY_RECORDS = 512
+RECOVERY_DECISIONS = {
+    "RETRY",
+    "RETRY_AFTER_EVIDENCE",
+    "REASSIGN",
+    "HUMAN_TAKEOVER_RESUMED",
+}
 
 
 class HandoffEmissionError(ValueError):
@@ -47,7 +57,11 @@ def _read_object(path: Path) -> dict[str, Any]:
 
 
 def _artifact_path(value: object) -> str:
-    if not isinstance(value, str) or not value or "\\" in value:
+    if (
+        not isinstance(value, str)
+        or ARTIFACT_REF.fullmatch(value) is None
+        or "\\" in value
+    ):
         raise HandoffEmissionError("artifact path must be a non-empty POSIX-relative path")
     if re.match(r"^[A-Za-z]:", value):
         raise HandoffEmissionError("artifact path must not use a drive or absolute path")
@@ -168,6 +182,25 @@ def _atomic_json(path: Path, value: dict[str, Any]) -> None:
             temporary.unlink()
 
 
+def _exclusive_json(path: Path, value: dict[str, Any]) -> None:
+    """Create a complete receipt exactly once across concurrent processes."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = (
+        json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            descriptor = -1
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
 def _event_id(value: object) -> str | None:
     if isinstance(value, str) and MATRIX_EVENT_ID.fullmatch(value):
         return value
@@ -218,6 +251,126 @@ def _existing_receipt(path: Path) -> dict[str, Any] | None:
     return value
 
 
+def _receipt_result(
+    existing: dict[str, Any],
+    message_sha256: str,
+    base_result: dict[str, str],
+) -> dict[str, Any]:
+    if existing.get("message_sha256") != message_sha256:
+        raise HandoffEmissionError("handoff receipt conflicts with current message")
+    if existing.get("status") == "EMITTED" and isinstance(existing.get("event_id"), str):
+        return {"status": "ALREADY_EMITTED", **base_result, "event_id": existing["event_id"]}
+    if existing.get("status") == "PENDING":
+        raise HandoffEmissionError("previous emission outcome is unknown; refusing blind retry")
+    raise HandoffEmissionError("handoff receipt has an unsupported status")
+
+
+def _active_recovery_binding(root: Path, contract: dict[str, Any]) -> dict[str, str]:
+    active = {
+        "attempt_id": str(contract.get("attempt_id") or ""),
+        "run_id": str(contract.get("run_id") or ""),
+    }
+    trace_path = root / "recovery" / "recovery_trace.jsonl"
+    if not trace_path.exists():
+        return active
+    try:
+        trace_path.resolve().relative_to(root)
+    except ValueError as exc:
+        raise HandoffEmissionError("recovery trace escapes the session contract") from exc
+    if trace_path.is_symlink() or not trace_path.is_file():
+        raise HandoffEmissionError("recovery trace is unsafe")
+    try:
+        if trace_path.stat().st_size > MAX_RECOVERY_TRACE_BYTES:
+            raise HandoffEmissionError("recovery trace is too large")
+        lines = [line for line in trace_path.read_text(encoding="utf-8").splitlines() if line]
+    except (OSError, UnicodeError) as exc:
+        raise HandoffEmissionError("recovery trace is unreadable") from exc
+    if len(lines) > MAX_RECOVERY_RECORDS:
+        raise HandoffEmissionError("recovery trace has too many records")
+    previous_hash: str | None = None
+    seen_attempts = {active["attempt_id"]}
+    seen_runs = {active["run_id"]}
+    for expected_seq, line in enumerate(lines):
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise HandoffEmissionError("recovery trace is malformed") from exc
+        if not isinstance(record, dict) or record.get("seq") != expected_seq:
+            raise HandoffEmissionError("recovery trace sequence is invalid")
+        if record.get("prev_hash") != previous_hash:
+            raise HandoffEmissionError("recovery trace hash chain is invalid")
+        claimed_hash = record.get("hash")
+        unsigned = {key: item for key, item in record.items() if key != "hash"}
+        calculated = hashlib.sha256(
+            json.dumps(unsigned, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+        if claimed_hash != calculated:
+            raise HandoffEmissionError("recovery trace hash is invalid")
+        previous_hash = claimed_hash
+        if record.get("event") != "ATTEMPT_CREATED":
+            continue
+        extra = record.get("extra")
+        attempt = extra.get("attempt") if isinstance(extra, dict) else None
+        decision = extra.get("decision") if isinstance(extra, dict) else None
+        if (
+            record.get("entity_type") != "attempt"
+            or record.get("actor") != "labops-manager"
+            or decision not in RECOVERY_DECISIONS
+            or not isinstance(attempt, dict)
+        ):
+            raise HandoffEmissionError("recovery trace attempt is invalid")
+        attempt_id = attempt.get("attempt_id")
+        run_id = attempt.get("run_id")
+        if (
+            not isinstance(attempt_id, str)
+            or re.fullmatch(
+                rf"LIVE-ATTEMPT-{re.escape(str(contract['session_id']))}-[0-9]{{2}}",
+                attempt_id,
+            ) is None
+            or not isinstance(run_id, str)
+            or RUN_ID.fullmatch(run_id) is None
+            or attempt.get("parent_attempt_id") != active["attempt_id"]
+            or attempt.get("owner_id") != "labops-manager"
+            or attempt.get("required_final_actor") != "verification-auditor"
+            or attempt.get("start_state") != "RECEIVED"
+            or attempt.get("status") != "PENDING"
+            or record.get("entity_id") != attempt_id
+            or attempt_id in seen_attempts
+            or run_id in seen_runs
+        ):
+            raise HandoffEmissionError("recovery trace attempt binding is invalid")
+        seen_attempts.add(attempt_id)
+        seen_runs.add(run_id)
+        active = {"attempt_id": attempt_id, "run_id": run_id}
+    return active
+
+
+def _validate_session_contract(root: Path, value: dict[str, str]) -> None:
+    contract_path = root / "session.json"
+    if contract_path.is_symlink() or not contract_path.is_file():
+        raise HandoffEmissionError("authoritative session contract is missing")
+    try:
+        contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise HandoffEmissionError("authoritative session contract is unreadable") from exc
+    if (
+        not isinstance(contract, dict)
+        or contract.get("schema_version") != "1.0"
+        or contract.get("classification") != "NON_FORMAL_LIVE_DEMO"
+    ):
+        raise HandoffEmissionError("authoritative session contract is invalid")
+    names = (
+        "session_id",
+        "task_instance_id",
+        "incident_instance_id",
+    )
+    if any(contract.get(name) != value[name] for name in names):
+        raise HandoffEmissionError("handoff envelope conflicts with session contract")
+    active = _active_recovery_binding(root, contract)
+    if any(active.get(name) != value[name] for name in ("attempt_id", "run_id")):
+        raise HandoffEmissionError("handoff envelope conflicts with active session contract")
+
+
 def emit_handoff(
     binding_path: str | Path,
     session_root: str | Path,
@@ -245,6 +398,7 @@ def emit_handoff(
     root = Path(session_root).resolve()
     if not root.is_dir():
         raise HandoffEmissionError("session root does not exist")
+    _validate_session_contract(root, value)
     for direction in ("input", "output"):
         relative = value[f"{direction}_artifact"]
         artifact = (root / Path(*PurePosixPath(relative).parts)).resolve()
@@ -258,13 +412,7 @@ def emit_handoff(
     receipt_path = root / RECEIPT_DIRECTORY / f"{_receipt_key(value)}.json"
     existing = _existing_receipt(receipt_path)
     if existing is not None:
-        if existing.get("message_sha256") != message_sha256:
-            raise HandoffEmissionError("handoff receipt conflicts with current message")
-        if existing.get("status") == "EMITTED" and isinstance(existing.get("event_id"), str):
-            return {"status": "ALREADY_EMITTED", **base_result, "event_id": existing["event_id"]}
-        if existing.get("status") == "PENDING":
-            raise HandoffEmissionError("previous emission outcome is unknown; refusing blind retry")
-        raise HandoffEmissionError("handoff receipt has an unsupported status")
+        return _receipt_result(existing, message_sha256, base_result)
 
     pending = {
         "schema_version": "1.0",
@@ -272,7 +420,13 @@ def emit_handoff(
         **base_result,
         "created_at": _utc_now(),
     }
-    _atomic_json(receipt_path, pending)
+    try:
+        _exclusive_json(receipt_path, pending)
+    except FileExistsError:
+        existing = _existing_receipt(receipt_path)
+        if existing is None:
+            raise HandoffEmissionError("handoff receipt acquisition failed")
+        return _receipt_result(existing, message_sha256, base_result)
     command = [
         "openclaw",
         "message",

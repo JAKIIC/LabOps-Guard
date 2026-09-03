@@ -47,6 +47,47 @@ class FakeResponse:
 
 
 class MatrixObserverTests(unittest.TestCase):
+    @staticmethod
+    def _approval_contract() -> dict[str, str]:
+        return {
+            "actor": "human-approver",
+            "approval_id": "APR-LIVE-081-001",
+            "plan_id": "PLAN-LIVE-081-001",
+            "canonical_plan_sha256": "a" * 64,
+            "nonce": "nonce-live-081-001",
+            "decision": "APPROVED",
+            "approved_scope": "eval_config.json:evaluation.preprocessing_profile",
+            "approved_at": "2026-08-31T00:00:00Z",
+            "expires_at": "2026-09-01T00:00:00Z",
+        }
+
+    def _complete_approval_event(self, event_id: str, *, structured: bool = True) -> dict:
+        event = self._bound_event(
+            event_id,
+            kind="approval_granted",
+            sender="@human-reviewer:matrix-local.hiclaw.io",
+        )
+        contract = self._approval_contract()
+        event["content"]["body"] += "\n" + "\n".join(
+            f"{name}: {SESSION[name]}"
+            for name in (
+                "session_id",
+                "task_instance_id",
+                "incident_instance_id",
+                "attempt_id",
+                "run_id",
+            )
+        )
+        if structured:
+            event["content"]["labops_event"].update(contract)
+        else:
+            event["content"].pop("labops_event")
+            event["content"]["body"] += "\n" + "\n".join(
+                f"LABOPS_ACTOR: {value}" if name == "actor" else f"{name}: {value}"
+                for name, value in contract.items()
+            )
+        return event
+
     def _bound_event(
         self,
         event_id: str,
@@ -391,18 +432,9 @@ class MatrixObserverTests(unittest.TestCase):
 
     def test_human_approval_requires_a_non_agent_sender_on_the_room_homeserver(self) -> None:
         room = "!manager:matrix-local.hiclaw.io"
-        local = self._bound_event(
-            "$local-approval",
-            kind="approval_granted",
-            sender="@human-reviewer:matrix-local.hiclaw.io",
-        )
-        local["content"]["labops_event"]["actor"] = "human-approver"
-        foreign = self._bound_event(
-            "$foreign-approval",
-            kind="approval_granted",
-            sender="@human-reviewer:evil.example",
-        )
-        foreign["content"]["labops_event"]["actor"] = "human-approver"
+        local = self._complete_approval_event("$local-approval")
+        foreign = self._complete_approval_event("$foreign-approval")
+        foreign["sender"] = "@human-reviewer:evil.example"
         payload = self._sync_payload({
             room: {"timeline": {"events": [local, foreign]}},
         })
@@ -414,13 +446,9 @@ class MatrixObserverTests(unittest.TestCase):
 
     def test_human_approval_accepts_explicit_plain_text_actor_contract(self) -> None:
         room = "!manager:matrix-local.hiclaw.io"
-        event = self._bound_event(
-            "$plain-text-approval",
-            kind="approval_granted",
-            sender="@human-reviewer:matrix-local.hiclaw.io",
+        event = self._complete_approval_event(
+            "$plain-text-approval", structured=False
         )
-        event["content"].pop("labops_event")
-        event["content"]["body"] += " LABOPS_ACTOR: human-approver"
         payload = self._sync_payload({
             room: {"timeline": {"events": [event]}},
         })
@@ -445,6 +473,52 @@ class MatrixObserverTests(unittest.TestCase):
         events = normalize_sync_response(payload, {room: "labops-manager"}, SESSION)
 
         self.assertEqual(events, [])
+
+    def test_human_approval_rejects_rejected_or_incomplete_decisions(self) -> None:
+        room = "!manager:matrix-local.hiclaw.io"
+        rejected = self._complete_approval_event("$rejected-approval")
+        rejected["content"]["labops_event"]["decision"] = "REJECTED"
+        incomplete = self._complete_approval_event("$incomplete-approval")
+        incomplete["content"]["labops_event"].pop("canonical_plan_sha256")
+        payload = self._sync_payload(
+            {room: {"timeline": {"events": [rejected, incomplete]}}}
+        )
+
+        self.assertEqual(
+            normalize_sync_response(payload, {room: "labops-manager"}, SESSION),
+            [],
+        )
+
+    def test_human_approval_rejects_conflicting_structured_and_body_fields(self) -> None:
+        room = "!manager:matrix-local.hiclaw.io"
+        event = self._complete_approval_event("$conflicting-approval")
+        event["content"]["body"] += "\ndecision: REJECTED"
+        conflicting_kind = self._complete_approval_event("$conflicting-kind")
+        conflicting_kind["content"]["body"] += "\nLABOPS_EVENT_KIND: evidence_incomplete"
+        conflicting_actor = self._complete_approval_event("$conflicting-actor")
+        conflicting_actor["content"]["body"] += "\nLABOPS_ACTOR: labops-manager"
+        payload = self._sync_payload({
+            room: {
+                "timeline": {
+                    "events": [event, conflicting_kind, conflicting_actor]
+                }
+            }
+        })
+
+        self.assertEqual(
+            normalize_sync_response(payload, {room: "labops-manager"}, SESSION),
+            [],
+        )
+
+    def test_human_approval_is_accepted_only_in_the_manager_room(self) -> None:
+        room = "!collector:matrix-local.hiclaw.io"
+        event = self._complete_approval_event("$wrong-room-approval")
+        payload = self._sync_payload({room: {"timeline": {"events": [event]}}})
+
+        self.assertEqual(
+            normalize_sync_response(payload, {room: "evidence-collector"}, SESSION),
+            [],
+        )
 
     def test_sync_once_uses_bearer_header_and_returns_sanitized_snapshot(self) -> None:
         room = "!rca:matrix-local.hiclaw.io"

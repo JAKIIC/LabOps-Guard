@@ -47,6 +47,9 @@ OUTPUT_ARTIFACT = re.compile(
     re.IGNORECASE,
 )
 SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
+LOWER_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+APPROVAL_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+APPROVAL_SCOPE = "eval_config.json:evaluation.preprocessing_profile"
 TRANSITIONS = {kind: (source, target) for kind, source, target in EXPECTED_TIMELINE}
 TRANSITIONS.update({
     "evidence_incomplete": ("EVIDENCE_COLLECTING", "BLOCKED"),
@@ -243,6 +246,123 @@ def projection_actor_valid(actor: object, kind: object) -> bool:
     return EVENT_ACTORS.get(kind) == actor
 
 
+def _body_field(body: object, name: str) -> str | None:
+    if not isinstance(body, str):
+        return None
+    matches = re.findall(
+        rf"(?mi)^\s*{re.escape(name)}\s*:\s*([^\r\n]+?)\s*$",
+        body,
+    )
+    if len(matches) != 1:
+        return None
+    value = matches[0].strip()
+    if not value or len(value) > 512 or any(ord(character) < 32 for character in value):
+        return None
+    return value
+
+
+def _body_field_values(body: object, name: str) -> list[str]:
+    if not isinstance(body, str):
+        return []
+    return [
+        value.strip()
+        for value in re.findall(
+            rf"(?mi)^\s*{re.escape(name)}\s*:\s*([^\r\n]+?)\s*$",
+            body,
+        )
+    ]
+
+
+def _approval_contract(
+    structured: dict[str, Any],
+    body: object,
+    bindings: dict[str, str],
+    event_timestamp: str | None,
+) -> dict[str, str] | None:
+    """Validate one complete, affirmative human approval projection.
+
+    This remains non-authoritative UI evidence.  Exact Plan/ApprovalGrant
+    binding is independently verified from immutable artifacts before the
+    Reviewer can mark the approval VERIFIED.
+    """
+
+    for name, expected in bindings.items():
+        if _body_field(body, name) != expected:
+            return None
+
+    field_conflict = False
+
+    def field(name: str) -> object:
+        nonlocal field_conflict
+        value = structured.get(name)
+        values = _body_field_values(body, name)
+        if len(values) > 1:
+            field_conflict = True
+            return None
+        body_value = values[0] if values else None
+        comparable = value[0] if isinstance(value, list) and len(value) == 1 else value
+        if value is not None and body_value is not None and comparable != body_value:
+            field_conflict = True
+            return None
+        return value if value is not None else body_value
+
+    actor = field("actor")
+    if actor is None:
+        actor = _body_field(body, "LABOPS_ACTOR")
+    approval_id = field("approval_id")
+    plan_id = field("plan_id")
+    plan_hash = field("canonical_plan_sha256")
+    nonce = field("nonce")
+    decision = field("decision")
+    scope = field("approved_scope")
+    if isinstance(scope, list) and len(scope) == 1:
+        scope = scope[0]
+    approved_at = field("approved_at")
+    expires_at = field("expires_at")
+    if (
+        field_conflict
+        or actor != "human-approver"
+        or decision != "APPROVED"
+        or not isinstance(approval_id, str)
+        or APPROVAL_TOKEN.fullmatch(approval_id) is None
+        or not isinstance(plan_id, str)
+        or APPROVAL_TOKEN.fullmatch(plan_id) is None
+        or not isinstance(plan_hash, str)
+        or LOWER_SHA256.fullmatch(plan_hash) is None
+        or not isinstance(nonce, str)
+        or len(nonce) < 8
+        or len(nonce) > 128
+        or any(ord(character) < 33 or ord(character) > 126 for character in nonce)
+        or scope != APPROVAL_SCOPE
+        or not isinstance(approved_at, str)
+        or not isinstance(expires_at, str)
+    ):
+        return None
+    try:
+        approved = datetime.fromisoformat(approved_at.replace("Z", "+00:00"))
+        expires = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+        observed = datetime.fromisoformat(event_timestamp.replace("Z", "+00:00"))
+    except (AttributeError, TypeError, ValueError):
+        return None
+    if (
+        approved.tzinfo is None
+        or expires.tzinfo is None
+        or observed.tzinfo is None
+        or not approved <= observed < expires
+    ):
+        return None
+    return {
+        "approval_id": approval_id,
+        "plan_id": plan_id,
+        "canonical_plan_sha256": plan_hash,
+        "nonce": nonce,
+        "decision": decision,
+        "approved_scope": scope,
+        "approved_at": approved_at,
+        "expires_at": expires_at,
+    }
+
+
 def _normalized_event(
     event: dict[str, Any],
     room_id: str,
@@ -261,22 +381,58 @@ def _normalized_event(
     structured = content.get("labops_event")
     structured = structured if isinstance(structured, dict) else {}
     body = content.get("body")
-    kind = structured.get("kind")
-    if not isinstance(kind, str):
-        match = EVENT_KIND.search(body) if isinstance(body, str) else None
-        kind = match.group(1).lower() if match else None
+    structured_kind = structured.get("kind")
+    body_kinds = (
+        [value.lower() for value in EVENT_KIND.findall(body)]
+        if isinstance(body, str)
+        else []
+    )
+    if len(body_kinds) > 1:
+        return None
+    body_kind = body_kinds[0] if body_kinds else None
+    if isinstance(structured_kind, str):
+        kind = structured_kind.lower()
+        if body_kind is not None and body_kind != kind:
+            return None
+    else:
+        kind = body_kind
     if kind not in TRANSITIONS:
         return None
     sender = event.get("sender")
     sender_role = _sender_role(sender, room_id)
+    approval: dict[str, str] | None = None
+    event_timestamp = _event_time(event.get("origin_server_ts"))
     if kind == "approval_granted":
-        body_actor_match = EVENT_ACTOR.search(body) if isinstance(body, str) else None
+        body_actors = (
+            [value.lower() for value in EVENT_ACTOR.findall(body)]
+            if isinstance(body, str)
+            else []
+        )
+        if len(body_actors) > 1:
+            return None
+        body_actor = body_actors[0] if body_actors else None
         declared_actor = structured.get("actor")
-        if declared_actor is None and body_actor_match is not None:
-            declared_actor = body_actor_match.group(1).lower()
-        if declared_actor != "human-approver" or sender_role is not None:
+        if isinstance(declared_actor, str):
+            declared_actor = declared_actor.lower()
+            if body_actor is not None and body_actor != declared_actor:
+                return None
+        else:
+            declared_actor = body_actor
+        if (
+            agent_id != "labops-manager"
+            or declared_actor != "human-approver"
+            or sender_role is not None
+        ):
             return None
         if _sender_localpart(sender, room_id) is None:
+            return None
+        approval = _approval_contract(
+            structured,
+            body,
+            bindings,
+            event_timestamp,
+        )
+        if approval is None:
             return None
         actor = "human-approver"
     else:
@@ -287,14 +443,8 @@ def _normalized_event(
             return None
         actor = expected_actor
     expected_from, expected_to = TRANSITIONS[kind]
-    workflow_from = structured.get("workflow_from")
-    workflow_to = structured.get("workflow_to")
-    if not isinstance(workflow_from, str) or not workflow_from:
-        workflow_from = expected_from
-    if not isinstance(workflow_to, str) or not workflow_to:
-        workflow_to = expected_to
     input_refs, output_refs, artifact_refs = _event_artifact_refs(structured, body)
-    return {
+    normalized = {
         "classification": PROJECTION_CLASSIFICATION,
         "validation_version": PROJECTION_VALIDATION_VERSION,
         "event_id": event_id,
@@ -302,15 +452,18 @@ def _normalized_event(
         **bindings,
         "actor": actor,
         "kind": kind,
-        "timestamp": _event_time(event.get("origin_server_ts")),
-        "workflow_from": workflow_from,
-        "workflow_to": workflow_to,
+        "timestamp": event_timestamp,
+        "workflow_from": expected_from,
+        "workflow_to": expected_to,
         "evidence_state": "OBSERVED",
         "artifact_refs": artifact_refs,
         "input_artifact_refs": input_refs,
         "output_artifact_refs": output_refs,
         "hash_refs": _safe_refs(structured.get("hash_refs"), hashes=True),
     }
+    if approval is not None:
+        normalized["approval"] = approval
+    return normalized
 
 
 def normalize_sync_response(
@@ -564,14 +717,12 @@ def _cache_event(
     ):
         return None
     expected_from, expected_to = TRANSITIONS[str(kind)]
-    workflow_from = value.get("workflow_from")
-    workflow_to = value.get("workflow_to")
     input_refs = _safe_refs(value.get("input_artifact_refs"))
     output_refs = _safe_refs(value.get("output_artifact_refs"))
     artifact_refs = _safe_refs(
         [*input_refs, *output_refs, *_safe_refs(value.get("artifact_refs"))]
     )
-    return {
+    cached = {
         "classification": PROJECTION_CLASSIFICATION,
         "validation_version": PROJECTION_VALIDATION_VERSION,
         "event_id": event_id,
@@ -580,14 +731,35 @@ def _cache_event(
         "actor": actor,
         "kind": kind,
         "timestamp": value.get("timestamp") if isinstance(value.get("timestamp"), str) else None,
-        "workflow_from": workflow_from if isinstance(workflow_from, str) and workflow_from else expected_from,
-        "workflow_to": workflow_to if isinstance(workflow_to, str) and workflow_to else expected_to,
+        "workflow_from": expected_from,
+        "workflow_to": expected_to,
         "evidence_state": "OBSERVED",
         "artifact_refs": artifact_refs,
         "input_artifact_refs": input_refs,
         "output_artifact_refs": output_refs,
         "hash_refs": _safe_refs(value.get("hash_refs"), hashes=True),
     }
+    if kind == "approval_granted":
+        approval = value.get("approval")
+        if not isinstance(approval, dict) or approval.get("decision") != "APPROVED":
+            return None
+        cached["approval"] = {
+            name: approval[name]
+            for name in (
+                "approval_id",
+                "plan_id",
+                "canonical_plan_sha256",
+                "nonce",
+                "decision",
+                "approved_scope",
+                "approved_at",
+                "expires_at",
+            )
+            if isinstance(approval.get(name), str)
+        }
+        if len(cached["approval"]) != 8:
+            return None
+    return cached
 
 
 def write_observer_projection(session_root: str | Path, snapshot: dict) -> None:

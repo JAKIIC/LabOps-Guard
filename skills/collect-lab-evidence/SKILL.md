@@ -38,10 +38,15 @@ Produce evidence, not a diagnosis. Read `references/io-schema.json` before accep
 When a live assignment supplies the five session bindings and an exact emitter command:
 
 1. Re-read and validate the assigned output artifact after writing it.
-2. Use `collector_to_rca` only for validated `EVIDENCE_READY`; use
-   `evidence_incomplete` when a required artifact is genuinely absent.
-3. Run the supplied command through `scripts/emit_handoff.py` exactly once.
-4. Treat only `EMITTED` or `ALREADY_EMITTED` as a completed handoff, then stop and let the
+2. If a required artifact is absent, first write and validate the assigned output artifact
+   (normally `collector-report.json`) with all five session bindings, exact `gaps` and
+   `errors`, `excluded_data_not_read: true`, and `handoff_state: BLOCKED` before emitting
+   `evidence_incomplete`; the failure artifact records the gap without inventing
+   the missing Evidence.
+3. Use `collector_to_rca` only for validated `EVIDENCE_READY`; use
+   `evidence_incomplete` only after the structured failure artifact is valid.
+4. Run the supplied command through `scripts/emit_handoff.py` exactly once.
+5. Treat only `EMITTED` or `ALREADY_EMITTED` as a completed handoff, then stop and let the
    Manager dispatch the next role. Any other result is a safe `BLOCKED` outcome.
 
 ## Safety gates
@@ -54,7 +59,7 @@ When a live assignment supplies the five session bindings and an exact emitter c
 
 ## Version, reuse, and lifecycle
 
-- Skill version: `0.2.1`; I/O schema version: `1.0`.
+- Skill version: `0.2.2`; I/O schema version: `1.0`.
 - Reuse this skill in another repository by supplying its own incident contract, allowlist,
   verification record, and writable evidence workspace. Demo paths and incident IDs are not
   part of the contract.

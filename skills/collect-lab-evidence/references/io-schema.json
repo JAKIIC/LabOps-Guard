@@ -1,13 +1,27 @@
 {
   "schema_version": "1.0",
-  "skill_version": "0.2.1",
+  "skill_version": "0.2.2",
   "input": {
     "required": ["task_id", "incident_id", "snapshot", "allowed_list", "audit_dir", "verification", "workspace"],
     "path_policy": "all inputs explicitly supplied; workspace is the only writable root"
   },
   "output": {
     "required": ["registry_record", "collected_evidence", "verification_status", "evidence_count", "gaps_count", "excluded_data_not_read", "handoff_state"],
-    "allowed_handoff_states": ["EVIDENCE_READY", "BLOCKED"]
+    "allowed_handoff_states": ["EVIDENCE_READY", "BLOCKED"],
+    "failure_artifact": {
+      "required_when": "handoff_state=BLOCKED",
+      "required_fields": [
+        "session_id",
+        "task_instance_id",
+        "incident_instance_id",
+        "attempt_id",
+        "run_id",
+        "gaps",
+        "errors",
+        "excluded_data_not_read",
+        "handoff_state"
+      ]
+    }
   },
   "errors": ["INPUT_MISSING", "PATH_REFUSED", "HASH_MISMATCH", "INVALID_EVIDENCE", "EXCLUDED_DATA_REFUSED"]
 }

@@ -43,8 +43,12 @@ EXPECTED_TIMELINE = [
     ("runner_completed", "EXECUTING", "VERIFYING"),
     ("executor_to_auditor", "EXECUTING", "VERIFYING"),
     ("verification_completed", "VERIFYING", "VERIFYING"),
-    ("terminal_decided", "VERIFYING", "RESOLVED"),
-    ("commander_published", "RESOLVED", "RESOLVED"),
+    ("terminal_decided", "VERIFYING", "DEMO_PASSED_NOT_RESOLVED"),
+    (
+        "commander_published",
+        "DEMO_PASSED_NOT_RESOLVED",
+        "DEMO_PASSED_NOT_RESOLVED",
+    ),
 ]
 EVENT_KINDS = {kind for kind, _, _ in EXPECTED_TIMELINE}
 HANDOFF_EVENT_KINDS = {
@@ -79,8 +83,8 @@ AGENT_PROGRESS = {
     "runner_completed": ("safe-executor", "VERIFYING"),
     "executor_to_auditor": ("safe-executor", "VERIFYING"),
     "verification_completed": ("verification-auditor", "VERIFYING"),
-    "terminal_decided": ("verification-auditor", "RESOLVED"),
-    "commander_published": ("labops-manager", "RESOLVED"),
+    "terminal_decided": ("verification-auditor", "DEMO_PASSED_NOT_RESOLVED"),
+    "commander_published": ("labops-manager", "DEMO_PASSED_NOT_RESOLVED"),
 }
 VERIFIED_HANDOFF_PROGRESS = {
     "evidence-collector": "EVIDENCE_READY",
@@ -219,10 +223,33 @@ def _configured_timeline() -> list[dict[str, Any]]:
     ]
 
 
+def _reset_timeline_evidence(timeline: list[dict[str, Any]], kind: str) -> None:
+    expected = next(row for row in EXPECTED_TIMELINE if row[0] == kind)
+    item = next(row for row in timeline if row["kind"] == kind)
+    item.clear()
+    item.update(_timeline_event(*expected))
+
+
+def _timestamp_is_strictly_later(later: object, earlier: object) -> bool:
+    if not isinstance(later, str) or not isinstance(earlier, str):
+        return False
+    try:
+        later_at = _parse_utc(later)
+        earlier_at = _parse_utc(earlier)
+    except (TypeError, ValueError):
+        return False
+    return later_at is not None and earlier_at is not None and later_at > earlier_at
+
+
 def _archived_timeline(archived: dict[str, Any], verified: bool) -> list[dict[str, Any]]:
     timeline = _configured_timeline()
     if not verified:
         return timeline
+    terminal = next(row for row in timeline if row["kind"] == "terminal_decided")
+    terminal["workflow_to"] = "RESOLVED"
+    published = next(row for row in timeline if row["kind"] == "commander_published")
+    published["workflow_from"] = "RESOLVED"
+    published["workflow_to"] = "RESOLVED"
     handoffs = archived.get("agentteams", {}).get("handoffs", [])
     handoffs = handoffs if isinstance(handoffs, list) else []
 
@@ -315,14 +342,19 @@ def _put_timeline_evidence(
     verified: bool = False,
 ) -> None:
     item = next(row for row in timeline if row["kind"] == kind)
-    if item["evidence_state"] in {"OBSERVED", "VERIFIED"}:
+    if item["evidence_state"] == "VERIFIED":
         return
+    if item["evidence_state"] == "OBSERVED" and not verified:
+        return
+    artifact_refs = _bounded_strings(
+        list(item.get("artifact_refs") or []) + [artifact_ref]
+    )
     item.update({
         "source": source,
         "evidence_state": "VERIFIED" if verified else "OBSERVED",
-        "actor": actor,
-        "timestamp": timestamp,
-        "artifact_refs": [artifact_ref],
+        "actor": actor or item.get("actor"),
+        "timestamp": timestamp or item.get("timestamp"),
+        "artifact_refs": artifact_refs,
     })
 
 
@@ -346,7 +378,7 @@ def _apply_verified_handoffs(
         3: ("hypotheses_ranked", "rca_to_planner"),
         4: ("approval_pending",),
         5: ("executor_to_auditor",),
-        6: ("verification_completed", "commander_published"),
+        6: ("verification_completed",),
     }
     verified_agents: set[str] = set()
     for index, item in enumerate(handoffs, 1):
@@ -386,9 +418,44 @@ def _verification_terminal_state(verification: dict[str, Any]) -> str | None:
     if incident_state == "DEMO_PASSED_NOT_RESOLVED":
         return incident_state
     resolution_status = verification.get("resolution_status")
-    if isinstance(resolution_status, str) and resolution_status:
+    if resolution_status in {"RESOLVED", "ROLLED_BACK", "BLOCKED"}:
         return resolution_status
     return None
+
+
+def _gate_live_terminal_events(
+    timeline: list[dict[str, Any]],
+    verification: dict[str, Any],
+    verifier_status: str,
+) -> None:
+    terminal = next(row for row in timeline if row["kind"] == "terminal_decided")
+    published = next(row for row in timeline if row["kind"] == "commander_published")
+    terminal_state = _verification_terminal_state(verification)
+    terminal_valid = (
+        verifier_status == "VERIFIED"
+        and terminal_state is not None
+        and verification.get("decision") in {"PASS", "POLICY_VIOLATION", "BLOCKED"}
+        and terminal["evidence_state"] == "VERIFIED"
+    )
+    if not terminal_valid:
+        _reset_timeline_evidence(timeline, "terminal_decided")
+        _reset_timeline_evidence(timeline, "commander_published")
+        return
+
+    terminal["workflow_to"] = terminal_state
+    published["workflow_from"] = terminal_state
+    published["workflow_to"] = terminal_state
+    publication_valid = (
+        published["evidence_state"] in {"OBSERVED", "VERIFIED"}
+        and published.get("actor") == "labops-manager"
+        and _timestamp_is_strictly_later(
+            published.get("timestamp"), terminal.get("timestamp")
+        )
+    )
+    if not publication_valid:
+        _reset_timeline_evidence(timeline, "commander_published")
+        return
+    published["evidence_state"] = "VERIFIED"
 
 
 def _empty_runner_outcome() -> dict[str, Any]:
@@ -604,12 +671,6 @@ def _load_live_artifacts(
         else set()
     )
     terminal_state = _verification_terminal_state(verification)
-    if terminal_state:
-        terminal = next(row for row in timeline if row["kind"] == "terminal_decided")
-        terminal["workflow_to"] = terminal_state
-        published = next(row for row in timeline if row["kind"] == "commander_published")
-        published["workflow_from"] = terminal_state
-        published["workflow_to"] = terminal_state
     if approval:
         _put_timeline_evidence(
             timeline,
@@ -658,7 +719,11 @@ def _load_live_artifacts(
             timestamp=verification.get("verified_at"),
             verified=is_verified,
         )
-        if verification.get("decision") in {"PASS", "POLICY_VIOLATION", "BLOCKED"}:
+        if (
+            is_verified
+            and terminal_state is not None
+            and verification.get("decision") in {"PASS", "POLICY_VIOLATION", "BLOCKED"}
+        ):
             _put_timeline_evidence(
                 timeline,
                 "terminal_decided",
@@ -668,6 +733,7 @@ def _load_live_artifacts(
                 timestamp=verification.get("verified_at"),
                 verified=is_verified,
             )
+    _gate_live_terminal_events(timeline, verification, verifier_status)
     return {
         "approval": approval,
         "gateway": gateway,
@@ -1223,25 +1289,28 @@ def build_reviewer_state(
     evidence_sync = _evidence_sync_projection(session_root, str(verifier_status))
     incident = _live_incident(manifest, timeline, effective_binding)
     terminal_state = _verification_terminal_state(verification)
-    if verifier_status == "VERIFIED":
+    terminal = next(row for row in timeline if row["kind"] == "terminal_decided")
+    terminal_verified = (
+        verifier_status == "VERIFIED"
+        and terminal_state is not None
+        and terminal["evidence_state"] == "VERIFIED"
+    )
+    if terminal_verified:
         incident["current_owner"] = "Incident Commander"
         incident["last_active_agent"] = "Verification Auditor"
         published = next(row for row in timeline if row["kind"] == "commander_published")
-        terminal = next(row for row in timeline if row["kind"] == "terminal_decided")
         last = published if published["evidence_state"] == "VERIFIED" else terminal
         incident["last_event"] = last["kind"]
         incident["last_event_at"] = last.get("timestamp")
-        if terminal_state:
-            incident["workflow_state"] = terminal_state
+        incident["workflow_state"] = terminal_state
         for node in agents:
             if node["agent_id"] == "verification-auditor":
                 node["evidence_state"] = "VERIFIED"
-                if terminal_state:
-                    node["workflow_state"] = (
-                        "AUDIT_PASSED"
-                        if verification.get("decision") == "PASS"
-                        else terminal_state
-                    )
+                node["workflow_state"] = (
+                    "AUDIT_PASSED"
+                    if verification.get("decision") == "PASS"
+                    else terminal_state
+                )
 
     if matrix_status == "LIVE":
         source_summary = "LIVE" if verifier_status == "VERIFIED" else "LIVE_PARTIAL"

@@ -46,6 +46,7 @@ def _verified_skill_runtime(_root: Path, _room_map: Path) -> dict:
         "runtime_event_emission": "VERIFIED",
         "skill_count": 7,
         "emitters_verified": 7,
+        "dry_runs_verified": 7,
     }
 
 
@@ -76,6 +77,34 @@ def _ready(mode: str) -> dict:
 
 
 class ReviewerBusinessReadinessProbeTests(unittest.TestCase):
+    def test_probe_requires_the_default_matrix_account_used_by_emitters(self) -> None:
+        channel_status = {
+            "channels": {"matrix": {"configured": True, "running": True}},
+            "channelAccounts": {
+                "matrix": [{
+                    "accountId": "secondary",
+                    "running": True,
+                    "connected": True,
+                    "healthState": "healthy",
+                }]
+            },
+        }
+
+        with (
+            patch("labops.reviewer.shutil.which", return_value="docker"),
+            patch(
+                "labops.reviewer.subprocess.run",
+                return_value=subprocess.CompletedProcess(
+                    ["docker"], 0, stdout=json.dumps(channel_status), stderr=""
+                ),
+            ),
+        ):
+            result = reviewer_mod._probe_agentteams_business_readiness(ROOT)
+
+        self.assertFalse(result["ready"])
+        self.assertEqual(result["ready_count"], 0)
+        self.assertEqual(set(result["components"].values()), {"MATRIX_ACCOUNT_MISSING"})
+
     def test_probe_uses_live_channel_status_instead_of_gateway_health_projection(self) -> None:
         channel_status = {
             "channels": {"matrix": {"configured": True, "running": True}},
@@ -277,6 +306,7 @@ class ReviewerPreflightTests(unittest.TestCase):
                     "runtime_event_emission": "NOT_IMPLEMENTED",
                     "skill_count": 7,
                     "emitters_verified": 0,
+                    "dry_runs_verified": 0,
                 },
                 manager_state_probe=_clean_manager_state,
             )
@@ -317,6 +347,7 @@ class ReviewerPreflightTests(unittest.TestCase):
                     "runtime_event_emission": "VERIFIED",
                     "skill_count": 7,
                     "emitters_verified": 6,
+                    "dry_runs_verified": 6,
                 },
                 manager_state_probe=_clean_manager_state,
             )
@@ -328,6 +359,51 @@ class ReviewerPreflightTests(unittest.TestCase):
         )
         self.assertEqual(
             report["checks"]["agentteams_event_emission"]["emitters_verified"],
+            6,
+        )
+
+    def test_live_mode_blocks_when_one_runtime_emitter_dry_run_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            room_map = Path(tmp) / "rooms.json"
+            room_map.write_text(json.dumps(REAL_ROOM_MAP), encoding="utf-8")
+            report = build_preflight(
+                ROOT,
+                "live",
+                environment={
+                    "LABOPS_MATRIX_HOMESERVER": "http://127.0.0.1:18080",
+                    "LABOPS_MATRIX_ACCESS_TOKEN": "reviewer-secret-token",
+                    "LABOPS_MATRIX_ROOM_MAP": str(room_map),
+                },
+                docker_probe=lambda _root: {"docker": True, "runner_image": True},
+                agentteams_probe=lambda _root: {
+                    "ready": True,
+                    "ready_count": 6,
+                    "required": 6,
+                    "components": {},
+                },
+                matrix_probe=lambda _homeserver, _token, roles: {
+                    "connected": True,
+                    "all_joined": True,
+                    "rooms_expected": len(roles),
+                    "error": None,
+                },
+                skill_runtime_probe=lambda _root, _room_map: {
+                    "status": "VERIFIED",
+                    "runtime_event_emission": "VERIFIED",
+                    "skill_count": 7,
+                    "emitters_verified": 7,
+                    "dry_runs_verified": 6,
+                },
+                manager_state_probe=_clean_manager_state,
+            )
+
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertIn(
+            "AGENTTEAMS_EVENT_EMISSION_UNVERIFIED",
+            report["missing_requirements"],
+        )
+        self.assertEqual(
+            report["checks"]["agentteams_event_emission"]["dry_runs_verified"],
             6,
         )
 

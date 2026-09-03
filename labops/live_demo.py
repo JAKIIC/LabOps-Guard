@@ -11,7 +11,7 @@ import hashlib
 import json
 import re
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from labops.approval_grant import ApprovalBindingError, validate_approval_grant
 from labops.recovery import RecoveryError, load_recovery_overlay
@@ -21,6 +21,9 @@ from labops.trace import TraceLog
 CLASSIFICATION = "NON_FORMAL_LIVE_DEMO"
 SESSION_ID = re.compile(r"^(?P<date>[0-9]{8})-(?P<sequence>[0-9]{3})$")
 RUN_ID = re.compile(r"^RUN-LABOPS-AT-004-AGENTTEAMS-(?P<sequence>[0-9]{3})$")
+RUN_ID_FIELD = re.compile(
+    r'"run_id"\s*:\s*"(RUN-LABOPS-AT-004-AGENTTEAMS-[0-9]{3})"'
+)
 ROLE_ORDER = [
     "labops-manager",
     "evidence-collector",
@@ -100,6 +103,16 @@ def _guard_run_id_collision(sessions_root: Path, manifest: dict) -> None:
         return
     bindings: dict[str, str] = {}
     used_sequences: set[str] = set()
+
+    def register(run_id: str, session_id: str) -> None:
+        owner = bindings.get(run_id)
+        if owner is not None and owner != session_id:
+            raise ValueError(f"Run ID {run_id} is already bound to session {owner}")
+        bindings[run_id] = session_id
+        run_match = RUN_ID.fullmatch(run_id)
+        if run_match is not None:
+            used_sequences.add(run_match.group("sequence"))
+
     for manifest_path in sorted(sessions_root.glob("*/session.json")):
         try:
             existing = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -115,10 +128,28 @@ def _guard_run_id_collision(sessions_root: Path, manifest: dict) -> None:
         session_id = existing.get("session_id")
         if not isinstance(run_id, str) or not isinstance(session_id, str):
             continue
-        bindings[run_id] = session_id
-        run_match = RUN_ID.fullmatch(run_id)
-        if run_match is not None:
-            used_sequences.add(run_match.group("sequence"))
+        register(run_id, session_id)
+
+    inspected = 0
+    for session_dir in sorted(sessions_root.iterdir()):
+        if not session_dir.is_dir() or SESSION_ID.fullmatch(session_dir.name) is None:
+            continue
+        if session_dir.is_symlink():
+            raise ValueError(f"cannot inspect symlinked live session: {session_dir.name}")
+        for artifact in sorted(session_dir.rglob("*")):
+            if artifact.suffix not in {".json", ".jsonl"} or not artifact.is_file():
+                continue
+            inspected += 1
+            if inspected > 4096:
+                raise ValueError("cannot inspect more than 4096 live-session binding files")
+            if artifact.is_symlink() or artifact.stat().st_size > 4 * 1024 * 1024:
+                raise ValueError(f"cannot safely inspect live binding file: {artifact.name}")
+            try:
+                text = artifact.read_text(encoding="utf-8")
+            except (OSError, UnicodeError) as exc:
+                raise ValueError(f"cannot inspect live binding file: {artifact.name}") from exc
+            for match in RUN_ID_FIELD.finditer(text):
+                register(match.group(1), session_dir.name)
 
     owner = bindings.get(manifest["run_id"])
     if owner is None or owner == manifest["session_id"]:
@@ -140,15 +171,15 @@ def _guard_run_id_collision(sessions_root: Path, manifest: dict) -> None:
 
 def _emitter_command(
     manifest: dict,
+    session_root: str,
     emitter_path: str,
     event_kind: str,
     input_artifact: str,
     output_artifact: str,
 ) -> str:
-    session_root = f"/root/hiclaw-fs/shared/tasks/{manifest['storage_namespace'].rstrip('/')}"
     return " ".join(
         (
-            "python",
+            "python3",
             emitter_path,
             "--session-root",
             session_root,
@@ -172,60 +203,153 @@ def _emitter_command(
     )
 
 
-def _manager_task(manifest: dict, frozen_prompt: str) -> str:
-    session_root = f"/root/hiclaw-fs/shared/tasks/{manifest['storage_namespace'].rstrip('/')}"
+def _runtime_contract(project_root: Path, manifest: dict) -> dict:
+    # Imported lazily because the deployment verifier reads Matrix event
+    # definitions, which in turn import this module's role constants.
+    from labops.agentteams_skill_deployment import load_deployment_manifest
+
+    deployment = load_deployment_manifest(project_root)
+    emitters: dict[str, str] = {}
+    for runtime in deployment["deployments"]:
+        skills_root = runtime["skills_root"]
+        for skill_id in runtime["skill_ids"]:
+            emitters[skill_id] = str(
+                PurePosixPath(skills_root) / skill_id / "scripts" / "emit_handoff.py"
+            )
+    required = {
+        "pack-lab-evidence",
+        "collect-lab-evidence",
+        "diagnose-lab-incident",
+        "plan-lab-experiment",
+        "control-lab-action",
+        "verify-lab-result",
+    }
+    if set(emitters) < required:
+        raise ValueError("AgentTeams deployment lacks a required live-demo Skill")
+    try:
+        evidence_source = json.loads(
+            (project_root / "config" / "reviewer-evidence-source.json").read_text(
+                encoding="utf-8"
+            )
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("live Evidence source is not configured") from exc
+    source_root = (
+        evidence_source.get("root") if isinstance(evidence_source, dict) else None
+    )
+    if not isinstance(source_root, str) or not source_root.startswith("/"):
+        raise ValueError("live Evidence source root must be an absolute container path")
+    return {
+        "session_root": str(PurePosixPath(source_root) / manifest["session_id"]),
+        "emitters": emitters,
+    }
+
+
+def _manager_task(manifest: dict, frozen_prompt: str, runtime_contract: dict) -> str:
+    session_root = runtime_contract["session_root"]
+    emitters = runtime_contract["emitters"]
     run_result = f"runs/{manifest['run_id']}/run_result.json"
+    gateway_request = f"runs/{manifest['run_id']}/gateway_request.json"
+    gateway_response = f"runs/{manifest['run_id']}/gateway_response.json"
     stage_commands = {
         "manager_to_collector": _emitter_command(
             manifest,
-            "/root/manager-workspace/skills/pack-lab-evidence/scripts/emit_handoff.py",
+            session_root,
+            emitters["pack-lab-evidence"],
             "manager_to_collector",
             "incident_packet.json",
             "incident_packet.json",
         ),
         "collector_to_rca": _emitter_command(
             manifest,
-            "/root/hiclaw-fs/agents/evidence-collector/skills/collect-lab-evidence/scripts/emit_handoff.py",
+            session_root,
+            emitters["collect-lab-evidence"],
             "collector_to_rca",
+            "incident_packet.json",
+            "collector-report.json",
+        ),
+        "evidence_incomplete": _emitter_command(
+            manifest,
+            session_root,
+            emitters["collect-lab-evidence"],
+            "evidence_incomplete",
             "incident_packet.json",
             "collector-report.json",
         ),
         "rca_to_planner": _emitter_command(
             manifest,
-            "/root/hiclaw-fs/agents/rca-analyst/skills/diagnose-lab-incident/scripts/emit_handoff.py",
+            session_root,
+            emitters["diagnose-lab-incident"],
             "rca_to_planner",
             "collector-report.json",
             "diagnosis/diagnosis_candidates.json",
         ),
         "approval_pending": _emitter_command(
             manifest,
-            "/root/hiclaw-fs/agents/researcher/skills/plan-lab-experiment/scripts/emit_handoff.py",
+            session_root,
+            emitters["plan-lab-experiment"],
             "approval_pending",
             "diagnosis/diagnosis_candidates.json",
             "plan/plan.json",
         ),
+        "executor_to_gateway": _emitter_command(
+            manifest,
+            session_root,
+            emitters["control-lab-action"],
+            "executor_to_gateway",
+            "plan/plan.json",
+            gateway_request,
+        ),
+        "runner_started": _emitter_command(
+            manifest,
+            session_root,
+            emitters["control-lab-action"],
+            "runner_started",
+            gateway_request,
+            gateway_response,
+        ),
+        "runner_completed": _emitter_command(
+            manifest,
+            session_root,
+            emitters["control-lab-action"],
+            "runner_completed",
+            gateway_response,
+            run_result,
+        ),
         "executor_to_auditor": _emitter_command(
             manifest,
-            "/root/hiclaw-fs/agents/controlled-executor/skills/control-lab-action/scripts/emit_handoff.py",
+            session_root,
+            emitters["control-lab-action"],
             "executor_to_auditor",
             "plan/plan.json",
             run_result,
         ),
         "verification_completed": _emitter_command(
             manifest,
-            "/root/hiclaw-fs/agents/verification-auditor/skills/verify-lab-result/scripts/emit_handoff.py",
+            session_root,
+            emitters["verify-lab-result"],
             "verification_completed",
             run_result,
             "verification/verification_report.json",
         ),
+        "terminal_decided": _emitter_command(
+            manifest,
+            session_root,
+            emitters["verify-lab-result"],
+            "terminal_decided",
+            "verification/verification_report.json",
+            "verification/verification_report.json",
+        ),
         "commander_published": _emitter_command(
             manifest,
-            "/root/manager-workspace/skills/pack-lab-evidence/scripts/emit_handoff.py",
+            session_root,
+            emitters["pack-lab-evidence"],
             "commander_published",
             "verification/verification_report.json",
             "evidence_bundle.zip",
         ),
     }
+    canonical_session = json.dumps(manifest, ensure_ascii=False, indent=2)
     orchestration = f"""## Deterministic single-trigger orchestration
 
 This deterministic section governs runtime sequencing and overrides any legacy routing ambiguity
@@ -236,10 +360,18 @@ immediately dispatch the next stage shown below. Do not wait for a heartbeat,
 scheduled history scan, or another human message. Do not copy an incoming event kind
 into the next assignment: each role has its own outgoing kind and command.
 
-Create and validate the session namespace `{session_root}` and its canonical
-`incident_packet.json` before Stage 1. Every Worker assignment must include the
+Create and validate the session namespace `{session_root}`. Before Stage 1,
+write `session.json` with the exact five bindings and the fixed
+`NON_FORMAL_LIVE_DEMO` classification from this task, then write the canonical
+`incident_packet.json`. Every Worker assignment must include the
 unchanged five bindings, its named Skill, exact input/output paths, and the exact
 emitter command below.
+
+Write `session.json` as this complete canonical object (do not omit fields):
+
+```json
+{canonical_session}
+```
 
 ### Stage 1 — Incident Commander → Evidence Collector
 
@@ -258,6 +390,10 @@ emitter command below.
 - Outgoing event: `collector_to_rca`
 - On success: immediately assign Stage 3 to RCA Analyst.
 - Exact emitter command: `{stage_commands['collector_to_rca']}`
+- Failure branch: if and only if the Collector output has
+  `handoff_state: BLOCKED`, first write and validate the complete structured
+  failure artifact in `collector-report.json`; only after the structured BLOCKED failure artifact validates,
+  emit `evidence_incomplete` with `{stage_commands['evidence_incomplete']}` and stop this attempt.
 
 ### Stage 3 — RCA Analyst → Experiment Planner
 
@@ -284,6 +420,12 @@ emitter command below.
 - Output: `{run_result}`
 - Outgoing event: `executor_to_auditor`
 - Entry condition: one valid human ApprovalGrant bound to this exact plan and run.
+- Before calling Gateway, write the bound request and emit `executor_to_gateway`
+  with `{stage_commands['executor_to_gateway']}`.
+- After Gateway accepts the request, emit `runner_started` with
+  `{stage_commands['runner_started']}`.
+- After immutable Runner output exists, emit `runner_completed` with
+  `{stage_commands['runner_completed']}`.
 - On success: immediately assign Stage 6 to Verification Auditor.
 - Exact emitter command: `{stage_commands['executor_to_auditor']}`
 
@@ -293,9 +435,11 @@ emitter command below.
 - Input: `{run_result}`
 - Output: `verification/verification_report.json`
 - Outgoing event: `verification_completed`
-- On success: invoke `pack-lab-evidence`, write `evidence_bundle.zip`, emit
-  `commander_published` with `{stage_commands['commander_published']}`, and
-  publish automatically after Auditor completion.
+- On success: emit `verification_completed`, then emit the Auditor's truthful
+  terminal decision with `{stage_commands['terminal_decided']}`.
+- Only after `terminal_decided` succeeds, the Manager invokes
+  `pack-lab-evidence`, writes `evidence_bundle.zip`, emits `commander_published`
+  with `{stage_commands['commander_published']}`, and must publish automatically only after the Auditor terminal decision.
 - Exact emitter command: `{stage_commands['verification_completed']}`
 
 If a Worker artifact is valid but its event is missing, malformed, or uses the
@@ -323,15 +467,16 @@ plan_id: <exact plan ID>
 canonical_plan_sha256: <64 lowercase hex characters>
 nonce: <new single-use nonce>
 decision: APPROVED
-approved_scope: <exact one-variable scope>
+approved_scope: eval_config.json:evaluation.preprocessing_profile
 approved_at: <UTC timestamp>
 expires_at: <later UTC timestamp>
 ```
 
 Validate every field against `plan/plan.json`; archive the resulting
 ApprovalGrant at `artifacts/DEMO-EVAL-DRIFT-004/approval_grant.json`, then
-immediately dispatch Stage 5. A bare “可以执行” is not an approval event. Human
-rejection uses `decision: REJECTED` and stops safely. No Agent may author this
+immediately dispatch Stage 5. A bare “可以执行” is not an approval event. A human
+rejection must never be labelled `approval_granted`; `decision: REJECTED` stops
+safely and is not projected as an approval. No Agent may author this
 block. This is the only normal point where the workflow waits for the human.
 
 """
@@ -476,12 +621,13 @@ def prepare_session(project_root: str | Path, sessions_root: str | Path, session
     frozen_prompt = (
         project_root / "agentteams" / "prompts" / "eval_drift_task.md"
     ).read_text(encoding="utf-8")
+    runtime_contract = _runtime_contract(project_root, manifest)
     session_root = sessions_root / session_id
     session_root.mkdir(parents=True, exist_ok=False)
     (session_root / "evidence").mkdir()
     _write_json(session_root / "session.json", manifest)
     (session_root / "manager_task.md").write_text(
-        _manager_task(manifest, frozen_prompt), encoding="utf-8"
+        _manager_task(manifest, frozen_prompt, runtime_contract), encoding="utf-8"
     )
     return {
         "status": "PREPARED",

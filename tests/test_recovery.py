@@ -186,6 +186,30 @@ class TestRecoveryOverlay(unittest.TestCase):
         self.assertEqual(second["owner_id"], "labops-manager")
         self.assertNotEqual(second["run_id"], overlay["attempts"][0]["run_id"])
 
+    def test_recovery_skips_run_ids_owned_by_adjacent_sessions(self) -> None:
+        prepare_session(repo_root(), self.sessions_root, "20260831-032")
+
+        result = request_recovery(
+            self.session_root,
+            failure_type="EVIDENCE_INCOMPLETE",
+            requested_by="verification-auditor",
+            source_refs=["evidence/verification.json"],
+        )
+
+        self.assertEqual(
+            result["attempt"]["run_id"],
+            "RUN-LABOPS-AT-004-AGENTTEAMS-033",
+        )
+        reservation = (
+            self.sessions_root
+            / ".labops-run-reservations"
+            / "RUN-LABOPS-AT-004-AGENTTEAMS-033.json"
+        )
+        self.assertEqual(
+            json.loads(reservation.read_text(encoding="utf-8"))["session_id"],
+            "20260831-031",
+        )
+
     def test_read_only_show_does_not_create_recovery_storage(self) -> None:
         overlay = load_recovery_overlay(self.session_root)
         self.assertEqual(overlay["recovery_trace"]["status"], "ABSENT")
